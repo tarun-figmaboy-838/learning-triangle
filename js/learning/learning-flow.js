@@ -13,7 +13,7 @@ import { BOARD } from './workshop-board.js';
 import {
   createPillButton, createBadge, createLens, createGreatJob,
   createOptionCard, createMultiGrid, createSortBoard, createSortResult, createDualCard, createSummaryView,
-} from './workshop-widgets.js';
+  createGhostHand } from './workshop-widgets.js';
 import { createSequenceScope, wait, isAbortError, prefersReducedMotion } from '../core/motion.js';
 
 const FRAME = Object.freeze({ center: { cx: 780, cy: 300 }, stack: { cx: 780, cy: 250 }, dual: { cx: 780, cy: 215 } });
@@ -64,7 +64,33 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
     gameState.update({ learningState: name });
   }
 
+  /**
+   * The ghost hand: after `firstMs` without a touch it shows the gesture once, then again every few seconds
+   * while the learner idles; any touch on the card puts it away for a while. Returns a stop function.
+   */
+  function ghostGuide(show, { firstMs = 1400, everyMs = 5200, afterTouchMs = 7000 } = {}) {
+    stopGhost();
+    const hand = createGhostHand({ hostEl: board.overlayEl });
+    let timer = 0;
+    const schedule = (ms) => { clearTimeout(timer); timer = setTimeout(() => { if (state === 'INTERACTING' || state === 'WAITING_FOR_INPUT') show(hand); schedule(everyMs); }, ms); };
+    const onTouch = () => { hand.stop(); schedule(afterTouchMs); };
+    board.root.addEventListener('pointerdown', onTouch, true);
+    schedule(firstMs);
+    live.ghostStop = () => { clearTimeout(timer); board.root.removeEventListener('pointerdown', onTouch, true); hand.remove(); };
+    return live.ghostStop;
+  }
+  function stopGhost() { live.ghostStop?.(); live.ghostStop = null; }
+  /** An element's centre in overlay px (the card is scaled on the stage). */
+  function overlayPoint(el) {
+    const o = board.overlayEl.getBoundingClientRect();
+    const k = o.width / board.overlayEl.offsetWidth || 1;
+    const r = el.getBoundingClientRect();
+    return [(r.left + r.width / 2 - o.left) / k, (r.top + r.height / 2 - o.top) / k];
+  }
+  const pointAt = (selector) => (hand) => hand.point([...board.overlayEl.querySelectorAll(selector)].filter((el) => !el.disabled).map(overlayPoint));
+
   async function clearOverlay() {
+    stopGhost();
     const children = [...board.overlayEl.children];
     if (!children.length) return;
     if (!reduced()) {
@@ -103,7 +129,8 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       return;
     }
     const frame = frameFor(screen);
-    const target = layoutFromSpec(screen.triangle, frame);
+    canvas.setZoom(screen.zoom ?? 1);
+    const target = layoutFromSpec(screen.triangle, { ...frame, pxPerCm: canvas.pxPerCm });
     const shown = canvas.visible.sides;
     const keepable = screen.keep && shown && (!screen.requires || classificationOf(screen.requires) === screen.requires);
     if (keepable) {
@@ -153,7 +180,7 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
   function badgeUnderTriangle(text, tone) {
     const box = triangleBox();
     audio.play('badge');
-    return createBadge({ overlayEl: board.overlayEl, text, tone, at: { left: Math.round(box.cx - 200), top: Math.round(Math.min(box.bottom + 66, BOARD.canvas.height - 62)), width: 400 } });
+    return createBadge({ overlayEl: board.overlayEl, text, tone, at: { left: Math.round(box.cx), top: Math.round(Math.min(box.bottom + 66, BOARD.canvas.height - 62)), center: true } });
   }
   function columnX() {
     return Math.round(triangleBox().right + COLUMN_GAP);
@@ -270,7 +297,7 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       let morphing = Promise.resolve();
       const morphAll = async () => {
         for (const shape of screen.shapes) {
-          await canvas.morphTo(layoutFromSpec(shape, frame), { duration: 1300, signal: signal() });
+          await canvas.morphTo(layoutFromSpec(shape, { ...frame, pxPerCm: canvas.pxPerCm }), { duration: 1300, signal: signal() });
           await pause(700);
         }
       };
@@ -355,6 +382,7 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       });
       live.card = card;
       await narrate(question.prompt);
+      ghostGuide(pointAt('.ws-option--pill'), { firstMs: 6000 });
       for (;;) {
         setState('WAITING_FOR_INPUT');
         card.setEnabled(true);
@@ -430,12 +458,14 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       // Teaching screens show the ghost corner at once; checkpoints only after a while without success.
       if (screen.hintAfterMs) hintTimer = setTimeout(showHint, screen.hintAfterMs);
       else showHint();
+      ghostGuide((hand) => { const path = canvas.ghostPath(screen.hintVertex ?? 0); if (path && !canvas.isDragging) hand.drag(...path); }, { firstMs: screen.hintAfterMs ? 8000 : 1600 });
       try {
         await withSignal(done, signal());
       } finally {
         clearTimeout(hintTimer);
         canvas.setDrag({ enabled: false, goal: null });
         canvas.clearHint();
+        stopGhost();
       }
       setState('FEEDBACK');
       canvas.sparkleVertices();
@@ -505,7 +535,9 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
         },
       });
       live.sorter = sorter;
+      ghostGuide((hand) => { const path = sorter.ghostPath(); if (path) hand.drag(...path); }, { firstMs: 2200 });
       await withSignal(done, signal());
+      stopGhost();
       setState('FEEDBACK');
       sorter.setEnabled(false);
       audio.play('tada');
@@ -523,9 +555,10 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       let resolveChecked;
       let checked = new Promise((resolve) => { resolveChecked = resolve; });
       const grid = createMultiGrid({ overlayEl: board.overlayEl, cards: screen.cards, audio, onChange: (selection) => check.setEnabled(selection.size > 0) });
-      const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: 400 }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
+      const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: 452 }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
       live.grid = grid;
       live.check = check;
+      ghostGuide(pointAt('.ws-pick'), { firstMs: 6000 });
       for (;;) {
         await withSignal(checked, signal());
         setState('CHECKING');
@@ -560,6 +593,7 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: 566 }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
       live.card = card;
       live.check = check;
+      ghostGuide(pointAt('.ws-dual .ws-option--pill'), { firstMs: 6000 });
       for (;;) {
         await withSignal(checked, signal());
         setState('CHECKING');

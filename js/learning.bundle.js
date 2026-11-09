@@ -4251,7 +4251,6 @@ const LEARNING_COPY = Object.freeze({
   },
   check: 'CHECK',
   continue: 'CONTINUE',
-  dragToSort: 'DRAG TO SORT',
   greatJob: 'GREAT JOB!',
   summary: {
     heading: "Let's summarise what we learned.",
@@ -4276,7 +4275,7 @@ const LEARNING_SCREENS = Object.freeze([
     narration: "Triangles can be of different types. Let's explore them!" },
 
   /* ---- Sides ---- */
-  { id: 'L04', kind: 'measureSides', section: 'sides', triangle: SCALENE_546,
+  { id: 'L04', kind: 'measureSides', zoom: 1.3, section: 'sides', triangle: SCALENE_546,
     narration: "Let's measure the sides of this triangle.", focus: 'measure the sides' },
   { id: 'L05', kind: 'question', section: 'sides', triangle: SCALENE_546, layout: 'stack',
     show: { sideLabels: true },
@@ -4321,7 +4320,7 @@ const LEARNING_SCREENS = Object.freeze([
     success: { badge: 'ISOSCELES', tone: 'isosceles', narration: 'Great! This triangle is isosceles.', highlightEqual: true, name: 'isosceles' } },
 
   /* ---- Angles ---- */
-  { id: 'L11', kind: 'measureAngles', section: 'angles', triangle: { angles: [60, 60, 60], base: 5 },
+  { id: 'L11', kind: 'measureAngles', zoom: 1.3, section: 'angles', triangle: { angles: [60, 60, 60], base: 5 },
     narration: "Now let's measure the angles.", focus: 'measure the angles' },
   { id: 'L12', kind: 'question', section: 'angles', triangle: { angles: [60, 60, 60], base: 5 }, layout: 'stack',
     show: { angleArcs: true, angleLabels: true },
@@ -5482,9 +5481,9 @@ function classifyByAngles(deg) {
 }
 
 /** Everything the lesson shows about a triangle, computed from its corners. */
-function measure(vertices) {
+function measure(vertices, pxPerCm = PX_PER_CM) {
   const px = sideLengthsPx(vertices);
-  const cm = px.map((value) => value / PX_PER_CM);
+  const cm = px.map((value) => value / pxPerCm);
   const deg = anglesDeg(vertices);
   const equalSides = cm.map((value, i) => others(i).some((j) => nearlyEqualCm(value, cm[j])));
   const rightAt = deg.findIndex((value) => Math.abs(value - 90) <= RIGHT_DEG_TOLERANCE);
@@ -5534,15 +5533,15 @@ function cmPointsFromSpec(spec) {
  * Place a spec on the canvas at PX_PER_CM: the shape's bounding box is centred on (cx, cy), or stands
  * on `baseY` when that is given instead. Canvas y runs down, so cm y is flipped.
  */
-function layoutFromSpec(spec, { cx, cy = null, baseY = null }) {
+function layoutFromSpec(spec, { cx, cy = null, baseY = null, pxPerCm = PX_PER_CM }) {
   const pts = cmPointsFromSpec(spec);
   const xs = pts.map((p) => p[0]);
   const ys = pts.map((p) => p[1]);
   const midX = (Math.min(...xs) + Math.max(...xs)) / 2;
   const minY = Math.min(...ys);
   const maxY = Math.max(...ys);
-  const bottom = baseY ?? (cy + ((maxY - minY) * PX_PER_CM) / 2);
-  return pts.map(([x, y]) => [cx + (x - midX) * PX_PER_CM, bottom - (y - minY) * PX_PER_CM]);
+  const bottom = baseY ?? (cy + ((maxY - minY) * pxPerCm) / 2);
+  return pts.map(([x, y]) => [cx + (x - midX) * pxPerCm, bottom - (y - minY) * pxPerCm]);
 }
 
 /* ---------- Keeping a dragged triangle usable ---------- */
@@ -5853,7 +5852,9 @@ function createTriangleCanvas({ host, width, height, audio }) {
   host.appendChild(svg);
   const defs = svgEl('defs');
   const pattern = svgEl('pattern', { id: 'ws-tape-ticks', patternUnits: 'userSpaceOnUse', width: PX_PER_CM, height: 16 });
-  pattern.append(svgEl('rect', { x: 0, y: 0, width: 2, height: 9, fill: '#5a4310' }), svgEl('rect', { x: PX_PER_CM / 2 - 1, y: 0, width: 2, height: 5, fill: '#5a4310' }));
+  const tickLong = svgEl('rect', { x: 0, y: 0, width: 2, height: 9, fill: '#5a4310' });
+  const tickHalf = svgEl('rect', { x: PX_PER_CM / 2 - 1, y: 0, width: 2, height: 5, fill: '#5a4310' });
+  pattern.append(tickLong, tickHalf);
   defs.appendChild(pattern);
   svg.appendChild(defs);
   const toolLayer = svgEl('g', { class: 'ws-tools' });
@@ -5866,10 +5867,9 @@ function createTriangleCanvas({ host, width, height, audio }) {
   const sides = [0, 1, 2].map((i) => {
     const group = svgEl('g', { class: 'ws-side', 'data-index': i });
     const body = svgEl('line', { class: 'ws-side__body' });
-    const trace = svgEl('line', { class: 'ws-side__trace' });
     const tick = svgEl('line', { class: 'ws-tick' });
-    group.append(body, trace, tick);
-    return { group, body, trace, tick };
+    group.append(body, tick);
+    return { group, body, tick };
   });
   const angles = [0, 1, 2].map((i) => {
     const group = svgEl('g', { class: 'ws-angle', 'data-index': i });
@@ -5906,7 +5906,8 @@ function createTriangleCanvas({ host, width, height, audio }) {
 
   let points = [[width / 2, 120], [width / 2 - 180, 420], [width / 2 + 180, 420]];
   let visible = { ...DEFAULT_VISIBLE };
-  let measured = measure(points);
+  let pxPerCm = PX_PER_CM;              // bigger on the measuring screens (setZoom), 1 cm stays 1 cm
+  let measured = measure(points, pxPerCm);
   let drag = { enabled: false, goal: null, bounds: null, silentSnaps: false, onChange: null, onRelease: null };
   let active = null;      // the drag in progress
   let lastSnap = null;
@@ -5918,12 +5919,12 @@ function createTriangleCanvas({ host, width, height, audio }) {
 
   /** Positions every element from the current corners; cheap enough to run on every pointer move. */
   function render() {
-    measured = measure(points);
+    measured = measure(points, pxPerCm);
     for (let i = 0; i < 3; i += 1) {
       const [x1, y1] = points[i];
       const [x2, y2] = points[(i + 1) % 3];
       const s = sides[i];
-      for (const line of [s.body, s.trace]) {
+      for (const line of [s.body]) {
         line.setAttribute('x1', fmt(x1)); line.setAttribute('y1', fmt(y1));
         line.setAttribute('x2', fmt(x2)); line.setAttribute('y2', fmt(y2));
       }
@@ -6052,15 +6053,23 @@ function createTriangleCanvas({ host, width, height, audio }) {
   }
 
   /** A ghost corner and a dashed arrow showing which corner to drag and roughly where. */
+  function hintDirection(index) {
+    const from = points[index];
+    const target = solutionFor(drag.goal, index, points, drag.bounds);
+    const away = vec.sub(target, from);
+    return { from, target, dir: vec.length(away) > 24 ? vec.unit(away) : vec.mul(outwardNormal(points, (index + 1) % 3), 1) };
+  }
+  /** Where the ghost hand should carry corner i: from the corner, the way the hint arrow points. */
+  function ghostPath(index) {
+    if (!drag.goal) return null;
+    const { from, dir } = hintDirection(index);
+    return [[...from], vec.add(from, vec.mul(dir, 120))];
+  }
   function showHint(index, direction = null) {
     clearHint();
     const from = points[index];
     let dir = direction;
-    if (!dir) {
-      const target = solutionFor(drag.goal, index, points, drag.bounds);
-      const away = vec.sub(target, from);
-      dir = vec.length(away) > 24 ? vec.unit(away) : vec.mul(outwardNormal(points, (index + 1) % 3), 1);
-    }
+    if (!dir) dir = hintDirection(index).dir;
     // From the corner outwards: a dashed shaft, an arrowhead pointing the way, and the ghost corner to drag to.
     const start = vec.add(from, vec.mul(dir, 30));
     const shaftEnd = vec.add(from, vec.mul(dir, 66));
@@ -6214,22 +6223,15 @@ function createTriangleCanvas({ host, width, height, audio }) {
     const hook = svgEl('rect', { class: 'ws-tape-strip__hook', x: -3, y: -12, width: 7, height: 24, rx: 2 });
     strip.append(band, ticks, hook);
     toolLayer.appendChild(strip);
-    // The tape's lead: from the tip of the strip up to the hand that holds the case.
+    // The tape runs on from the tip of the strip straight into the tape measure in his hand.
     const lead = hand ? svgEl('line', { class: 'ws-tape-strip__lead' }) : null;
-    const held = hand ? svgEl('rect', { class: 'ws-tape-strip__case', width: 26, height: 18, rx: 4 }) : null;
-    if (hand) toolLayer.append(lead, held);
+    if (hand) toolLayer.append(lead);
     const leadTo = (tip) => {
       const h = hand?.();
       if (!h) return;
       lead.setAttribute('x1', fmt(tip[0])); lead.setAttribute('y1', fmt(tip[1])); lead.setAttribute('x2', fmt(h[0])); lead.setAttribute('y2', fmt(h[1]));
-      held.setAttribute('x', fmt(h[0] - 13)); held.setAttribute('y', fmt(h[1] - 9));
     };
     s.group.classList.add('is-measuring');
-    // The trace line is drawn A→B in the DOM; measuring from the other end runs its dash the other way.
-    for (const line of [s.trace]) { line.setAttribute('x1', fmt(a[0])); line.setAttribute('y1', fmt(a[1])); line.setAttribute('x2', fmt(b[0])); line.setAttribute('y2', fmt(b[1])); }
-    s.trace.style.strokeDasharray = `${fmt(length)} ${fmt(length)}`;
-    s.trace.style.strokeDashoffset = fmt(length);
-    setHidden(s.trace, false);
     audio?.play('drawLine');
     await tween({ duration: reduced() ? 0 : 1500, ease: easings.mechanical, signal, onUpdate: (t) => {
       const along = vec.add(a, vec.mul(direction, length * t));
@@ -6238,7 +6240,6 @@ function createTriangleCanvas({ host, width, height, audio }) {
       band.setAttribute('width', fmt(length * t));
       ticks.setAttribute('width', fmt(length * t));
       hook.setAttribute('x', fmt(length * t - 3));
-      s.trace.style.strokeDashoffset = fmt(length * (1 - t));
       onProgress?.(t, along);
       leadTo(vec.add(along, vec.mul(n, 20)));
     } });
@@ -6246,14 +6247,11 @@ function createTriangleCanvas({ host, width, height, audio }) {
     tape.classList.add('is-leaving');
     strip.classList.add('is-leaving');
     lead?.classList.add('is-leaving');
-    held?.classList.add('is-leaving');
     s.group.classList.remove('is-measuring');
-    setHidden(s.trace, true);
     await wait(reduced() ? 0 : 400, signal);
     tape.remove();
     strip.remove();
     lead?.remove();
-    held?.remove();
     visible.sideLabels = [...new Set([...normaliseSet(visible.sideLabels), index])];
     render();
     audio?.play('measure');
@@ -6310,6 +6308,14 @@ function createTriangleCanvas({ host, width, height, audio }) {
         else delete el.dataset.tone;
       }
     },
+    /** The shape's scale: 1 cm = PX_PER_CM × zoom px (the measuring screens show it bigger). */
+    setZoom(zoom = 1) {
+      pxPerCm = PX_PER_CM * zoom;
+      pattern.setAttribute('width', fmt(pxPerCm));
+      tickHalf.setAttribute('x', fmt(pxPerCm / 2 - 1));
+      render();
+    },
+    get pxPerCm() { return pxPerCm; },
     clearTones() {
       for (const el of [...sides, ...sideLabels]) delete el.group.dataset.tone;
     },
@@ -6339,6 +6345,7 @@ function createTriangleCanvas({ host, width, height, audio }) {
     measureSide,
     measureAngle,
     showHint,
+    ghostPath,
     clearHint,
     showCountChip,
     clearChips,
@@ -6387,18 +6394,18 @@ const GUIDE_FRAMES = Object.freeze({
   think: { src: `${DIR}beaver-think.png`, width: 311, height: 616, centre: 175, ground: 609, body: 603 , hat: [166, 6] },
   cheer: { src: `${DIR}beaver-cheer.png`, width: 392, height: 617, centre: 185, ground: 610, body: 604 , hat: [188, 6] },
   cheerMid: { src: `${DIR}beaver-cheer-mid.png`, width: 368, height: 610, centre: 184, ground: 603, body: 596 , hat: [180, 7] },
-  tape1: { src: `${DIR}beaver-tape-1.png`, width: 333, height: 597, centre: 191, ground: 590, body: 584 , hat: [176, 6], hand: [180, 290] },
-  tape2: { src: `${DIR}beaver-tape-2.png`, width: 375, height: 591, centre: 187, ground: 584, body: 578 , hat: [163, 6], hand: [175, 290] },
-  tape3: { src: `${DIR}beaver-tape-3.png`, width: 409, height: 591, centre: 180, ground: 584, body: 578 , hat: [157, 6], hand: [170, 290] },
+  tape1: { src: `${DIR}beaver-tape-1.png`, width: 333, height: 597, centre: 191, ground: 590, body: 584 , hat: [176, 6], hand: [335, 272] },
+  tape2: { src: `${DIR}beaver-tape-2.png`, width: 375, height: 591, centre: 187, ground: 584, body: 578 , hat: [163, 6], hand: [330, 270] },
+  tape3: { src: `${DIR}beaver-tape-3.png`, width: 409, height: 591, centre: 180, ground: 584, body: 578 , hat: [157, 6], hand: [345, 268] },
   // Holding the protractor: `tool` is the centre of its flat edge (set on the corner), `disc` the way its
   // round side faces, `bodyDir` where his body is relative to the tool (so he can be kept outside the shape).
   protLow: { src: `${DIR}beaver-protractor-low.png`, width: 943, height: 978, centre: 300, ground: 970, body: 963, hat: [400, 7], tool: [678, 890], disc: [0, -1], bodyDir: [-1, 0] },
   protSide: { src: `${DIR}beaver-protractor-side.png`, width: 787, height: 990, centre: 300, ground: 982, body: 976, hat: [240, 6], tool: [560, 340], disc: [1, 0], bodyDir: [-1, 0] },
   protHigh: { src: `${DIR}beaver-protractor-high.png`, width: 631, height: 995, centre: 300, ground: 988, body: 763, hat: [160, 225], tool: [330, 32], disc: [0, 1], bodyDir: [0, 1] },
-  walk1: { src: `${DIR}beaver-walk-1.png`, width: 374, height: 521, centre: 203, ground: 514, body: 508 , hat: [200, 6], hand: [273, 274] },
-  walk2: { src: `${DIR}beaver-walk-2.png`, width: 332, height: 534, centre: 167, ground: 527, body: 521 , hat: [164, 6], hand: [237, 287] },
-  walk3: { src: `${DIR}beaver-walk-3.png`, width: 360, height: 520, centre: 188, ground: 513, body: 507 , hat: [186, 6], hand: [258, 273] },
-  walk4: { src: `${DIR}beaver-walk-4.png`, width: 335, height: 533, centre: 169, ground: 526, body: 520 , hat: [166, 6], hand: [239, 286] },
+  walk1: { src: `${DIR}beaver-walk-1.png`, width: 374, height: 521, centre: 203, ground: 514, body: 508 , hat: [200, 6], hand: [318, 300] },
+  walk2: { src: `${DIR}beaver-walk-2.png`, width: 332, height: 534, centre: 167, ground: 527, body: 521 , hat: [164, 6], hand: [282, 312] },
+  walk3: { src: `${DIR}beaver-walk-3.png`, width: 360, height: 520, centre: 188, ground: 513, body: 507 , hat: [186, 6], hand: [303, 298] },
+  walk4: { src: `${DIR}beaver-walk-4.png`, width: 335, height: 533, centre: 169, ground: 526, body: 520 , hat: [166, 6], hand: [284, 311] },
 });
 /** Each pose is a short cycle of frames. `once` holds the last frame. */
 const POSES = Object.freeze({
@@ -6636,18 +6643,18 @@ __define('js/learning/triangle-figure.js', function () {
  * angles, ticks and the right-angle square are all computed from the shape, never typed in.
  */
 const { cmPointsFromSpec, measure, formatCm, formatDeg, PX_PER_CM } = __require('js/learning/triangle-model.js');
-const { svgEl, fmt, sideLabelPoint, angleLabelPoint, arcPath, squarePoints, tickSegment } = __require('js/learning/triangle-draw.js');
+const { svgEl, fmt, sideLabelPoint, angleLabelPoint, arcPath, squarePoints, tickSegment, outwardNormal } = __require('js/learning/triangle-draw.js');
 /**
  * Options: labels 'sides' | 'angles' | null; ticks (equal-side marks); square (right-angle mark); arcs;
  * tone (side colour); silhouette (filled, no detail).
  */
-function buildTriangleFigure(spec, { width = 260, height = 200, labels = null, ticks = false, square = false, arcs = false, pad = 34, maxScale = PX_PER_CM * 0.78, silhouette = false, strokeScale = 1 } = {}) {
+function buildTriangleFigure(spec, { width = 260, height = 200, labels = null, ticks = false, square = false, arcs = false, pad = 34, maxScale = PX_PER_CM * 0.78, silhouette = false, strokeScale = 1, labelSize = 19 } = {}) {
   const pts = cmPointsFromSpec(spec);
   const xs = pts.map((p) => p[0]);
   const ys = pts.map((p) => p[1]);
   const spanX = Math.max(...xs) - Math.min(...xs);
   const spanY = Math.max(...ys) - Math.min(...ys);
-  const labelPad = labels ? pad + 18 : pad;
+  const labelPad = labels ? pad + labelSize * 1.6 : pad;   // room for the numbers outside the shape
   const scale = Math.min(maxScale, (width - labelPad * 2) / spanX, (height - labelPad * 2) / spanY);
   const midX = (Math.min(...xs) + Math.max(...xs)) / 2;
   const minY = Math.min(...ys);
@@ -6691,8 +6698,13 @@ function buildTriangleFigure(spec, { width = 260, height = 200, labels = null, t
   }
   if (labels === 'sides') {
     for (let i = 0; i < 3; i += 1) {
-      const [x, y] = sideLabelPoint(vertices, i, 26);
-      svg.appendChild(svgEl('text', { x: fmt(x), y: fmt(y), class: 'ws-figure__label ws-figure__label--side' }, [document.createTextNode(formatCm(m.cm[i]))]));
+      // Clear of the line and its tick whichever way the side runs: the gap grows by half the text's
+      // extent along the side's normal (its width on an upright side, its height on a flat one).
+      const text = formatCm(m.cm[i]);
+      const n = outwardNormal(vertices, i);
+      const gap = 6 * strokeScale + 6 + Math.abs(n[0]) * (text.length * labelSize * 0.29) + Math.abs(n[1]) * (labelSize * 0.55);
+      const [x, y] = sideLabelPoint(vertices, i, gap);
+      svg.appendChild(svgEl('text', { x: fmt(x), y: fmt(y), class: 'ws-figure__label ws-figure__label--side', style: `font-size:${labelSize}px` }, [document.createTextNode(text)]));
     }
   }
   if (labels === 'angles') {
@@ -6716,7 +6728,7 @@ const { buildTriangleFigure } = __require('js/learning/triangle-figure.js');
 const { LEARNING_COPY } = __require('js/learning/learning-content.js');
 const { playClassAnimation, prefersReducedMotion } = __require('js/core/motion.js');
 const ASSETS = 'assets/images/workshop/';
-const WIDGET_IMAGES = [`${ASSETS}sort-crate.png`, `${ASSETS}btn-pill.png`, `${ASSETS}card-frame.png`, `${ASSETS}summary-card.png`];
+const WIDGET_IMAGES = [`${ASSETS}crate-back.png`, `${ASSETS}crate-front.png`, `${ASSETS}card-frame.png`, `${ASSETS}summary-card.png`];
 
 const escapeHtml = (value) => String(value).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -6771,7 +6783,9 @@ function createPillButton({ overlayEl, text, tone = 'yellow', at = {}, onPress, 
 
 function createBadge({ overlayEl, text, tone, at, size = 'normal' }) {
   const badge = element('div', `ws-badge ws-badge--${tone} ws-badge--${size}`, escapeHtml(text));
-  place(badge, at);
+  const { center = false, ...where } = at ?? {};
+  place(badge, where);
+  if (center) badge.classList.add('ws-badge--centred');            // hugs its word, centred on `left`
   overlayEl.appendChild(badge);
   enter(badge, 'is-entering', 600);
   return { element: badge, remove: () => leave(badge) };
@@ -6859,9 +6873,10 @@ function createMultiGrid({ overlayEl, cards, audio, onChange }) {
     button.dataset.card = card.id;
     button.setAttribute('aria-pressed', 'false');
     button.style.setProperty('--i', String(index));
-    const figure = buildTriangleFigure(card.spec, { width: 300, height: 206, labels: 'angles', arcs: true, square: true, pad: 30 });
-    button.append(element('span', 'ws-letter', escapeHtml(card.id)), figure.svg, element('span', 'ws-pick__state', ''));
-    place(button, { left: 70 + index * 350, top: 56 });
+    button.setAttribute('aria-label', `Triangle ${card.id}`);
+    const figure = buildTriangleFigure(card.spec, { width: 310, height: 250, labels: 'angles', arcs: true, square: true, pad: 30 });
+    button.append(figure.svg, element('span', 'ws-pick__tick', ''));     // picked: a tick badge, no words
+    place(button, { left: 60 + index * 370, top: 70 });
     button.addEventListener('click', () => {
       if (!enabled) return;
       audio?.play('uiTap');
@@ -6896,7 +6911,6 @@ function createMultiGrid({ overlayEl, cards, audio, onChange }) {
         const right = correctIds.includes(b.dataset.card);
         b.classList.toggle('is-correct', right);
         b.classList.toggle('is-dimmed', !right);
-        b.querySelector('.ws-pick__state').textContent = right ? '✓ SELECTED' : '';
       }
     },
     remove: () => leave(root),
@@ -6909,10 +6923,10 @@ function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
   const root = element('div', 'ws-sort');
   // One triangle at a time sits on the bench with its lengths in view; the rest wait in a small pile on
   // the left; the crates stand along the bottom. Reading the lengths (and the tick marks) is the task.
-  const BENCH = Object.freeze({ left: 520, top: 6, width: 520, height: 290 });
-  const DECK = Object.freeze({ left: 150, top: 110, step: 12 });
-  const BIN = Object.freeze({ width: 280, xs: [180, 640, 1100], top: 350 });
-  const PLACED = Object.freeze({ width: 180, height: 105 });
+  const BENCH = Object.freeze({ left: 610, top: 0, width: 340, height: 340 });   // a square card on the bench
+  const DECK_TILT = [0, -10, 10];                   // the waiting cards sit behind it, tilted left and right (a card stack)
+  const BIN = Object.freeze({ width: 280, xs: [180, 640, 1100], top: 410 });
+  const PLACED = Object.freeze({ width: 130, height: 130 });
   const cardEls = new Map();
   const binEls = new Map();
   let enabled = true;
@@ -6926,28 +6940,31 @@ function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     node.setAttribute('role', 'button');
     node.setAttribute('tabindex', '0');
     node.setAttribute('aria-label', `Triangle ${card.id}`);
-    const figure = buildTriangleFigure(card.spec, { width: 480, height: 252, labels: 'sides', ticks: true, pad: 32 });
+    const figure = buildTriangleFigure(card.spec, { width: 320, height: 320, labels: 'sides', ticks: true, pad: 14, strokeScale: 1.5, labelSize: 25 });
     node.appendChild(figure.svg);
     node.style.setProperty('--i', String(index));
     node.style.zIndex = String(3 - index);
-    place(node, { left: DECK.left + index * DECK.step, top: DECK.top + index * DECK.step });
+    place(node, BENCH);
+    node.style.setProperty('--tilt', `${DECK_TILT[index % DECK_TILT.length]}deg`);
     root.appendChild(node);
     cardEls.set(card.id, { node, card, figure, placed: false });
   });
-  const chip = element('div', 'ws-chip ws-chip--sort', escapeHtml(LEARNING_COPY.dragToSort));
-  place(chip, { top: 306 });
-  root.appendChild(chip);
   bins.forEach((bin, index) => {
     const node = element('div', 'ws-bin ws-interactive');
     node.dataset.bin = bin.id;
     node.setAttribute('role', 'button');
     node.setAttribute('tabindex', '0');
     node.setAttribute('aria-label', `${bin.label} crate`);
-    node.innerHTML = `<span class="ws-bin__label ws-tag ws-tag--${bin.id}">${escapeHtml(bin.label)}</span><div class="ws-bin__crate"><img src="${ASSETS}sort-crate.png" alt="" draggable="false"></div>`;
+    // Two layers: the crate's back (behind a dropped card) and its front panel with the name (in front of it),
+    // so a card dropped in sinks into the box.
+    node.innerHTML = `<img class="ws-bin__back" src="${ASSETS}crate-back.png" alt="" draggable="false">`;
     node.style.setProperty('--i', String(index));
     place(node, { left: BIN.xs[index], top: BIN.top, width: BIN.width });
-    root.appendChild(node);
-    binEls.set(bin.id, { node, bin });
+    const front = element('div', 'ws-bin-front', `<img src="${ASSETS}crate-front.png" alt="" draggable="false"><span class="ws-bin__label ws-tag ws-tag--${bin.id}">${escapeHtml(bin.label)}</span>`);
+    front.style.setProperty('--i', String(index));
+    place(front, { left: BIN.xs[index], top: BIN.top, width: BIN.width });
+    root.append(node, front);
+    binEls.set(bin.id, { node, front, bin });
   });
 
   const scaleFactor = () => (root.getBoundingClientRect().width / root.offsetWidth) || 1;
@@ -6959,7 +6976,7 @@ function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     return null;
   }
   function highlightBin(id) {
-    for (const { node, bin } of binEls.values()) node.classList.toggle('is-over', bin.id === id);
+    for (const { node, front, bin } of binEls.values()) { node.classList.toggle('is-over', bin.id === id); front.classList.toggle('is-over', bin.id === id); }
   }
   function select(id) {
     selected = id;
@@ -6989,16 +7006,23 @@ function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     bodies.forEach((line, i) => { if (equal[i]) line.classList.add('is-lit'); });
     audio?.play('snapEqual');
     await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 520));
-    // Then it flies into its crate on a small arc and shrinks to fit.
+    // Then it flies over its crate, shrinking, and drops in: it ends behind the front panel, its top showing.
+    const left = BIN.xs[k] + (BIN.width - PLACED.width) / 2;
     entry.node.classList.add('is-placed');
-    entry.node.style.zIndex = '2';
-    place(entry.node, { left: BIN.xs[k] + (BIN.width - PLACED.width) / 2, top: BIN.top + 62 + 34, width: PLACED.width, height: PLACED.height });
-    await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 520));
+    entry.node.style.zIndex = '5';
+    place(entry.node, { left, top: BIN.top - PLACED.height - 30, width: PLACED.width, height: PLACED.height });
+    await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 480));
+    entry.node.style.zIndex = '2';                                     // between the crate's back and its front
+    entry.node.classList.add('is-dropping');
+    place(entry.node, { left, top: BIN.top - 22 });
+    await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 420));
+    entry.node.classList.remove('is-dropping');
     bodies.forEach((line) => line.classList.remove('is-lit'));
     bin.node.classList.add('is-filled');
     audio?.play('snapRight');
     playClassAnimation(bin.node, 'is-receiving', 520);
-    playClassAnimation(bin.node.querySelector('.ws-bin__label'), 'is-pulse', 480);
+    playClassAnimation(bin.front, 'is-receiving', 520);
+    playClassAnimation(bin.front.querySelector('.ws-bin__label'), 'is-pulse', 480);
     placedCount += 1;
     await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 260));
     advance();
@@ -7080,6 +7104,11 @@ function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     element: root,
     get placedCount() { return placedCount; },
     setEnabled(value) { enabled = Boolean(value); root.classList.toggle('is-locked', !enabled); },
+    /** Overlay-space points for the ghost hand: the bench card's centre and the three crates' label tops. */
+    ghostPath() {
+      if (!current) return null;
+      return [[BENCH.left + BENCH.width / 2, BENCH.top + BENCH.height / 2], ...BIN.xs.map((x) => [x + BIN.width / 2, BIN.top + 110])];
+    },
     /** Client-space centres and which triangle is on the bench (for the automated play-through). */
     targets() {
       const centre = (node) => { const r = node.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
@@ -7095,11 +7124,11 @@ function createSortResult({ overlayEl, cards, bins }) {
   bins.forEach((bin, index) => {
     const card = cards.find((c) => c.answer === bin.id);
     const panel = element('div', `ws-result-card ws-result-card--${bin.id}`);
-    const figure = buildTriangleFigure(card.spec, { width: 340, height: 200, labels: null, ticks: true, pad: 30 });
-    const cm = figure.measured.cm.map((v) => Math.round(v * 10) / 10).join(' / ');
-    panel.append(element('span', 'ws-result-card__tick', ''), figure.svg, element('span', 'ws-result-card__name', escapeHtml(bin.label)), element('span', 'ws-result-card__cm', `${cm} cm`));
+    // Its lengths and tick marks stay on the figure (that is why it belongs here); the name sits on the card's edge.
+    const figure = buildTriangleFigure(card.spec, { width: 360, height: 250, labels: 'sides', ticks: true, pad: 34 });
+    panel.append(element('span', 'ws-result-card__tick', ''), figure.svg, element('span', `ws-badge ws-badge--small ws-result-card__name`, escapeHtml(bin.label)));
     panel.style.setProperty('--i', String(index));
-    place(panel, { left: 120 + index * 480, top: 60 });
+    place(panel, { left: 130 + index * 450, top: 90 });
     root.appendChild(panel);
   });
   overlayEl.appendChild(root);
@@ -7255,7 +7284,49 @@ function createSummaryView({ overlayEl, screen }) {
     remove: () => leave(root),
   };
 }
-  return { WIDGET_IMAGES, createPillButton, createBadge, createLens, createGreatJob, createOptionCard, createMultiGrid, createSortBoard, createSortResult, createDualCard, createSummaryView };
+
+/* ---------- The ghost hand: shows the gesture after a moment of idling (Fishing Frenzy's hand nudge) ---------- */
+const HAND_SVG = `<svg class="ws-ghost__hand" viewBox="0 0 64 80" aria-hidden="true"><path d="M20 7c0-3.6 2.9-6.5 6.5-6.5S33 3.4 33 7v25.5l3.4-1.3c3.2-1.2 6.8.3 8.1 3.4l.3.7 2.7-1c3.2-1.1 6.7.4 8 3.6l.4 1 2-.6c3.3-1 6.8.8 7.8 4.1.2.7.3 1.4.3 2.1V58c0 11.6-9.4 21-21 21h-6.4c-7.8 0-15-4.3-18.6-11.3L2.6 47.4c-1.6-3.1-.4-6.9 2.7-8.5 2.8-1.5 6.2-.7 8.1 1.8L20 49V7z" fill="#fff" stroke="#123b63" stroke-width="3.2" stroke-linejoin="round"/><path d="M33 33v12M45 35v10M55 38v8" stroke="#123b63" stroke-width="2.6" stroke-linecap="round" opacity=".55"/></svg>`;
+function createGhostHand({ hostEl }) {
+  const root = element('div', 'ws-ghost', `<span class="ws-ghost__dot"></span><span class="ws-ghost__ring"></span>${HAND_SVG}`);
+  root.hidden = true;
+  hostEl.appendChild(root);
+  let anim = null;
+  const reduced = () => prefersReducedMotion();
+  const at = ([x, y], extra = {}) => ({ transform: `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`, ...extra });
+  function play(frames, duration, { pressed = false } = {}) {
+    anim?.cancel();
+    if (reduced()) return Promise.resolve();
+    root.hidden = false;
+    root.classList.toggle('is-dragging', pressed);
+    anim = root.animate(frames, { duration, easing: 'ease-in-out', fill: 'forwards' });
+    return anim.finished.then(() => { root.hidden = true; }).catch(() => {});
+  }
+  return {
+    element: root,
+    /** Press on `from`, carry a ghost of it along `path`, let go at the end. */
+    drag(from, ...path) {
+      const pts = [from, ...path];
+      const step = 0.62 / Math.max(1, pts.length - 1);
+      const frames = [at(from, { opacity: 0, offset: 0 }), at(from, { opacity: 1, offset: 0.12 }), at(from, { opacity: 1, offset: 0.22 })];
+      pts.slice(1).forEach((p, i) => frames.push(at(p, { opacity: 1, offset: 0.22 + step * (i + 1) })));
+      frames.push(at(pts[pts.length - 1], { opacity: 1, offset: 0.9 }), at(pts[pts.length - 1], { opacity: 0, offset: 1 }));
+      return play(frames, 1100 + 650 * (pts.length - 1), { pressed: true });
+    },
+    /** Point along the choices one after another (no tap: it never picks one). */
+    point(points) {
+      if (!points.length) return Promise.resolve();
+      const step = 0.8 / points.length;
+      const frames = [at(points[0], { opacity: 0, offset: 0 })];
+      points.forEach((p, i) => { frames.push(at(p, { opacity: 1, offset: 0.08 + step * i })); frames.push(at([p[0], p[1] + 10], { opacity: 1, offset: 0.08 + step * i + step * 0.45 })); });
+      frames.push(at(points[points.length - 1], { opacity: 0, offset: 1 }));
+      return play(frames, 900 * points.length + 600);
+    },
+    stop() { anim?.cancel(); anim = null; root.hidden = true; },
+    remove() { this.stop(); root.remove(); },
+  };
+}
+  return { WIDGET_IMAGES, createPillButton, createBadge, createLens, createGreatJob, createOptionCard, createMultiGrid, createSortBoard, createSortResult, createDualCard, createSummaryView, createGhostHand };
 });
 __define('js/learning/learning-flow.js', function () {
 /**
@@ -7270,7 +7341,7 @@ __define('js/learning/learning-flow.js', function () {
 const { LEARNING_SCREENS, LEARNING_COPY } = __require('js/learning/learning-content.js');
 const { layoutFromSpec, goalMet } = __require('js/learning/triangle-model.js');
 const { BOARD } = __require('js/learning/workshop-board.js');
-const { createPillButton, createBadge, createLens, createGreatJob, createOptionCard, createMultiGrid, createSortBoard, createSortResult, createDualCard, createSummaryView } = __require('js/learning/workshop-widgets.js');
+const { createPillButton, createBadge, createLens, createGreatJob, createOptionCard, createMultiGrid, createSortBoard, createSortResult, createDualCard, createSummaryView, createGhostHand } = __require('js/learning/workshop-widgets.js');
 const { createSequenceScope, wait, isAbortError, prefersReducedMotion } = __require('js/core/motion.js');
 const FRAME = Object.freeze({ center: { cx: 780, cy: 300 }, stack: { cx: 780, cy: 250 }, dual: { cx: 780, cy: 215 } });
 const DRAG_BOUNDS = Object.freeze({ left: 80, top: 40, right: BOARD.canvas.width - 80, bottom: BOARD.canvas.height - 40 });
@@ -7320,7 +7391,33 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
     gameState.update({ learningState: name });
   }
 
+  /**
+   * The ghost hand: after `firstMs` without a touch it shows the gesture once, then again every few seconds
+   * while the learner idles; any touch on the card puts it away for a while. Returns a stop function.
+   */
+  function ghostGuide(show, { firstMs = 1400, everyMs = 5200, afterTouchMs = 7000 } = {}) {
+    stopGhost();
+    const hand = createGhostHand({ hostEl: board.overlayEl });
+    let timer = 0;
+    const schedule = (ms) => { clearTimeout(timer); timer = setTimeout(() => { if (state === 'INTERACTING' || state === 'WAITING_FOR_INPUT') show(hand); schedule(everyMs); }, ms); };
+    const onTouch = () => { hand.stop(); schedule(afterTouchMs); };
+    board.root.addEventListener('pointerdown', onTouch, true);
+    schedule(firstMs);
+    live.ghostStop = () => { clearTimeout(timer); board.root.removeEventListener('pointerdown', onTouch, true); hand.remove(); };
+    return live.ghostStop;
+  }
+  function stopGhost() { live.ghostStop?.(); live.ghostStop = null; }
+  /** An element's centre in overlay px (the card is scaled on the stage). */
+  function overlayPoint(el) {
+    const o = board.overlayEl.getBoundingClientRect();
+    const k = o.width / board.overlayEl.offsetWidth || 1;
+    const r = el.getBoundingClientRect();
+    return [(r.left + r.width / 2 - o.left) / k, (r.top + r.height / 2 - o.top) / k];
+  }
+  const pointAt = (selector) => (hand) => hand.point([...board.overlayEl.querySelectorAll(selector)].filter((el) => !el.disabled).map(overlayPoint));
+
   async function clearOverlay() {
+    stopGhost();
     const children = [...board.overlayEl.children];
     if (!children.length) return;
     if (!reduced()) {
@@ -7359,7 +7456,8 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       return;
     }
     const frame = frameFor(screen);
-    const target = layoutFromSpec(screen.triangle, frame);
+    canvas.setZoom(screen.zoom ?? 1);
+    const target = layoutFromSpec(screen.triangle, { ...frame, pxPerCm: canvas.pxPerCm });
     const shown = canvas.visible.sides;
     const keepable = screen.keep && shown && (!screen.requires || classificationOf(screen.requires) === screen.requires);
     if (keepable) {
@@ -7409,7 +7507,7 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
   function badgeUnderTriangle(text, tone) {
     const box = triangleBox();
     audio.play('badge');
-    return createBadge({ overlayEl: board.overlayEl, text, tone, at: { left: Math.round(box.cx - 200), top: Math.round(Math.min(box.bottom + 66, BOARD.canvas.height - 62)), width: 400 } });
+    return createBadge({ overlayEl: board.overlayEl, text, tone, at: { left: Math.round(box.cx), top: Math.round(Math.min(box.bottom + 66, BOARD.canvas.height - 62)), center: true } });
   }
   function columnX() {
     return Math.round(triangleBox().right + COLUMN_GAP);
@@ -7526,7 +7624,7 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       let morphing = Promise.resolve();
       const morphAll = async () => {
         for (const shape of screen.shapes) {
-          await canvas.morphTo(layoutFromSpec(shape, frame), { duration: 1300, signal: signal() });
+          await canvas.morphTo(layoutFromSpec(shape, { ...frame, pxPerCm: canvas.pxPerCm }), { duration: 1300, signal: signal() });
           await pause(700);
         }
       };
@@ -7611,6 +7709,7 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       });
       live.card = card;
       await narrate(question.prompt);
+      ghostGuide(pointAt('.ws-option--pill'), { firstMs: 6000 });
       for (;;) {
         setState('WAITING_FOR_INPUT');
         card.setEnabled(true);
@@ -7686,12 +7785,14 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       // Teaching screens show the ghost corner at once; checkpoints only after a while without success.
       if (screen.hintAfterMs) hintTimer = setTimeout(showHint, screen.hintAfterMs);
       else showHint();
+      ghostGuide((hand) => { const path = canvas.ghostPath(screen.hintVertex ?? 0); if (path && !canvas.isDragging) hand.drag(...path); }, { firstMs: screen.hintAfterMs ? 8000 : 1600 });
       try {
         await withSignal(done, signal());
       } finally {
         clearTimeout(hintTimer);
         canvas.setDrag({ enabled: false, goal: null });
         canvas.clearHint();
+        stopGhost();
       }
       setState('FEEDBACK');
       canvas.sparkleVertices();
@@ -7761,7 +7862,9 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
         },
       });
       live.sorter = sorter;
+      ghostGuide((hand) => { const path = sorter.ghostPath(); if (path) hand.drag(...path); }, { firstMs: 2200 });
       await withSignal(done, signal());
+      stopGhost();
       setState('FEEDBACK');
       sorter.setEnabled(false);
       audio.play('tada');
@@ -7779,9 +7882,10 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       let resolveChecked;
       let checked = new Promise((resolve) => { resolveChecked = resolve; });
       const grid = createMultiGrid({ overlayEl: board.overlayEl, cards: screen.cards, audio, onChange: (selection) => check.setEnabled(selection.size > 0) });
-      const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: 400 }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
+      const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: 452 }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
       live.grid = grid;
       live.check = check;
+      ghostGuide(pointAt('.ws-pick'), { firstMs: 6000 });
       for (;;) {
         await withSignal(checked, signal());
         setState('CHECKING');
@@ -7816,6 +7920,7 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: 566 }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
       live.card = card;
       live.check = check;
+      ghostGuide(pointAt('.ws-dual .ws-option--pill'), { firstMs: 6000 });
       for (;;) {
         await withSignal(checked, signal());
         setState('CHECKING');

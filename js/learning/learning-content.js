@@ -17,7 +17,6 @@ export const LEARNING_COPY = Object.freeze({
   },
   check: 'CHECK',
   continue: 'CONTINUE',
-  dragToSort: 'DRAG TO SORT',
   greatJob: 'GREAT JOB!',
   summary: {
     heading: "Let's summarise what we learned.",
@@ -42,7 +41,7 @@ export const LEARNING_SCREENS = Object.freeze([
     narration: "Triangles can be of different types. Let's explore them!" },
 
   /* ---- Sides ---- */
-  { id: 'L04', kind: 'measureSides', section: 'sides', triangle: SCALENE_546,
+  { id: 'L04', kind: 'measureSides', zoom: 1.3, section: 'sides', triangle: SCALENE_546,
     narration: "Let's measure the sides of this triangle.", focus: 'measure the sides' },
   { id: 'L05', kind: 'question', section: 'sides', triangle: SCALENE_546, layout: 'stack',
     show: { sideLabels: true },
@@ -87,7 +86,7 @@ export const LEARNING_SCREENS = Object.freeze([
     success: { badge: 'ISOSCELES', tone: 'isosceles', narration: 'Great! This triangle is isosceles.', highlightEqual: true, name: 'isosceles' } },
 
   /* ---- Angles ---- */
-  { id: 'L11', kind: 'measureAngles', section: 'angles', triangle: { angles: [60, 60, 60], base: 5 },
+  { id: 'L11', kind: 'measureAngles', zoom: 1.3, section: 'angles', triangle: { angles: [60, 60, 60], base: 5 },
     narration: "Now let's measure the angles.", focus: 'measure the angles' },
   { id: 'L12', kind: 'question', section: 'angles', triangle: { angles: [60, 60, 60], base: 5 }, layout: 'stack',
     show: { angleArcs: true, angleLabels: true },

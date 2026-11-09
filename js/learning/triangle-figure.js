@@ -4,19 +4,19 @@
  * angles, ticks and the right-angle square are all computed from the shape, never typed in.
  */
 import { cmPointsFromSpec, measure, formatCm, formatDeg, PX_PER_CM } from './triangle-model.js';
-import { svgEl, fmt, sideLabelPoint, angleLabelPoint, arcPath, squarePoints, tickSegment } from './triangle-draw.js';
+import { svgEl, fmt, sideLabelPoint, angleLabelPoint, arcPath, squarePoints, tickSegment, outwardNormal } from './triangle-draw.js';
 
 /**
  * Options: labels 'sides' | 'angles' | null; ticks (equal-side marks); square (right-angle mark); arcs;
  * tone (side colour); silhouette (filled, no detail).
  */
-export function buildTriangleFigure(spec, { width = 260, height = 200, labels = null, ticks = false, square = false, arcs = false, pad = 34, maxScale = PX_PER_CM * 0.78, silhouette = false, strokeScale = 1 } = {}) {
+export function buildTriangleFigure(spec, { width = 260, height = 200, labels = null, ticks = false, square = false, arcs = false, pad = 34, maxScale = PX_PER_CM * 0.78, silhouette = false, strokeScale = 1, labelSize = 19 } = {}) {
   const pts = cmPointsFromSpec(spec);
   const xs = pts.map((p) => p[0]);
   const ys = pts.map((p) => p[1]);
   const spanX = Math.max(...xs) - Math.min(...xs);
   const spanY = Math.max(...ys) - Math.min(...ys);
-  const labelPad = labels ? pad + 18 : pad;
+  const labelPad = labels ? pad + labelSize * 1.6 : pad;   // room for the numbers outside the shape
   const scale = Math.min(maxScale, (width - labelPad * 2) / spanX, (height - labelPad * 2) / spanY);
   const midX = (Math.min(...xs) + Math.max(...xs)) / 2;
   const minY = Math.min(...ys);
@@ -60,8 +60,13 @@ export function buildTriangleFigure(spec, { width = 260, height = 200, labels = 
   }
   if (labels === 'sides') {
     for (let i = 0; i < 3; i += 1) {
-      const [x, y] = sideLabelPoint(vertices, i, 26);
-      svg.appendChild(svgEl('text', { x: fmt(x), y: fmt(y), class: 'ws-figure__label ws-figure__label--side' }, [document.createTextNode(formatCm(m.cm[i]))]));
+      // Clear of the line and its tick whichever way the side runs: the gap grows by half the text's
+      // extent along the side's normal (its width on an upright side, its height on a flat one).
+      const text = formatCm(m.cm[i]);
+      const n = outwardNormal(vertices, i);
+      const gap = 6 * strokeScale + 6 + Math.abs(n[0]) * (text.length * labelSize * 0.29) + Math.abs(n[1]) * (labelSize * 0.55);
+      const [x, y] = sideLabelPoint(vertices, i, gap);
+      svg.appendChild(svgEl('text', { x: fmt(x), y: fmt(y), class: 'ws-figure__label ws-figure__label--side', style: `font-size:${labelSize}px` }, [document.createTextNode(text)]));
     }
   }
   if (labels === 'angles') {

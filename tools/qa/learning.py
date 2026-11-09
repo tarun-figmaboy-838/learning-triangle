@@ -85,8 +85,10 @@ OVERLAP_JS = """
   for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
     const a = items[i], b = items[j];
     if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
-    const inCrate = (x, y) => x.el.matches('.ws-sort-card.is-placed') && y.el.matches('.ws-bin');   // a sorted card sits in its crate by design
+    const inCrate = (x, y) => x.el.matches('.ws-sort-card.is-placed, .ws-bin') && y.el.matches('.ws-bin, .ws-bin-front');   // a sorted card sits in its crate by design
     if (inCrate(a, b) || inCrate(b, a)) continue;
+    if (a.el.matches('.ws-sort-card.is-waiting') || b.el.matches('.ws-sort-card.is-waiting')) continue;   // the deck sits behind the bench card
+    if (a.el.matches('.ws-ghost') || b.el.matches('.ws-ghost')) continue;                           // the ghost hand passes over things
     if (together.has(`${a.kind}|${b.kind}`) || together.has(`${b.kind}|${a.kind}`)) continue;
     const w = Math.min(a.r, b.r) - Math.max(a.l, b.l), h = Math.min(a.b, b.b) - Math.max(a.t, b.t);
     if (w > 4 && h > 4) hits.push(`${a.tag}"${a.text}" x ${b.tag}"${b.text}" ${Math.round(w)}x${Math.round(h)}px`);

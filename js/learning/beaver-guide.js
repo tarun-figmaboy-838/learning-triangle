@@ -19,18 +19,18 @@ export const GUIDE_FRAMES = Object.freeze({
   think: { src: `${DIR}beaver-think.png`, width: 311, height: 616, centre: 175, ground: 609, body: 603 , hat: [166, 6] },
   cheer: { src: `${DIR}beaver-cheer.png`, width: 392, height: 617, centre: 185, ground: 610, body: 604 , hat: [188, 6] },
   cheerMid: { src: `${DIR}beaver-cheer-mid.png`, width: 368, height: 610, centre: 184, ground: 603, body: 596 , hat: [180, 7] },
-  tape1: { src: `${DIR}beaver-tape-1.png`, width: 333, height: 597, centre: 191, ground: 590, body: 584 , hat: [176, 6], hand: [180, 290] },
-  tape2: { src: `${DIR}beaver-tape-2.png`, width: 375, height: 591, centre: 187, ground: 584, body: 578 , hat: [163, 6], hand: [175, 290] },
-  tape3: { src: `${DIR}beaver-tape-3.png`, width: 409, height: 591, centre: 180, ground: 584, body: 578 , hat: [157, 6], hand: [170, 290] },
+  tape1: { src: `${DIR}beaver-tape-1.png`, width: 333, height: 597, centre: 191, ground: 590, body: 584 , hat: [176, 6], hand: [335, 272] },
+  tape2: { src: `${DIR}beaver-tape-2.png`, width: 375, height: 591, centre: 187, ground: 584, body: 578 , hat: [163, 6], hand: [330, 270] },
+  tape3: { src: `${DIR}beaver-tape-3.png`, width: 409, height: 591, centre: 180, ground: 584, body: 578 , hat: [157, 6], hand: [345, 268] },
   // Holding the protractor: `tool` is the centre of its flat edge (set on the corner), `disc` the way its
   // round side faces, `bodyDir` where his body is relative to the tool (so he can be kept outside the shape).
   protLow: { src: `${DIR}beaver-protractor-low.png`, width: 943, height: 978, centre: 300, ground: 970, body: 963, hat: [400, 7], tool: [678, 890], disc: [0, -1], bodyDir: [-1, 0] },
   protSide: { src: `${DIR}beaver-protractor-side.png`, width: 787, height: 990, centre: 300, ground: 982, body: 976, hat: [240, 6], tool: [560, 340], disc: [1, 0], bodyDir: [-1, 0] },
   protHigh: { src: `${DIR}beaver-protractor-high.png`, width: 631, height: 995, centre: 300, ground: 988, body: 763, hat: [160, 225], tool: [330, 32], disc: [0, 1], bodyDir: [0, 1] },
-  walk1: { src: `${DIR}beaver-walk-1.png`, width: 374, height: 521, centre: 203, ground: 514, body: 508 , hat: [200, 6], hand: [273, 274] },
-  walk2: { src: `${DIR}beaver-walk-2.png`, width: 332, height: 534, centre: 167, ground: 527, body: 521 , hat: [164, 6], hand: [237, 287] },
-  walk3: { src: `${DIR}beaver-walk-3.png`, width: 360, height: 520, centre: 188, ground: 513, body: 507 , hat: [186, 6], hand: [258, 273] },
-  walk4: { src: `${DIR}beaver-walk-4.png`, width: 335, height: 533, centre: 169, ground: 526, body: 520 , hat: [166, 6], hand: [239, 286] },
+  walk1: { src: `${DIR}beaver-walk-1.png`, width: 374, height: 521, centre: 203, ground: 514, body: 508 , hat: [200, 6], hand: [318, 300] },
+  walk2: { src: `${DIR}beaver-walk-2.png`, width: 332, height: 534, centre: 167, ground: 527, body: 521 , hat: [164, 6], hand: [282, 312] },
+  walk3: { src: `${DIR}beaver-walk-3.png`, width: 360, height: 520, centre: 188, ground: 513, body: 507 , hat: [186, 6], hand: [303, 298] },
+  walk4: { src: `${DIR}beaver-walk-4.png`, width: 335, height: 533, centre: 169, ground: 526, body: 520 , hat: [166, 6], hand: [284, 311] },
 });
 /** Each pose is a short cycle of frames. `once` holds the last frame. */
 const POSES = Object.freeze({

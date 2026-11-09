@@ -20,7 +20,9 @@ export function createTriangleCanvas({ host, width, height, audio }) {
   host.appendChild(svg);
   const defs = svgEl('defs');
   const pattern = svgEl('pattern', { id: 'ws-tape-ticks', patternUnits: 'userSpaceOnUse', width: PX_PER_CM, height: 16 });
-  pattern.append(svgEl('rect', { x: 0, y: 0, width: 2, height: 9, fill: '#5a4310' }), svgEl('rect', { x: PX_PER_CM / 2 - 1, y: 0, width: 2, height: 5, fill: '#5a4310' }));
+  const tickLong = svgEl('rect', { x: 0, y: 0, width: 2, height: 9, fill: '#5a4310' });
+  const tickHalf = svgEl('rect', { x: PX_PER_CM / 2 - 1, y: 0, width: 2, height: 5, fill: '#5a4310' });
+  pattern.append(tickLong, tickHalf);
   defs.appendChild(pattern);
   svg.appendChild(defs);
   const toolLayer = svgEl('g', { class: 'ws-tools' });
@@ -33,10 +35,9 @@ export function createTriangleCanvas({ host, width, height, audio }) {
   const sides = [0, 1, 2].map((i) => {
     const group = svgEl('g', { class: 'ws-side', 'data-index': i });
     const body = svgEl('line', { class: 'ws-side__body' });
-    const trace = svgEl('line', { class: 'ws-side__trace' });
     const tick = svgEl('line', { class: 'ws-tick' });
-    group.append(body, trace, tick);
-    return { group, body, trace, tick };
+    group.append(body, tick);
+    return { group, body, tick };
   });
   const angles = [0, 1, 2].map((i) => {
     const group = svgEl('g', { class: 'ws-angle', 'data-index': i });
@@ -73,7 +74,8 @@ export function createTriangleCanvas({ host, width, height, audio }) {
 
   let points = [[width / 2, 120], [width / 2 - 180, 420], [width / 2 + 180, 420]];
   let visible = { ...DEFAULT_VISIBLE };
-  let measured = measure(points);
+  let pxPerCm = PX_PER_CM;              // bigger on the measuring screens (setZoom), 1 cm stays 1 cm
+  let measured = measure(points, pxPerCm);
   let drag = { enabled: false, goal: null, bounds: null, silentSnaps: false, onChange: null, onRelease: null };
   let active = null;      // the drag in progress
   let lastSnap = null;
@@ -85,12 +87,12 @@ export function createTriangleCanvas({ host, width, height, audio }) {
 
   /** Positions every element from the current corners; cheap enough to run on every pointer move. */
   function render() {
-    measured = measure(points);
+    measured = measure(points, pxPerCm);
     for (let i = 0; i < 3; i += 1) {
       const [x1, y1] = points[i];
       const [x2, y2] = points[(i + 1) % 3];
       const s = sides[i];
-      for (const line of [s.body, s.trace]) {
+      for (const line of [s.body]) {
         line.setAttribute('x1', fmt(x1)); line.setAttribute('y1', fmt(y1));
         line.setAttribute('x2', fmt(x2)); line.setAttribute('y2', fmt(y2));
       }
@@ -219,15 +221,23 @@ export function createTriangleCanvas({ host, width, height, audio }) {
   }
 
   /** A ghost corner and a dashed arrow showing which corner to drag and roughly where. */
+  function hintDirection(index) {
+    const from = points[index];
+    const target = solutionFor(drag.goal, index, points, drag.bounds);
+    const away = vec.sub(target, from);
+    return { from, target, dir: vec.length(away) > 24 ? vec.unit(away) : vec.mul(outwardNormal(points, (index + 1) % 3), 1) };
+  }
+  /** Where the ghost hand should carry corner i: from the corner, the way the hint arrow points. */
+  function ghostPath(index) {
+    if (!drag.goal) return null;
+    const { from, dir } = hintDirection(index);
+    return [[...from], vec.add(from, vec.mul(dir, 120))];
+  }
   function showHint(index, direction = null) {
     clearHint();
     const from = points[index];
     let dir = direction;
-    if (!dir) {
-      const target = solutionFor(drag.goal, index, points, drag.bounds);
-      const away = vec.sub(target, from);
-      dir = vec.length(away) > 24 ? vec.unit(away) : vec.mul(outwardNormal(points, (index + 1) % 3), 1);
-    }
+    if (!dir) dir = hintDirection(index).dir;
     // From the corner outwards: a dashed shaft, an arrowhead pointing the way, and the ghost corner to drag to.
     const start = vec.add(from, vec.mul(dir, 30));
     const shaftEnd = vec.add(from, vec.mul(dir, 66));
@@ -381,22 +391,15 @@ export function createTriangleCanvas({ host, width, height, audio }) {
     const hook = svgEl('rect', { class: 'ws-tape-strip__hook', x: -3, y: -12, width: 7, height: 24, rx: 2 });
     strip.append(band, ticks, hook);
     toolLayer.appendChild(strip);
-    // The tape's lead: from the tip of the strip up to the hand that holds the case.
+    // The tape runs on from the tip of the strip straight into the tape measure in his hand.
     const lead = hand ? svgEl('line', { class: 'ws-tape-strip__lead' }) : null;
-    const held = hand ? svgEl('rect', { class: 'ws-tape-strip__case', width: 26, height: 18, rx: 4 }) : null;
-    if (hand) toolLayer.append(lead, held);
+    if (hand) toolLayer.append(lead);
     const leadTo = (tip) => {
       const h = hand?.();
       if (!h) return;
       lead.setAttribute('x1', fmt(tip[0])); lead.setAttribute('y1', fmt(tip[1])); lead.setAttribute('x2', fmt(h[0])); lead.setAttribute('y2', fmt(h[1]));
-      held.setAttribute('x', fmt(h[0] - 13)); held.setAttribute('y', fmt(h[1] - 9));
     };
     s.group.classList.add('is-measuring');
-    // The trace line is drawn A→B in the DOM; measuring from the other end runs its dash the other way.
-    for (const line of [s.trace]) { line.setAttribute('x1', fmt(a[0])); line.setAttribute('y1', fmt(a[1])); line.setAttribute('x2', fmt(b[0])); line.setAttribute('y2', fmt(b[1])); }
-    s.trace.style.strokeDasharray = `${fmt(length)} ${fmt(length)}`;
-    s.trace.style.strokeDashoffset = fmt(length);
-    setHidden(s.trace, false);
     audio?.play('drawLine');
     await tween({ duration: reduced() ? 0 : 1500, ease: easings.mechanical, signal, onUpdate: (t) => {
       const along = vec.add(a, vec.mul(direction, length * t));
@@ -405,7 +408,6 @@ export function createTriangleCanvas({ host, width, height, audio }) {
       band.setAttribute('width', fmt(length * t));
       ticks.setAttribute('width', fmt(length * t));
       hook.setAttribute('x', fmt(length * t - 3));
-      s.trace.style.strokeDashoffset = fmt(length * (1 - t));
       onProgress?.(t, along);
       leadTo(vec.add(along, vec.mul(n, 20)));
     } });
@@ -413,14 +415,11 @@ export function createTriangleCanvas({ host, width, height, audio }) {
     tape.classList.add('is-leaving');
     strip.classList.add('is-leaving');
     lead?.classList.add('is-leaving');
-    held?.classList.add('is-leaving');
     s.group.classList.remove('is-measuring');
-    setHidden(s.trace, true);
     await wait(reduced() ? 0 : 400, signal);
     tape.remove();
     strip.remove();
     lead?.remove();
-    held?.remove();
     visible.sideLabels = [...new Set([...normaliseSet(visible.sideLabels), index])];
     render();
     audio?.play('measure');
@@ -477,6 +476,14 @@ export function createTriangleCanvas({ host, width, height, audio }) {
         else delete el.dataset.tone;
       }
     },
+    /** The shape's scale: 1 cm = PX_PER_CM × zoom px (the measuring screens show it bigger). */
+    setZoom(zoom = 1) {
+      pxPerCm = PX_PER_CM * zoom;
+      pattern.setAttribute('width', fmt(pxPerCm));
+      tickHalf.setAttribute('x', fmt(pxPerCm / 2 - 1));
+      render();
+    },
+    get pxPerCm() { return pxPerCm; },
     clearTones() {
       for (const el of [...sides, ...sideLabels]) delete el.group.dataset.tone;
     },
@@ -506,6 +513,7 @@ export function createTriangleCanvas({ host, width, height, audio }) {
     measureSide,
     measureAngle,
     showHint,
+    ghostPath,
     clearHint,
     showCountChip,
     clearChips,

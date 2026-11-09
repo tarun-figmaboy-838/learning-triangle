@@ -119,10 +119,9 @@ every label is live text. Transparent PNG unless noted.
 | `beaver-tape-1/2/3.png` | ~333–409 × 591–597 | pulling the tape (front view) |
 | `beaver-protractor-low.png`, `-side.png`, `-high.png` | ≈ 900 × 980 | holding the protractor with its flat edge down / sideways / up, set onto a corner |
 | `beaver-walk-1/2/3/4.png` | ~332–374 × 520–534 | side-view walk cycle with the tape (walking along a side) |
-| `sort-crate.png` | 339 × 277 | the sorting crates |
+| `crate-back.png`, `crate-front.png` | 924 × 681 | the sorting crate in two layers, so a dropped card sinks in behind the front panel |
 | `card-frame.png` | 1495 × 799 | the lesson card itself: flat cream panel, navy edge, gold line, corner screws (stretched to 1600 × 820, shown at 110%) |
 | `summary-card.png` | 816 × 848 | the square summary card with its ribbon tab; the name and sentence are live text |
-| `btn-pill.png` | 707 × 270 | the yellow answer buttons (9-sliced, text live) |
 
 Frames come from four sheets, so each is registered on the boots' centre and scaled to a common body
 height in `beaver-guide.js` (`GUIDE_FRAMES`); poses are short frame cycles with a 90 ms cross-fade and
@@ -186,3 +185,13 @@ drag targets, sorting targets) for the play-through; `?vo=0` turns narration off
   each part taking the box when its first word is due. The sides / angles that are not being named step
   back to 42%, and a
   bright spark runs along each named side.
+- Buttons and chips are Fishing Frenzy's own CSS, not images: answers and CHECK are its glossy yellow
+  "crystal pill" (white border, amber ring, two gloss highlights; green when right, grey when wrong), CONTINUE /
+  "You're ready!" its orange done pill, and every shape name its flat white chip with the bright-blue rim.
+- The measuring screens (L04, L11) show the triangle 30% bigger (`zoom` on the screen; `setZoom` on the canvas
+  scales px per cm, so every centimetre still reads true).
+- Checkpoint cards (multi-pick, sort bench, sort result) are Fishing Frenzy's shape card: white to ice-blue,
+  white border, blue rim, raised blue base; a picked card turns gold with a tick badge, a right one teal. The
+  both-ways checkpoint labels its rows with Fishing Frenzy's gold chip ("BY SIDES", "BY ANGLES").
+- While a side is measured only the tape shows, running beside the side and straight into the tape measure in
+  the beaver's hand; the side itself is not over-drawn.

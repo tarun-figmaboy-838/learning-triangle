@@ -67,9 +67,9 @@ export function classifyByAngles(deg) {
 }
 
 /** Everything the lesson shows about a triangle, computed from its corners. */
-export function measure(vertices) {
+export function measure(vertices, pxPerCm = PX_PER_CM) {
   const px = sideLengthsPx(vertices);
-  const cm = px.map((value) => value / PX_PER_CM);
+  const cm = px.map((value) => value / pxPerCm);
   const deg = anglesDeg(vertices);
   const equalSides = cm.map((value, i) => others(i).some((j) => nearlyEqualCm(value, cm[j])));
   const rightAt = deg.findIndex((value) => Math.abs(value - 90) <= RIGHT_DEG_TOLERANCE);
@@ -119,15 +119,15 @@ export function cmPointsFromSpec(spec) {
  * Place a spec on the canvas at PX_PER_CM: the shape's bounding box is centred on (cx, cy), or stands
  * on `baseY` when that is given instead. Canvas y runs down, so cm y is flipped.
  */
-export function layoutFromSpec(spec, { cx, cy = null, baseY = null }) {
+export function layoutFromSpec(spec, { cx, cy = null, baseY = null, pxPerCm = PX_PER_CM }) {
   const pts = cmPointsFromSpec(spec);
   const xs = pts.map((p) => p[0]);
   const ys = pts.map((p) => p[1]);
   const midX = (Math.min(...xs) + Math.max(...xs)) / 2;
   const minY = Math.min(...ys);
   const maxY = Math.max(...ys);
-  const bottom = baseY ?? (cy + ((maxY - minY) * PX_PER_CM) / 2);
-  return pts.map(([x, y]) => [cx + (x - midX) * PX_PER_CM, bottom - (y - minY) * PX_PER_CM]);
+  const bottom = baseY ?? (cy + ((maxY - minY) * pxPerCm) / 2);
+  return pts.map(([x, y]) => [cx + (x - midX) * pxPerCm, bottom - (y - minY) * pxPerCm]);
 }
 
 /* ---------- Keeping a dragged triangle usable ---------- */
