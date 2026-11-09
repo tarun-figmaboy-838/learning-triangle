@@ -11,13 +11,13 @@ import { prefersReducedMotion } from '../core/motion.js';
 const DIR = 'assets/images/workshop/';
 /** Per frame: the art, its size, the x of the boots' centre, the y of the ground line, the body height (for a common scale). */
 export const GUIDE_FRAMES = Object.freeze({
-  idle: { src: `${DIR}beaver-measure.png`, width: 356, height: 619, centre: 147, ground: 612, body: 606 , hat: [167, 6] },
+  idle: { src: `${DIR}beaver-measure.png`, width: 356, height: 619, centre: 209, ground: 612, body: 606 , hat: [189, 6] },
   blink: { src: `${DIR}beaver-idle-blink.png`, width: 324, height: 607, centre: 198, ground: 600, body: 593 , hat: [186, 7] },
   talk: { src: `${DIR}beaver-idle-talk.png`, width: 321, height: 607, centre: 191, ground: 600, body: 594 , hat: [184, 6] },
   point: { src: `${DIR}beaver-point.png`, width: 402, height: 615, centre: 204, ground: 608, body: 602 , hat: [177, 6] },
   pointMid: { src: `${DIR}beaver-point-mid.png`, width: 371, height: 609, centre: 176, ground: 602, body: 596 , hat: [176, 6] },
   think: { src: `${DIR}beaver-think.png`, width: 311, height: 616, centre: 175, ground: 609, body: 603 , hat: [166, 6] },
-  cheer: { src: `${DIR}beaver-cheer.png`, width: 392, height: 617, centre: 185, ground: 610, body: 604 , hat: [188, 6] },
+  cheer: { src: `${DIR}beaver-cheer.png`, width: 392, height: 617, centre: 207, ground: 610, body: 604 , hat: [204, 6] },
   cheerMid: { src: `${DIR}beaver-cheer-mid.png`, width: 368, height: 610, centre: 184, ground: 603, body: 596 , hat: [180, 7] },
   tape1: { src: `${DIR}beaver-tape-1.png`, width: 333, height: 597, centre: 191, ground: 590, body: 584 , hat: [176, 6], hand: [335, 272] },
   tape2: { src: `${DIR}beaver-tape-2.png`, width: 375, height: 591, centre: 187, ground: 584, body: 578 , hat: [163, 6], hand: [330, 270] },
@@ -27,6 +27,9 @@ export const GUIDE_FRAMES = Object.freeze({
   protLow: { src: `${DIR}beaver-protractor-low.png`, width: 943, height: 978, centre: 300, ground: 970, body: 963, hat: [400, 7], tool: [678, 890], disc: [0, -1], bodyDir: [-1, 0] },
   protSide: { src: `${DIR}beaver-protractor-side.png`, width: 787, height: 990, centre: 300, ground: 982, body: 976, hat: [240, 6], tool: [560, 340], disc: [1, 0], bodyDir: [-1, 0] },
   protHigh: { src: `${DIR}beaver-protractor-high.png`, width: 631, height: 995, centre: 300, ground: 988, body: 763, hat: [160, 225], tool: [330, 32], disc: [0, 1], bodyDir: [0, 1] },
+  // Peeking over a card, hands on its top edge (the bottom of the picture): one listening, one talking frame, same crop.
+  peekIdle: { src: `${DIR}beaver-peek-idle.png`, width: 867, height: 909, centre: 433, ground: 900, body: 1384, hat: [427, 10] },
+  peekTalk: { src: `${DIR}beaver-peek-talk.png`, width: 867, height: 909, centre: 433, ground: 900, body: 1384, hat: [427, 10] },
   walk1: { src: `${DIR}beaver-walk-1.png`, width: 374, height: 521, centre: 203, ground: 514, body: 508 , hat: [200, 6], hand: [318, 300] },
   walk2: { src: `${DIR}beaver-walk-2.png`, width: 332, height: 534, centre: 167, ground: 527, body: 521 , hat: [164, 6], hand: [282, 312] },
   walk3: { src: `${DIR}beaver-walk-3.png`, width: 360, height: 520, centre: 188, ground: 513, body: 507 , hat: [186, 6], hand: [303, 298] },
@@ -44,6 +47,8 @@ const POSES = Object.freeze({
   protSide: { frames: ['protSide'], durations: [1000] },
   protHigh: { frames: ['protHigh'], durations: [1000] },
   walk: { frames: ['walk1', 'walk2', 'walk3', 'walk4'], durations: [115, 115, 115, 115] },
+  peek: { frames: ['peekIdle'], durations: [1000] },
+  peekTalk: { frames: ['peekTalk', 'peekIdle', 'peekTalk', 'peekTalk', 'peekIdle'], durations: [170, 110, 150, 120, 120] },
   walkStop: { frames: ['walk1'], durations: [1000] },
 });
 const HEIGHT = 372;                      // on stage
@@ -165,6 +170,12 @@ export function createBeaverGuide({ hostEl, x, groundY }) {
      * slight lean into it: measuring a side from its lower end, reading a corner with the protractor.
      */
     moveTo({ x: toX, y: toY, scale = 0.5, flip = false, rotate = 0 }) {
+      if (flip !== placed.flip) {
+        // He turns round at once (no mirror animation), then walks.
+        root.classList.add('is-instant');
+        this.placeAt({ ...placed, flip });
+        void root.offsetWidth;
+      }
       root.classList.remove('is-instant');
       root.classList.add('is-walking');
       this.placeAt({ x: toX, y: toY, scale, flip, rotate });
@@ -231,18 +242,21 @@ export function createBeaverGuide({ hostEl, x, groundY }) {
     },
     /** Back to his place at the foot of the card. */
     home() {
-      return this.moveTo({ x: home.x, y: home.groundY, scale: 1, flip: true, rotate: 0 });   // at home he faces the shape
+      return this.moveTo({ x: home.x, y: home.groundY, scale: 1, flip: false, rotate: 0 });   // every frame faces right: at home he faces the shape
     },
     idle: () => setPose('idle'),
     /** While a line is spoken: the talking cycle, then back to idle (unless a reaction took over). */
     async talkUntil(finished) {
       talking = true;
-      if (pose === 'idle' || pose === 'talk') setPose('talk');
+      const peeking = pose === 'peek' || pose === 'peekTalk';
+      if (peeking) setPose('peekTalk');
+      else if (pose === 'idle' || pose === 'talk') setPose('talk');
       root.classList.add('is-talking');
       try { await finished; } finally {
         talking = false;
         root.classList.remove('is-talking');
         if (pose === 'talk') setPose('idle');
+        if (pose === 'peekTalk') setPose('peek');
       }
     },
     /** A quick satisfied nod (a right answer, a good drag). */

@@ -4,7 +4,7 @@
  * angles, ticks and the right-angle square are all computed from the shape, never typed in.
  */
 import { cmPointsFromSpec, measure, formatCm, formatDeg, PX_PER_CM } from './triangle-model.js';
-import { svgEl, fmt, sideLabelPoint, arcPath, squarePoints, tickSegment, outwardNormal, cornerFrame } from './triangle-draw.js';
+import { svgEl, fmt, sideLabelPoint, arcPath, squarePoints, tickSegment, outwardNormal, cornerFrame, valueHues } from './triangle-draw.js';
 
 /**
  * Options: labels 'sides' | 'angles' | null; ticks (equal-side marks); square (right-angle mark); arcs;
@@ -38,15 +38,21 @@ export function buildTriangleFigure(spec, { width = 260, height = 200, labels = 
     sides.append(svgEl('line', { ...attrs, class: 'ws-figure__edge', style: `stroke-width:${14 * strokeScale}` }), svgEl('line', { ...attrs, class: 'ws-figure__body', style: `stroke-width:${8 * strokeScale}` }));
   }
   // Corner marks go UNDER the sides (a coloured slice rimmed by its arc, as on the big triangle), ticks on top.
+  const angleHue = valueHues(m.deg.map(formatDeg));
+  const sideHue = valueHues(m.cm.map(formatCm));
   const corners = svgEl('g', { class: 'ws-figure__marks' });
-  const radius = Math.max(26, 18 * strokeScale + 12);
+  const radius = Math.max(30, 20 * strokeScale + 14);
   for (let i = 0; i < 3; i += 1) {
     const isRight = m.rightAt === i;
-    if (square && isRight) corners.appendChild(svgEl('polyline', { points: squarePoints(vertices, i, radius * 0.7), class: 'ws-figure__square' }));
-    else if (arcs) {
+    const tint = `ws-corner--${m.obtuseAt === i ? 'obtuse' : angleHue[i]}`;          // each corner its own colour; an obtuse one red
+    if (square && isRight) {
+      const sq = squarePoints(vertices, i, radius * 0.7).split(' ');
+      corners.appendChild(svgEl('path', { d: `M ${fmt(vertices[i][0])} ${fmt(vertices[i][1])} L ${sq.join(' L ')} Z`, class: `ws-figure__wedge ${tint}` }));
+      corners.appendChild(svgEl('polyline', { points: sq.join(' '), class: `ws-figure__square ${tint}` }));
+    } else if (arcs) {
       const arc = arcPath(vertices, i, radius);
-      corners.appendChild(svgEl('path', { d: `M ${fmt(vertices[i][0])} ${fmt(vertices[i][1])} L ${arc.slice(2)} Z`, class: 'ws-figure__wedge' }));
-      corners.appendChild(svgEl('path', { d: arc, class: 'ws-figure__arc' }));
+      corners.appendChild(svgEl('path', { d: `M ${fmt(vertices[i][0])} ${fmt(vertices[i][1])} L ${arc.slice(2)} Z`, class: `ws-figure__wedge ${tint}` }));
+      corners.appendChild(svgEl('path', { d: arc, class: `ws-figure__arc ${tint}` }));
     }
   }
   svg.append(corners, sides);
@@ -69,7 +75,7 @@ export function buildTriangleFigure(spec, { width = 260, height = 200, labels = 
       const n = outwardNormal(vertices, i);
       const gap = 6 * strokeScale + 6 + Math.abs(n[0]) * (text.length * labelSize * 0.29) + Math.abs(n[1]) * (labelSize * 0.55);
       const [x, y] = sideLabelPoint(vertices, i, gap);
-      svg.appendChild(svgEl('text', { x: fmt(x), y: fmt(y), class: 'ws-figure__label ws-figure__label--side', style: `font-size:${labelSize}px` }, [document.createTextNode(text)]));
+      svg.appendChild(svgEl('text', { x: fmt(x), y: fmt(y), class: `ws-figure__label ws-figure__label--side ws-sidehue--${sideHue[i]}`, style: `font-size:${labelSize}px` }, [document.createTextNode(text)]));
     }
   }
   if (labels === 'angles') {
@@ -79,7 +85,7 @@ export function buildTriangleFigure(spec, { width = 260, height = 200, labels = 
       const { bisector } = cornerFrame(vertices, i);
       const away = 10 * strokeScale + 8 + Math.abs(bisector[0]) * (text.length * labelSize * 0.3) + Math.abs(bisector[1]) * (labelSize * 0.6);
       const [x, y] = [vertices[i][0] - bisector[0] * away, vertices[i][1] - bisector[1] * away];
-      svg.appendChild(svgEl('text', { x: fmt(x), y: fmt(y), class: 'ws-figure__label ws-figure__label--angle', style: `font-size:${labelSize}px` }, [document.createTextNode(text)]));
+      svg.appendChild(svgEl('text', { x: fmt(x), y: fmt(y), class: `ws-figure__label ws-figure__label--angle ws-corner--${m.obtuseAt === i ? 'obtuse' : angleHue[i]}`, style: `font-size:${labelSize}px` }, [document.createTextNode(text)]));
     }
   }
   return { svg, vertices, measured: m };

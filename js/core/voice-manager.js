@@ -37,7 +37,9 @@ export function createVoiceManager({ audio }) {
     element = null;
   }
   const clipsEnabled = Boolean(element) && !disabledByQuery && Object.keys(VO_LINES).length > 0;
-  const speechEnabled = !disabledByQuery && typeof speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined';
+  // Only the studio voice (the beaver's recorded clips) is heard: a line without its clip is shown at a reading
+  // pace instead of being read by a different device voice. `?speech=1` turns the device voice on for review.
+  const speechEnabled = params.get('speech') === '1' && !disabledByQuery && typeof speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined';
   const blobUrls = new Map();
   let token = 0;
   let unlocked = false;

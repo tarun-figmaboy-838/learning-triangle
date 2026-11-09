@@ -5,14 +5,14 @@
  * while a goal is set, a corner near a position that makes the goal true snaps onto it.
  */
 import { measure, formatCm, formatDeg, constrainVertex, snapVertex, goalMet, solutionFor, vec, PX_PER_CM } from './triangle-model.js';
-import { svgEl, fmt, sideLabelPoint, angleLabelPoint, arcPath, squarePoints, tickSegment, outwardNormal, sideMidpoint, centroid, ARC_RADIUS } from './triangle-draw.js';
+import { svgEl, fmt, sideLabelPoint, arcPath, squarePoints, tickSegment, cornerFrame, outwardNormal, sideMidpoint, centroid, ARC_RADIUS, valueHues } from './triangle-draw.js';
 import { tween, easings, wait, prefersReducedMotion, playClassAnimation } from '../core/motion.js';
 
 const VERTEX_HIT_RADIUS = 46;
 const DEFAULT_VISIBLE = Object.freeze({ sides: true, vertices: true, sideLabels: false, angleArcs: false, angleLabels: false, ticks: false, square: false });
 
 /** Every corner mark is the same size, big enough to read at a glance. */
-const CORNER_RADIUS = 50;
+const CORNER_RADIUS = 80;
 const angleRadius = () => CORNER_RADIUS;
 const normaliseSet = (value) => (value === true ? [0, 1, 2] : Array.isArray(value) ? value : []);
 
@@ -47,8 +47,8 @@ export function createTriangleCanvas({ host, width, height, audio }) {
     const arc = svgEl('path', { class: 'ws-angle__arc' });
     const square = svgEl('polyline', { class: 'ws-angle__square' });
     const label = svgEl('text', { class: 'ws-angle__label' });
-    mark.append(wedge, arc);
-    group.append(square, label);
+    mark.append(wedge);
+    group.append(arc, square, label);
     return { group, mark, wedge, arc, square, label };
   });
   const sideLabels = [0, 1, 2].map((i) => {
@@ -89,6 +89,8 @@ export function createTriangleCanvas({ host, width, height, audio }) {
   /** Positions every element from the current corners; cheap enough to run on every pointer move. */
   function render() {
     measured = measure(points, pxPerCm);
+    const angleHue = valueHues(measured.deg.map(formatDeg));     // equal angles share a colour
+    const sideHue = valueHues(measured.cm.map(formatCm));        // equal lengths share a colour
     for (let i = 0; i < 3; i += 1) {
       const [x1, y1] = points[i];
       const [x2, y2] = points[(i + 1) % 3];
@@ -109,7 +111,7 @@ export function createTriangleCanvas({ host, width, height, audio }) {
       const a = angles[i];
       const isRight = measured.rightAt === i;
       const radius = angleRadius(measured.deg[i]);
-      a.arc.setAttribute('d', arcPath(points, i, radius));
+      a.arc.setAttribute('d', cornerArc(points, i, radius));
       a.wedge.setAttribute('d', wedgePath(points, i, radius));
       a.square.setAttribute('points', squarePoints(points, i, CORNER_RADIUS * 0.62));
       const showArc = inSet(visible.angleArcs, i);
@@ -121,16 +123,19 @@ export function createTriangleCanvas({ host, width, height, audio }) {
       setHidden(a.arc, !showArc || showSquare);
       setHidden(a.wedge, !showArc && !showSquare);
       setHidden(a.square, !showSquare);
-      const [lx, ly] = angleLabelPoint(points, i);
+      const [lx, ly] = cornerLabelPoint(points, i);
       a.label.setAttribute('x', fmt(lx)); a.label.setAttribute('y', fmt(ly));
       a.label.style.setProperty('--ox', `${fmt((points[i][0] - lx) * 0.75)}px`);   // the value slides out of its corner
       a.label.style.setProperty('--oy', `${fmt((points[i][1] - ly) * 0.75)}px`);
       a.label.textContent = formatDeg(measured.deg[i]);
       setHidden(a.label, !inSet(visible.angleLabels, i));
+      a.group.dataset.hue = String(angleHue[i]);
+      a.mark.dataset.hue = String(angleHue[i]);
       angleClass(a, 'is-right', isRight);
       angleClass(a, 'is-obtuse', measured.obtuseAt === i);
 
       const l = sideLabels[i];
+      l.group.dataset.hue = String(sideHue[i]);
       l.text.textContent = formatCm(measured.cm[i]);
       // The number sits clear of the line and its equal-side tick whichever way the side runs: the gap
       // grows by the half of the text that lies along the side's normal (its width on a vertical side).
@@ -211,6 +216,25 @@ export function createTriangleCanvas({ host, width, height, audio }) {
   svg.addEventListener('contextmenu', (event) => event.preventDefault());
 
   const angleClass = (a, cls, on) => { a.group.classList.toggle(cls, on); a.mark.classList.toggle(cls, on); };
+  /** Corner i's arc at radius r, trimmed to the space between the two sides (drawn over them, never across them). */
+  function cornerArc(pts, i, r = CORNER_RADIUS, fraction = 1) {
+    const { u, w, theta } = cornerFrame(pts, i);
+    const v = pts[i];
+    const sign = vec.cross(u, w) > 0 ? 1 : -1;
+    const trim = Math.min(theta * 0.3, Math.asin(Math.min(0.9, 13 / r)));       // a side's half width plus its edge
+    const a0 = trim;
+    const a1 = trim + (theta - 2 * trim) * fraction;
+    const dir = (a) => [u[0] * Math.cos(a) - sign * u[1] * Math.sin(a), sign * u[0] * Math.sin(a) + u[1] * Math.cos(a)];
+    const p0 = vec.add(v, vec.mul(dir(a0), r));
+    const p1 = vec.add(v, vec.mul(dir(a1), r));
+    return `M ${fmt(p0[0])} ${fmt(p0[1])} A ${r} ${r} 0 0 ${sign > 0 ? 1 : 0} ${fmt(p1[0])} ${fmt(p1[1])}`;
+  }
+  /** Where corner i's value goes: just past its arc, along the corner's bisector. */
+  function cornerLabelPoint(pts, i) {
+    const { bisector, theta } = cornerFrame(pts, i);
+    const distance = Math.min(170, Math.max(CORNER_RADIUS + 40, 24 / Math.sin(theta / 2) + 52));
+    return vec.add(pts[i], vec.mul(bisector, distance));
+  }
 
   /** The filled slice of corner i: from the vertex out to the arc and back (the arc may be partly swept). */
   function wedgePath(pts, i, radius = ARC_RADIUS, fraction = 1) {
@@ -293,7 +317,7 @@ export function createTriangleCanvas({ host, width, height, audio }) {
   /** The same light sweeps round the arc of corner i. */
   function traceAngle(index, { delay = 0, duration = 700 } = {}) {
     if (reduced()) return;
-    const path = svgEl('path', { class: 'ws-trace-glow', d: arcPath(points, index, angleRadius(measured.deg[index])), pathLength: 1 });
+    const path = svgEl('path', { class: 'ws-trace-glow', d: cornerArc(points, index, angleRadius(measured.deg[index])), pathLength: 1 });
     runTrace(path, delay, duration);
   }
   function runTrace(el, delay, duration) {
@@ -438,19 +462,22 @@ export function createTriangleCanvas({ host, width, height, audio }) {
     const reading = measured.deg[index];
     const radius = angleRadius(reading);
     angleClass(a, 'is-measuring', true);
-    setHidden(a.arc, false);
-    setHidden(a.wedge, false);
     visible.angleLabels = [...new Set([...normaliseSet(visible.angleLabels), index])];
     render();
+    setHidden(a.arc, false);                          // after the redraw, so the sweep is seen
+    setHidden(a.wedge, false);
+    a.arc.setAttribute('d', cornerArc(points, index, radius, 0.02));
+    a.wedge.setAttribute('d', wedgePath(points, index, radius, 0.02));
     audio?.play('drawLine');
     await tween({ duration: reduced() ? 0 : 1400, ease: easings.mechanical, signal, onUpdate: (t) => {
-      a.arc.setAttribute('d', arcPath(points, index, radius, Math.max(0.02, t)));
+      a.arc.setAttribute('d', cornerArc(points, index, radius, Math.max(0.02, t)));
       a.wedge.setAttribute('d', wedgePath(points, index, radius, Math.max(0.02, t)));
       a.label.textContent = `${Math.round(reading * t)}°`;
     } });
-    a.arc.setAttribute('d', arcPath(points, index, radius));
+    a.arc.setAttribute('d', cornerArc(points, index, radius));
     a.label.textContent = formatDeg(reading);
     visible.angleArcs = [...new Set([...normaliseSet(visible.angleArcs), index])];
+    render();                                         // the corner keeps its mark from now on
     audio?.play('measure');
     playClassAnimation(a.label, 'is-pop', 520);
     angleClass(a, 'is-measuring', false);
@@ -489,6 +516,12 @@ export function createTriangleCanvas({ host, width, height, audio }) {
       render();
     },
     get pxPerCm() { return pxPerCm; },
+    get basePxPerCm() { return PX_PER_CM; },
+    /** Removes any tape, protractor or trace left by a screen that was skipped mid-measure. */
+    clearTools() {
+      toolLayer.replaceChildren();
+      fxLayer.querySelectorAll('.ws-trace-glow, .ws-tape-strip__lead').forEach((el) => el.remove());
+    },
     clearTones() {
       for (const el of [...sides, ...sideLabels]) delete el.group.dataset.tone;
     },

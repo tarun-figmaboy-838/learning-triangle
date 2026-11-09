@@ -91,3 +91,9 @@ export function tickSegment(vertices, i, half = TICK_HALF, offset = 0) {
 export function centroid(vertices) {
   return [(vertices[0][0] + vertices[1][0] + vertices[2][0]) / 3, (vertices[0][1] + vertices[1][1] + vertices[2][1]) / 3];
 }
+
+/** Colour groups by value: equal values (as shown) share an index, different values get the next one. */
+export function valueHues(labels) {
+  const seen = [];
+  return labels.map((label) => { let k = seen.indexOf(label); if (k < 0) { seen.push(label); k = seen.length - 1; } return k; });
+}

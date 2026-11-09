@@ -6,7 +6,8 @@
  * Everything written on it is live text.
  */
 import { LEARNING_COPY } from './learning-content.js';
-import { revealWords } from '../gameplay/feedback-controller.js';
+import { revealWords, hugWords } from '../gameplay/feedback-controller.js';
+import { fitBubble } from '../gameplay/bubble-shape.js';
 import { playClassAnimation, wait, prefersReducedMotion } from '../core/motion.js';
 import { VO_WORD_TIMES } from '../data/vo-word-times.js';
 
@@ -98,6 +99,7 @@ export function createWorkshopBoard({ hostEl, voice, audio, talker = null }) {
   const surfaceEl = root.querySelector('.workshop__surface');
   const stageEl = root.querySelector('.ws-stage');
   const overlayEl = root.querySelector('.ws-overlay');
+  let bubbleEl = null;
   const guideHostEl = root.querySelector('.workshop__guide');
   const narrationEl = root.querySelector('.ws-narration');
   const textEl = root.querySelector('.ws-narration__text');
@@ -205,6 +207,41 @@ export function createWorkshopBoard({ hostEl, voice, audio, talker = null }) {
       cancelParts();
       currentLine = '';
       textEl.textContent = '';
+    },
+    /**
+     * The beaver says a line himself, in the game's own speech bubble (the cab's: white, crane-yellow outline,
+     * drawn tail), its tail on `tip` (card px, just above his head), not in the narration box.
+     */
+    speak(text, { focus = null, tip = { x: 205, y: 430 }, speaker = 'builder', holdMs = 900, cues = null } = {}) {
+      narrationEl.hidden = true;
+      cancelCues();
+      currentLine = text;
+      bubbleEl?.remove();
+      bubbleEl = document.createElement('div');
+      bubbleEl.className = 'speech-bubble ws-say';
+      bubbleEl.innerHTML = '<svg class="speech-bubble__shape" aria-hidden="true"><path class="speech-bubble__face"/></svg><p class="speech-bubble__text"></p>';
+      cardEl.appendChild(bubbleEl);
+      const textEl = bubbleEl.querySelector('.speech-bubble__text');
+      const spoken = voice.say(text, { speaker });
+      const typingMs = spoken.spoke ? Math.max(300, (spoken.seconds - 0.35) * 1000) : Math.min(4200, text.length * READING_MS_PER_CHARACTER);
+      const typed = revealWords(textEl, text, typingMs, focus, { times: spoken.clipId ? VO_WORD_TIMES[spoken.clipId] : null, rate: spoken.rate ?? 1, started: spoken.started });
+      scheduleCues(text, spoken, typingMs, cues);
+      hugWords(bubbleEl, textEl);
+      const at = fitBubble(bubbleEl.querySelector('.speech-bubble__shape'), bubbleEl, { at: 0.16, lean: -1 });
+      bubbleEl.style.left = `${Math.round(tip.x - at[0])}px`;
+      bubbleEl.style.top = `${Math.round(tip.y - at[1])}px`;
+      bubbleEl.style.transformOrigin = `${Math.round(at[0])}px ${Math.round(at[1])}px`;
+      playClassAnimation(bubbleEl, 'is-entering', 620);
+      this.talker?.talkUntil?.(spoken.finished);
+      const finished = Promise.all([spoken.finished, typed]).then(() => wait(reduced() ? 0 : holdMs)).then(() => this.hideBubble());
+      return { finished, seconds: spoken.seconds };
+    },
+    hideBubble() {
+      const bubble = bubbleEl;
+      if (!bubble) return Promise.resolve();
+      bubbleEl = null;
+      bubble.classList.add('is-leaving');
+      return wait(reduced() ? 0 : 280).then(() => bubble.remove());
     },
     hideNarration() {
       narrationEl.hidden = true;

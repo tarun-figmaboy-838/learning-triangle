@@ -9,7 +9,7 @@ import { LEARNING_COPY } from './learning-content.js';
 import { playClassAnimation, prefersReducedMotion } from '../core/motion.js';
 
 const ASSETS = 'assets/images/workshop/';
-export const WIDGET_IMAGES = [`${ASSETS}crate-back.png`, `${ASSETS}crate-front.png`, `${ASSETS}card-frame.png`, `${ASSETS}summary-card.png`];
+export const WIDGET_IMAGES = [`${ASSETS}btn-uiPrimary.webp`, `${ASSETS}btn-uiNav.webp`, `${ASSETS}btn-uiSuccess.webp`, `${ASSETS}btn-uiDanger.webp`, `${ASSETS}crate-back.png`, `${ASSETS}crate-front.png`, `${ASSETS}card-frame.png`, `${ASSETS}summary-card.png`];
 
 const escapeHtml = (value) => String(value).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -144,9 +144,10 @@ export function createOptionCard({ overlayEl, prompt, options, audio, onSelect, 
       const button = buttons.find((b) => b.dataset.option === option);
       if (!button) return;
       button.classList.add('is-incorrect');
-      await playClassAnimation(button, 'is-shaking', 520);
-      button.classList.remove('is-selected', 'is-incorrect');
+      button.classList.remove('is-selected');
+      button.disabled = true;                          // a wrong answer stays out: it cannot be tapped again
       button.setAttribute('aria-checked', 'false');
+      await playClassAnimation(button, 'is-shaking', 520);
     },
     remove: () => leave(row),
   };
@@ -193,6 +194,8 @@ export function createMultiGrid({ overlayEl, cards, audio, onChange }) {
       for (const b of wrong) {
         selection.delete(b.dataset.card);
         b.classList.remove('is-selected');
+        b.classList.add('is-ruled-out');
+        b.disabled = true;                             // a wrong pick cannot be picked again
         b.setAttribute('aria-pressed', 'false');
       }
     },
@@ -485,10 +488,11 @@ export function createDualCard({ overlayEl, prompt, groups, audio, onChange, at 
         const chosen = buttons.find((b) => b.classList.contains('is-selected'));
         if (!chosen) return;
         chosen.classList.add('is-incorrect');
-        await playClassAnimation(chosen, 'is-shaking', 520);
-        chosen.classList.remove('is-selected', 'is-incorrect');
+        chosen.classList.remove('is-selected');
+        chosen.disabled = true;                        // stays out of the next try
         chosen.setAttribute('aria-checked', 'false');
         delete selections[id];
+        await playClassAnimation(chosen, 'is-shaking', 520);
       }));
       onChange?.({ ...selections });
     },
@@ -507,14 +511,29 @@ export function createSummaryView({ overlayEl, screen }) {
   root.innerHTML = `<div class="ws-summary__row" aria-label="${escapeHtml(LEARNING_COPY.summary.sidesTitle)}, ${escapeHtml(LEARNING_COPY.summary.anglesTitle)}"></div>`;
   const row = root.querySelector('.ws-summary__row');
   const items = [...screen.bySides, ...screen.byAngles];
+  // Collected cards gather in two columns: by sides on the left, by angles on the right (nothing shown until a card lands).
+  const SLOT = Object.freeze({ width: 236, height: 150, top: 70, step: 180, xs: [40, 1284] });
+  const sideCount = screen.bySides.length;
+  const slotAt = (index) => {
+    const col = index < sideCount ? 0 : 1;
+    const k = col === 0 ? index : index - sideCount;
+    return { left: SLOT.xs[col], top: SLOT.top + k * SLOT.step, col };
+  };
   const slots = items.map((item, index) => {
     const slot = element('div', `ws-summary__slot ws-summary__slot--${item.tone}`);
-    place(slot, { left: 80 + index * 235, top: 528 });
+    const at = slotAt(index);
+    place(slot, { left: at.left, top: at.top, width: SLOT.width, height: SLOT.height });
     row.appendChild(slot);
     return slot;
   });
+  const titles = [LEARNING_COPY.summary.sidesTitle, LEARNING_COPY.summary.anglesTitle].map((text, col) => {
+    const chip = element('div', 'ws-summary__title', escapeHtml(text));
+    place(chip, { left: SLOT.xs[col] + SLOT.width / 2, top: SLOT.top - 54 });
+    row.appendChild(chip);
+    return chip;
+  });
   overlayEl.appendChild(root);
-  const BIG = { left: 545, top: 24, width: 470, height: 488 };
+  const BIG = { left: 545, top: 110, width: 470, height: 470 };
   let big = null;
 
   function figureFor(item, size) {
@@ -541,16 +560,17 @@ export function createSummaryView({ overlayEl, screen }) {
       const card = big;
       big = null;
       if (!card) return;
-      const target = { left: 80 + index * 235, top: 528 };
+      const target = slotAt(index);
+      titles[target.col].classList.add('is-shown');
       card.classList.add('is-collecting');
       card.style.left = `${target.left}px`;
       card.style.top = `${target.top}px`;
-      card.style.width = '200px';
-      card.style.height = '126px';
+      card.style.width = `${SLOT.width}px`;
+      card.style.height = `${SLOT.height}px`;
       await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 560));
       card.remove();
       slot.classList.add('is-filled');
-      slot.append(figureFor(item, [120, 70]), element('span', 'ws-summary__slot-name', escapeHtml(item.name)));
+      slot.append(figureFor(item, [150, 96]), element('span', 'ws-summary__slot-name', escapeHtml(item.name)));
       playClassAnimation(slot, 'is-receiving', 480);
     },
     /** The closing card: the example classified both ways, and the sentence that says so. */
@@ -561,7 +581,7 @@ export function createSummaryView({ overlayEl, screen }) {
       const side = element('div', 'ws-summary__both-figure');
       side.append(example, badges);
       big.append(side, element('p', 'ws-summary__both', escapeHtml(LEARNING_COPY.summary.both)));
-      place(big, { left: 380, top: 70, width: 800 });
+      place(big, { left: 380, top: 150, width: 800 });
       root.appendChild(big);
       enter(big, 'is-entering', 620);
       return big;
@@ -572,7 +592,7 @@ export function createSummaryView({ overlayEl, screen }) {
     /** Once every card is home, the row hops together towards the middle, one after another. */
     gather() {
       slots.forEach((slot, i) => {
-        const dx = 80 + i * 235 + 100 < 780 ? 16 : -16;
+        const dx = slotAt(i).col === 0 ? 16 : -16;      // each column hops towards the middle
         slot.animate?.([{ translate: '0 0' }, { translate: `${dx / 2}px -12px`, offset: 0.45 }, { translate: `${dx}px 0` }],
           { duration: prefersReducedMotion() ? 0 : 440, delay: prefersReducedMotion() ? 0 : i * 70, easing: 'cubic-bezier(0.3, 1.2, 0.5, 1)', fill: 'forwards' });
       });
@@ -584,7 +604,7 @@ export function createSummaryView({ overlayEl, screen }) {
 }
 
 /* ---------- The ghost hand: shows the gesture after a moment of idling (Fishing Frenzy's hand nudge) ---------- */
-const HAND_SVG = `<svg class="ws-ghost__hand" viewBox="0 0 64 80" aria-hidden="true"><path d="M20 7c0-3.6 2.9-6.5 6.5-6.5S33 3.4 33 7v25.5l3.4-1.3c3.2-1.2 6.8.3 8.1 3.4l.3.7 2.7-1c3.2-1.1 6.7.4 8 3.6l.4 1 2-.6c3.3-1 6.8.8 7.8 4.1.2.7.3 1.4.3 2.1V58c0 11.6-9.4 21-21 21h-6.4c-7.8 0-15-4.3-18.6-11.3L2.6 47.4c-1.6-3.1-.4-6.9 2.7-8.5 2.8-1.5 6.2-.7 8.1 1.8L20 49V7z" fill="#fff" stroke="#123b63" stroke-width="3.2" stroke-linejoin="round"/><path d="M33 33v12M45 35v10M55 38v8" stroke="#123b63" stroke-width="2.6" stroke-linecap="round" opacity=".55"/></svg>`;
+const HAND_SVG = `<svg class="ws-ghost__hand" viewBox="-4 -4 76 90" aria-hidden="true"><path d="M20 7c0-3.6 2.9-6.5 6.5-6.5S33 3.4 33 7v25.5l3.4-1.3c3.2-1.2 6.8.3 8.1 3.4l.3.7 2.7-1c3.2-1.1 6.7.4 8 3.6l.4 1 2-.6c3.3-1 6.8.8 7.8 4.1.2.7.3 1.4.3 2.1V58c0 11.6-9.4 21-21 21h-6.4c-7.8 0-15-4.3-18.6-11.3L2.6 47.4c-1.6-3.1-.4-6.9 2.7-8.5 2.8-1.5 6.2-.7 8.1 1.8L20 49V7z" fill="#fff" stroke="#123b63" stroke-width="3.2" stroke-linejoin="round"/><path d="M33 33v12M45 35v10M55 38v8" stroke="#123b63" stroke-width="2.6" stroke-linecap="round" opacity=".55"/></svg>`;
 export function createGhostHand({ hostEl }) {
   const root = element('div', 'ws-ghost', `<span class="ws-ghost__dot"></span><span class="ws-ghost__ring"></span>${HAND_SVG}`);
   root.hidden = true;

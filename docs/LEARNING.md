@@ -135,21 +135,20 @@ with a few tools far apart, a grey concrete floor, low detail in the middle.
 
 ## Voice-over
 
-The workshop's 44 lines are in `tools/vo/vo_script.json` (ids vo021 onward), all for the operator's
-voice (Male Teacher, the same studio voice as the game's clips, see docs/VOICEOVER.md), so the lesson
-sounds like the beaver and the words appear as they are spoken, Fishing Frenzy style. They could not be
-recorded in this session: the studio's Gemini API answers "monthly spending cap exceeded / prepayment
-credits depleted" (HTTP 402) for every row, which only the studio's billing can fix. Once it can generate:
+Only the beaver's studio voice is used: the "Male Teacher (Formal)" voice of Aamir's AI Wala Human studio,
+the voice of vo001.mp3. Every line the lesson and its intro speak has its id in tools/vo/vo_script.json
+(vo021 onward). A line without its studio clip is shown at a reading pace, never read by another voice
+(`?speech=1` turns the device voice on for review only).
+
+The studio could not record in this session: its Google Gemini account answers "Exceeded monthly Gemini
+API spending cap / prepayment credits depleted" (HTTP 402) for every line. Once its credit is topped up:
 
 ```sh
-python3 tools/vo/vo-record.py batch        # records the missing lines (vo021…vo064)
-python3 tools/vo/vo-record.py build        # writes js/data/vo-lines.js and docs/VOICEOVER.md
-python3 tools/vo_word_times.py             # per-word times, so captions and cues follow the voice
+python3 tools/vo/vo-record.py batch        # records every missing line in the Male Teacher voice
+python3 tools/vo/vo-record.py build        # writes js/data/vo-lines.js
+python3 tools/vo_word_times.py             # per-word times: captions and animations follow the voice
 python3 tools/build.py
 ```
-
-Until then the device's speech voice reads the lines (or the words appear at a reading pace) and the
-cues follow that pace. The hook keeps the operator's recorded `vo001`.
 
 ## QA
 

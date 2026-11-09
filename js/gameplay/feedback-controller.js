@@ -51,7 +51,7 @@ export function revealWords(element, text, totalMs, focus = null, { times = null
 }
 
 /** Narrows `box` to the widest line its words wrapped to (CSS alone cannot shrink a wrapped box). */
-function hugWords(box, textEl) {
+export function hugWords(box, textEl) {
   const words = [...textEl.querySelectorAll('.reveal-line .w')];
   if (!words.length) return;
   const lines = new Map();

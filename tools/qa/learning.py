@@ -71,13 +71,14 @@ OVERLAP_JS = """
   const isWrapper = (el) => { const r = el.getBoundingClientRect(); return ob && r.width > ob.width * 0.85 && r.height > ob.height * 0.85; };
   const leaves = (el) => (isWrapper(el) ? [...el.children].flatMap(leaves) : [el]);
   card.querySelectorAll('.ws-overlay > *').forEach((el) => {
-    leaves(el).forEach((x) => {
+    leaves(el).filter((x) => !x.matches('.ws-pill')).forEach((x) => {
       if (!visible(x)) return;
       const b = x.getBoundingClientRect();
       items.push({ el: x, kind: 'widget', tag: `widget${items.length}`, text: (x.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 24), l: b.left, t: b.top, r: b.right, b: b.bottom });
     });
   });
   add('.ws-option--pill', 'option');
+  add('.ws-pill', 'button');            // CHECK / CONTINUE: must touch nothing
   add('.ws-bin__label', 'tag');
   add('.guide__body', 'beaver');
   const together = new Set(['beaver|tape', 'beaver|protractor', 'beaver|corner', 'beaver|widget', 'tape|corner', 'protractor|corner', 'widget|option']);
@@ -124,6 +125,7 @@ DESIGN_JS = """
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2, w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys);
     if (Math.abs(cx - 780) > 24 && state.state !== 'INTERACTING') out.push(`shape off-centre by ${Math.round(cx - 780)}px`);
     if (Math.max(w, h) < 330) out.push(`shape small (${Math.round(Math.max(w, h))}px)`);
+    if (Math.max(w / 820, h / 380) < 0.78 && state.state !== 'INTERACTING') out.push(`shape leaves the card empty (${Math.round(w)} x ${Math.round(h)}px)`);   // space use
   }
   // 2. everything inside the card
   card.querySelectorAll('.ws-overlay > *, .ws-option--pill, .ws-badge, .ws-pill, .ws-side-label, .ws-angle__label').forEach((el) => {
@@ -135,7 +137,7 @@ DESIGN_JS = """
   const lum = (c) => { const m = c.match(/[\\d.]+/g); if (!m) return 1; const [r, g, b] = m.slice(0, 3).map((v) => { v = +v / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
   const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
   const textChecks = [
-    ['.ws-narration__text', 'rgb(29, 58, 95)'], ['.ws-option--pill', 'rgb(255, 203, 51)'], ['.ws-badge', 'rgb(255, 255, 255)'],
+    ['.ws-narration__text', 'rgb(29, 58, 95)'], ['.ws-option--pill', 'rgb(255, 203, 51)'], ['.ws-badge', 'rgb(18, 52, 95)'],
     ['.ws-bin__label', 'rgb(29, 47, 107)'], ['.ws-side-label__text', 'rgb(255, 255, 255)'], ['.ws-angle__label', 'rgb(255, 255, 255)'], ['.ws-figure__label', 'rgb(255, 255, 255)'],
   ];
   for (const [sel, bg] of textChecks) card.querySelectorAll(sel).forEach((el) => {

@@ -16,16 +16,16 @@ import {
   createGhostHand } from './workshop-widgets.js';
 import { createSequenceScope, wait, isAbortError, prefersReducedMotion } from '../core/motion.js';
 
-const FRAME = Object.freeze({ center: { cx: 780, cy: 300 }, stack: { cx: 780, cy: 250 }, dual: { cx: 780, cy: 215 } });
+const FRAME = Object.freeze({ center: { cx: 780, cy: 300 }, stack: { cx: 780, cy: 250 }, dual: { cx: 780, cy: 160 } });
 const DRAG_BOUNDS = Object.freeze({ left: 80, top: 40, right: BOARD.canvas.width - 80, bottom: BOARD.canvas.height - 40 });
 const SIDE_ORDER = [0, 2, 1];              // left, right, bottom: the deck's reading order (5 cm, 4 cm, 6 cm) and a clockwise walk
 const CORNER_ORDER = [0, 2, 1];            // top, right, left: clockwise
 /** The beaver appears only where he does something: measuring the shape, and explaining the summary cards. */
 const GUIDE_SCREENS = new Set(['measureSides', 'measureAngles', 'summary']);
 /** The summary's big card (surface px) and how far his head rises above it. */
-const SUMMARY_BIG = Object.freeze({ left: 545, top: 24, width: 470 });
-const SUMMARY_BOTH = Object.freeze({ left: 380, top: 70, width: 800 });
-const PEEK_HEAD = 140;
+const SUMMARY_BIG = Object.freeze({ left: 545, top: 110, width: 470 });
+const SUMMARY_BOTH = Object.freeze({ left: 380, top: 150, width: 800 });
+const PEEK_HEAD = 206;                     // the peek sprite: hat top this far above the card's edge, hands on the edge
 
 function abortError() {
   const error = new Error('Sequence cancelled');
@@ -117,7 +117,21 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
     const m = canvas.measured;
     return ['scalene', 'isosceles', 'equilateral'].includes(requires) ? m.bySides : m.byAngles;
   }
+  /**
+   * How big this screen's triangle can be: as large as the room its layout leaves (the narration box above,
+   * the name row / answers below, the lengths outside), between 1x and 1.45x the base scale.
+   */
+  const ROOM = Object.freeze({ center: { w: 860, h: 410 }, stack: { w: 860, h: 380 }, dual: { w: 900, h: 250 } });
+  function fitZoom(screen) {
+    const room = ROOM[screen.layout] ?? ROOM.center;
+    const unit = layoutFromSpec(screen.triangle, { cx: 0, cy: 0, pxPerCm: 1 });
+    const w = Math.max(...unit.map((p) => p[0])) - Math.min(...unit.map((p) => p[0]));
+    const h = Math.max(...unit.map((p) => p[1])) - Math.min(...unit.map((p) => p[1]));
+    const base = canvas.basePxPerCm;
+    return Math.max(1, Math.min(1.45, room.w / (w * base), room.h / (h * base)));
+  }
   async function prepareTriangle(screen) {
+    canvas.clearTools();
     canvas.clearTones();
     canvas.clearEmphasis();
     canvas.clearChips();
@@ -128,10 +142,10 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       return;
     }
     const frame = frameFor(screen);
-    canvas.setZoom(screen.zoom ?? 1);
-    const target = layoutFromSpec(screen.triangle, { ...frame, pxPerCm: canvas.pxPerCm });
     const shown = canvas.visible.sides;
     const keepable = screen.keep && shown && (!screen.requires || classificationOf(screen.requires) === screen.requires);
+    if (!keepable) canvas.setZoom(screen.zoom ?? fitZoom(screen));        // a kept shape keeps its scale, so its lengths stay true
+    const target = layoutFromSpec(screen.triangle, { ...frame, pxPerCm: canvas.pxPerCm });
     if (keepable) {
       // The learner's own shape stays; it only slides over if this screen frames it differently.
       const points = canvas.points;
@@ -151,6 +165,12 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
   async function narrate(text, options = {}) {
     setState('NARRATING');
     const line = board.narrate(text, options);
+    await withSignal(line.finished, signal());
+  }
+  /** A line the beaver says himself, in his speech bubble beside him (not the narration box). */
+  async function speakAsBeaver(text, focus = null) {
+    setState('NARRATING');
+    const line = board.speak(text, { focus });
     await withSignal(line.finished, signal());
   }
   const fire = (fn) => () => { fn().catch(() => {}); };
@@ -311,7 +331,7 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
 
     async measureSides(screen) {
       setState('DEMONSTRATING');
-      await narrate(screen.narration, { focus: screen.focus });     // he says it first, then gets to work
+      await speakAsBeaver(screen.narration, screen.focus);          // he says it in his own bubble, then gets to work
       for (const i of SIDE_ORDER) await measureSideWithGuide(i);
       guide.setInstant(false);
       guide.setPose('walk');
@@ -325,7 +345,7 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       // He says it first; then, corner by corner (clockwise), he walks up, sets the protractor he holds onto
       // the corner (its flat edge along a side, its round side into the angle), the arc sweeps while the
       // value counts up, and he lifts it off again.
-      await narrate(screen.narration, { focus: screen.focus });
+      await speakAsBeaver(screen.narration, screen.focus);
       const centre = canvas.centroid();
       const unit = (v) => { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; };
       for (const i of CORNER_ORDER) {
@@ -595,7 +615,7 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       let resolveChecked;
       let checked = new Promise((resolve) => { resolveChecked = resolve; });
       const bothChosen = (s) => screen.groups.every((g) => s[g.id]);
-      const card = createDualCard({ overlayEl: board.overlayEl, prompt: screen.prompt, groups: screen.groups, audio, at: { top: Math.round(Math.min(FOOT - 150, triangleBox().bottom + 70)) }, onChange: (s) => check.setEnabled(bothChosen(s)) });
+      const card = createDualCard({ overlayEl: board.overlayEl, prompt: screen.prompt, groups: screen.groups, audio, at: { top: 372 }, onChange: (s) => check.setEnabled(bothChosen(s)) });
       const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: FOOT }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
       live.card = card;
       live.check = check;
@@ -685,49 +705,58 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       await guide.leave();
       await narrate(LEARNING_COPY.summary.heading);
       await settle(LEARNING_COPY.summary.heading);
-      board.hideNarration();                 // from here the cards carry the words; the beaver peeks where the box was
+      board.hideNarration();                 // from here the beaver explains each card in his own bubble
       const view = createSummaryView({ overlayEl: board.overlayEl, screen });
       live.summary = view;
       const items = [...screen.bySides, ...screen.byAngles];
-      // Registered on his hat: `peek` puts the top of his head PEEK_HEAD px above the card's top edge, `duck` hides it behind the card.
-      const peek = (card) => ({ x: BOARD.surface.left + card.left + Math.round(card.width * 0.22), y: BOARD.surface.top + card.top - PEEK_HEAD, scale: 0.9, flip: false, rotate: 0 });
-      const duck = (card) => ({ x: BOARD.surface.left + card.left + Math.round(card.width * 0.22), y: BOARD.surface.top + card.top + 40, scale: 0.9, flip: false, rotate: 0 });
+      // Registered on his hat: `peek` rests his hands on the card's top edge, `duck` hides him behind the card.
+      const headX = (card) => BOARD.surface.left + card.left + Math.round(card.width * 0.3);
+      const peek = (card) => ({ x: headX(card), y: BOARD.surface.top + card.top - PEEK_HEAD, scale: 0.9, flip: false, rotate: 0 });
+      const duck = (card) => ({ x: headX(card), y: BOARD.surface.top + card.top + 60, scale: 0.9, flip: false, rotate: 0 });
+      // His bubble opens to the right of his head, its tail at his mouth.
+      const say = (card, text, cues = null) => {
+        setState('NARRATING');
+        const line = board.speak(text, { tip: { x: headX(card) + 150, y: BOARD.surface.top + card.top - 70 }, cues, holdMs: 700 });
+        return withSignal(line.finished, signal());
+      };
       board.setGuidePeeking(true);
       board.setGuidePresent(true);
       guide.setRegistration('head');
       guide.setInstant(true);
+      guide.setPose('peek');
       guide.placeAt(duck(SUMMARY_BIG));
       guide.setInstant(false);
       guide.element.hidden = false;
       for (let i = 0; i < items.length; i += 1) {
         view.popCard(i);
         audio.play('badge');
-        await pause(260);
-        guide.setPose('idle');
+        await pause(300);
+        guide.setPose('peek');
         await guide.moveTo(peek(SUMMARY_BIG));
-        await narrate(`${items[i].name}. ${items[i].text}`, { visible: false, cues: [   // the card carries the words
+        // He names it (the name glows) and gives its rule (the figure lights up on the rule's first word).
+        await say(SUMMARY_BIG, `${items[i].name}. ${items[i].text}`, [
           { phrase: items[i].name.split(' ')[0], run: () => view.pulseName() },
           { phrase: items[i].text.split(' ')[0], run: () => view.pulseFigure() },
-        ] });
-        await pause(1100);
+        ]);
+        await pause(500);
         await guide.moveTo(duck(SUMMARY_BIG));
         audio.play('snapEqual');
-        await view.collectCard(i);
-        await pause(220);
+        await view.collectCard(i);            // the card flies to its column: sides on the left, angles on the right
+        await pause(240);
       }
       await view.gather();
       audio.play('correct');
       view.popBothCard();
       audio.play('badge');
-      await pause(260);
+      await pause(300);
+      guide.setPose('peek');
       await guide.moveTo(peek(SUMMARY_BOTH));
-      await narrate(LEARNING_COPY.summary.both, { visible: false });
-      guide.cheer(2600);
-      await pause(900);
+      await say(SUMMARY_BOTH, LEARNING_COPY.summary.both);
+      await pause(400);
       setState('WAITING_FOR_INPUT');
       let resolvePressed;
       const pressed = new Promise((resolve) => { resolvePressed = resolve; });
-      const button = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.summary.cta, tone: 'green', at: { center: true, top: 426 }, onPress: () => { audio.play('uiTap'); resolvePressed(); } });
+      const button = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.summary.cta, tone: 'green', at: { center: true, top: FOOT }, onPress: () => { audio.play('uiTap'); resolvePressed(); } });
       live.cta = button;
       await withSignal(pressed, signal());
       button.pressOnce();

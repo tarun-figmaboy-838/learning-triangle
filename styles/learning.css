@@ -43,26 +43,16 @@
 /* The beaver: in front at the bottom-left, or behind the summary's big card with only his head showing. */
 .workshop__guide { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 3; }
 .workshop.is-peeking .workshop__guide { z-index: 1; }
-
-/* ----- Buttons ----- */
-.ws-pill { position: absolute; padding: 0 34px; min-height: 68px; cursor: pointer; }
-.ws-pill--green {
-  /* the "continue" button: Fishing Frenzy's orange done pill */
-  --pill-line: #c95c00; background: linear-gradient(180deg, #ffa53d 0%, #f26a00 100%); color: #fff; text-shadow: 0 2px 0 rgba(120, 50, 0, 0.45);
-  box-shadow: 0 0 0 2px var(--pill-line), inset 0 -6px 0 rgba(150, 60, 0, 0.35), inset 0 2px 0 rgba(255, 255, 255, 0.45);
-}
 .ws-pill--center { left: 50%; translate: -50% 0; }
-.ws-pill:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 0 0 2px var(--pill-line), inset 0 -3px 0 rgba(205, 100, 0, 0.38), inset 0 2px 0 rgba(255, 255, 255, 0.55); filter: drop-shadow(0 2px 3px rgba(120, 60, 0, 0.2)); }
-.ws-pill:disabled { filter: grayscale(1) opacity(0.5); cursor: default; }
 .ws-pill.is-entering { animation: cta-enter 480ms var(--ease-back) both; }
 
 /* ----- Chips, badges, reference, lenses ----- */
 .ws-badge {
-  /* Fishing Frenzy's name chip: a flat white pill with a thick bright-blue rim, never button-like. */
-  display: inline-flex; align-items: center; justify-content: center; padding: 7px 26px 6px; white-space: nowrap; text-align: center;
-  background: #fff; border: 4px solid #1e7bff; border-radius: 999px; color: #123b63;
-  font-family: var(--font-display); font-size: 29px; font-weight: 800; line-height: 1.1; letter-spacing: 0.2px;
-  box-shadow: 0 3px 10px rgba(20, 60, 130, 0.18);
+  /* The game's name tag: navy with the card frame's gold line and white letters (the narration box's colours). */
+  display: inline-flex; align-items: center; justify-content: center; padding: 8px 28px 7px; white-space: nowrap; text-align: center;
+  background: linear-gradient(180deg, #1c4a7c 0%, #12345f 100%); border: 3px solid #f6c21a; border-radius: 999px; color: #fff;
+  font-family: var(--font-display); font-size: 28px; font-weight: 800; line-height: 1.1; letter-spacing: 1px;
+  box-shadow: 0 4px 0 #0b223f, 0 8px 14px rgba(11, 34, 63, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 .ws-badge { position: absolute; pointer-events: none; }
 .ws-badge--centred { translate: -50% 0; }
@@ -82,71 +72,37 @@
 .ws-greatjob__tick::after { content: ""; position: absolute; left: 10px; top: 5px; width: 7px; height: 13px; border: solid #1f8a44; border-width: 0 4px 4px 0; transform: rotate(40deg); }
 .ws-greatjob.is-entering { animation: ws-badge-in 620ms cubic-bezier(0.2, 1.6, 0.4, 1) both; }
 .ws-lens {
-  position: absolute; display: inline-flex; align-items: center; gap: 12px; width: max-content; padding: 10px 18px; border-radius: 999px;
-  background: #fff; border: 3px solid var(--badge, #1e88e5); color: var(--color-navy); box-shadow: var(--shadow-soft); font-family: var(--font-display);
+  position: absolute; display: inline-flex; align-items: center; gap: 12px; width: max-content; padding: 10px 22px; border-radius: 999px;
+  background: linear-gradient(180deg, #1c4a7c 0%, #12345f 100%); border: 3px solid #f6c21a; color: #fff; font-family: var(--font-display);
+  box-shadow: 0 4px 0 #0b223f, 0 8px 14px rgba(11, 34, 63, 0.25);
 }
-.ws-lens__title { font-size: 17px; letter-spacing: 1.5px; color: #40546b; }
-.ws-lens__arrow { font-size: 24px; color: var(--badge); }
-.ws-lens__result { font-size: 24px; color: var(--badge); font-weight: 700; }
+.ws-lens__title { font-size: 17px; letter-spacing: 1.5px; color: #ffe27a; }
+.ws-lens__arrow { font-size: 24px; color: #f6c21a; }
+.ws-lens__result { font-size: 24px; color: #fff; font-weight: 700; }
 .ws-lens.is-entering { animation: ws-slide-in-right 560ms var(--ease-out) both; }
 .ws-lens.is-merging { animation: ws-merge 700ms var(--ease-in) forwards; }
 
 /* ----- Answer options under the triangle: a centred row of pills, every one alike until it is checked ----- */
 .ws-options-row { position: absolute; left: 50%; translate: -50% 0; display: flex; gap: 22px; justify-content: center; }
 .ws-options-row.is-entering .ws-option--pill { animation: ws-pop-in 520ms var(--ease-back) both; animation-delay: calc(var(--i) * 90ms); }
-.ws-dual { position: absolute; left: 50%; translate: -50% 0; display: flex; flex-direction: column; gap: 18px; align-items: flex-start; }
+.ws-dual { position: absolute; left: 50%; translate: -50% 0; display: flex; flex-direction: row; gap: 40px; align-items: stretch; }
 .ws-dual.is-entering { animation: ws-fade-up 480ms var(--ease-out) both; }
-.ws-dual .ws-group { margin: 0; display: flex; align-items: center; gap: 16px; }
-.ws-dual .ws-group__label { margin: 0; min-width: 190px; text-align: center; padding: 7px 22px 6px; border-radius: 999px; background: #fff8e3; border: 4px solid #f0b000; box-shadow: 0 3px 10px rgba(110, 70, 0, 0.16); font-family: var(--font-display); font-size: 22px; font-weight: 800; letter-spacing: 0.4px; color: #6b4300; }
-.ws-dual .ws-group__options { display: flex; gap: 14px; }
+.ws-dual .ws-group {
+  /* Each way of classifying is its own card (Fishing Frenzy's shape card); its name sits on the card's top edge. */
+  position: relative; margin: 0; display: flex; flex-direction: column; align-items: center; padding: 36px 22px 22px;
+  background: linear-gradient(180deg, #ffffff 0%, #eef6ff 100%); border: 4px solid #fff; border-radius: 22px;
+  box-shadow: 0 0 0 3px #8db9ee, 0 8px 0 3px #5b8fd6, 0 14px 20px rgba(18, 59, 99, 0.16);
+}
+.ws-dual .ws-group__label { position: absolute; left: 50%; top: -24px; translate: -50% 0; margin: 0; padding: 7px 24px 6px; border-radius: 999px; background: #fff8e3; border: 4px solid #f0b000; box-shadow: 0 3px 10px rgba(110, 70, 0, 0.16); font-family: var(--font-display); font-size: 21px; font-weight: 800; letter-spacing: 0.6px; color: #6b4300; white-space: nowrap; }
+.ws-dual .ws-group__options { display: flex; gap: 12px; }
 .ws-card.is-entering { animation: ws-slide-in-right 560ms var(--ease-out) both; }
 .ws-options { display: grid; gap: 10px; }
-.ws-option {
-  display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 14px; text-align: left;
-  background: #fff; border: 3px solid #d9e3ee; color: var(--color-ink);
-  font-family: var(--font-display); font-size: 23px;
-  transition: background 160ms, border-color 160ms, transform 160ms var(--ease-out);
-}
-@media (hover: hover) { .ws-option:not(:disabled):hover { border-color: #9fc0e0; background: #f4f9ff; } }
-.ws-option:active:not(:disabled) { transform: scale(0.985); }
-.ws-option.is-selected { border-color: #1d6fb8; background: #eef6ff; }
-.ws-option.is-selected .ws-option__dot { background: #1d6fb8; border-color: #1d6fb8; box-shadow: inset 0 0 0 4px #fff; }
-.ws-option.is-correct { border-color: #3bc26a; background: #e8f8ee; font-weight: 700; }
-.ws-option.is-correct .ws-option__dot { background: #2fa957; border-color: #2fa957; box-shadow: inset 0 0 0 4px #fff; }
-.ws-option.is-incorrect { border-color: #e0b3ad; background: #fff5f3; }
 .ws-option.is-shaking { animation: ws-shake 520ms ease-in-out; }
 .ws-option:disabled, .ws-card.is-locked .ws-option { cursor: default; }
 .ws-group { margin-top: 10px; }
 .ws-group__label { display: block; margin: 0 0 8px 4px; font-size: 17px; letter-spacing: 2px; color: #1d6fb8; }
 .ws-group--list .ws-group__options { display: grid; gap: 8px; }
 .ws-group--pills .ws-group__options { display: flex; gap: 10px; }
-.ws-option--list { padding: 8px 12px; font-size: 22px; }
-.ws-option--pills { flex: 1; justify-content: center; padding: 10px 6px; font-size: 22px; }
-.ws-option--pills .ws-option__dot { display: none; }
-/* The yellow pill art for answers (after the plain option rules, so it wins). */
-.ws-option.ws-option--pill, .ws-pill {
-  /* Fishing Frenzy's answer pill: a glossy yellow capsule with a white border and an amber ring, no image. */
-  position: relative; isolation: isolate; min-height: 66px; padding: 0 30px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; text-align: center;
-  --pill-line: #e3901a; border: 3px solid #fff; border-radius: 999px;
-  background: linear-gradient(180deg, #ffe066 0%, #ffcb33 40%, #ffa71f 74%, #f58c12 100%);
-  box-shadow: 0 0 0 2px var(--pill-line), inset 0 -6px 0 rgba(205, 100, 0, 0.38), inset 0 2px 0 rgba(255, 255, 255, 0.55);
-  color: #2b1300; font-family: var(--font-display); font-weight: 800; font-size: 27px; line-height: 1.05; letter-spacing: 0.4px;
-  text-shadow: none;
-  filter: drop-shadow(0 6px 8px rgba(120, 60, 0, 0.22));
-  transition: transform 120ms ease, filter 120ms ease, opacity 300ms ease;
-}
-.ws-option.ws-option--pill::before, .ws-option.ws-option--pill::after, .ws-pill::before, .ws-pill::after { content: ''; position: absolute; z-index: -1; border-radius: 50%; background: rgba(255, 255, 255, 0.72); pointer-events: none; }
-.ws-option.ws-option--pill::before, .ws-pill::before { left: 7%; top: 7%; width: 13%; height: 18%; background: rgba(255, 255, 255, 0.6); }
-.ws-option.ws-option--pill::after, .ws-pill::after { display: none; }
-.ws-option.ws-option--pill:active:not(:disabled), .ws-option.ws-option--pill.is-selected { transform: translateY(4px); box-shadow: 0 0 0 2px var(--pill-line), inset 0 -3px 0 rgba(205, 100, 0, 0.38), inset 0 2px 0 rgba(255, 255, 255, 0.55); filter: drop-shadow(0 2px 3px rgba(120, 60, 0, 0.2)); }
-.ws-option.ws-option--pill.is-correct {
-  --pill-line: #2f9617; background: linear-gradient(180deg, #b9f591 0%, #82e35c 40%, #4dc930 74%, #35ad1c 100%);
-  box-shadow: 0 0 0 2px var(--pill-line), inset 0 -6px 0 rgba(20, 110, 10, 0.35), inset 0 2px 0 rgba(255, 255, 255, 0.5);
-  color: #fff; text-shadow: -2px -2px 0 #155a0c, 2px -2px 0 #155a0c, -2px 2px 0 #155a0c, 2px 2px 0 #155a0c, 0 -2px 0 #155a0c, 0 2px 0 #155a0c, -2px 0 0 #155a0c, 2px 0 0 #155a0c, 0 3.5px 0 #155a0c;
-  filter: drop-shadow(0 0 10px rgba(80, 200, 60, 0.55)) drop-shadow(0 6px 8px rgba(20, 90, 10, 0.25)); animation: ws-opt-good 600ms ease-out both;
-}
-.ws-option.ws-option--pill.is-incorrect { filter: grayscale(1) opacity(0.7); }
-.ws-option.ws-option--pill .ws-option__dot { display: none; }
 
 /* ----- Multi-select cards ----- */
 .ws-grid { position: absolute; inset: 0; }
@@ -230,13 +186,13 @@
 .ws-summary__both { margin: 0; flex: 1; font-size: 34px; line-height: 1.25; text-align: left; }
 .ws-summary__row { position: absolute; inset: 0; pointer-events: none; }
 .ws-summary__slot {
-  position: absolute; width: 200px; height: 100px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  border: 3px dashed rgba(29, 58, 95, 0.25); background: rgba(255, 255, 255, 0.5); transition: border-color 300ms, background 300ms;
+  position: absolute; border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  opacity: 0; transform: scale(0.8); transition: opacity 300ms, transform 360ms var(--ease-back);
 }
 .ws-summary__slot svg { display: block; margin-top: -4px; }
-.ws-summary__slot.is-filled { border: 3px solid var(--badge, #1d3a5f); background: #fff; }
+.ws-summary__slot.is-filled { opacity: 1; transform: none; background: linear-gradient(180deg, #ffffff 0%, #eef6ff 100%); border: 4px solid #fff; box-shadow: 0 0 0 3px var(--badge, #8db9ee), 0 6px 0 3px #5b8fd6, 0 12px 18px rgba(18, 59, 99, 0.16); }
 .ws-summary__slot.is-receiving { animation: ws-receive 480ms var(--ease-out); }
-.ws-summary__slot-name { font-size: 17px; color: var(--badge); margin-top: -6px; }
+.ws-summary__slot-name { font-family: var(--font-display); font-size: 21px; font-weight: 800; color: var(--badge); }
 
 /* ----- The live triangle (SVG) ----- */
 .ws-hidden { opacity: 0 !important; pointer-events: none !important; }
@@ -278,11 +234,14 @@
 .ws-vertex.is-dragging .ws-vertex__plate { fill: #ffd23f; stroke: #c45f00; }
 .ws-vertex.is-pop .ws-vertex__point { animation: ws-vertex-pop 420ms var(--ease-back); }
 /* Angles: theme blue; an obtuse one turns red. */
+/* Each corner has its own colour so the three angles are told apart at a glance; an obtuse one is red. */
 .ws-angle { --angle: #1565c0; }
+.ws-angle[data-hue="1"] { --angle: #00796b; }
+.ws-angle[data-hue="2"] { --angle: #ad1457; }
 .ws-angle.is-obtuse { --angle: #d8463b; }
 .ws-angle__wedge { fill: var(--angle); fill-opacity: 0.45; transition: opacity 260ms, fill 300ms, fill-opacity 300ms; }   /* a solid colour slice between the sides (drawn under them), rimmed by the arc */
 .ws-angle.is-emphasis .ws-angle__wedge { fill-opacity: 0.62; }
-.ws-angle__arc { fill: none; stroke: var(--angle); stroke-width: 5; stroke-linecap: round; transition: stroke 300ms; }
+.ws-angle__arc { fill: none; stroke: var(--angle); stroke-width: 6; stroke-linecap: round; transition: stroke 300ms; }
 .ws-angle__square { fill: none; stroke: var(--angle); stroke-width: 7; stroke-linejoin: round; transition: stroke 300ms; }
 .ws-angle__label { font-family: var(--font-display); font-size: 30px; font-weight: 700; fill: var(--angle); paint-order: stroke; stroke: #fff; stroke-width: 7px; stroke-linejoin: round; text-anchor: middle; dominant-baseline: central; transition: fill 300ms; }
 .ws-angle.is-emphasis .ws-angle__arc, .ws-angle.is-emphasis .ws-angle__square { stroke-width: 10; filter: drop-shadow(0 0 4px var(--angle)) drop-shadow(0 0 14px var(--angle)); }
@@ -402,7 +361,7 @@
 
 /* The ghost hand: a white glove that shows the gesture; while it drags, a ghost of the corner / card rides under its finger. */
 .ws-ghost { position: absolute; left: 0; top: 0; z-index: 8; pointer-events: none; will-change: transform, opacity; }
-.ws-ghost__hand { position: absolute; left: -24px; top: -2px; width: 58px; height: 72px; filter: drop-shadow(0 6px 6px rgba(18, 59, 99, 0.3)); }
+.ws-ghost__hand { position: absolute; left: -26px; top: -5px; width: 68px; height: 80px; filter: drop-shadow(0 6px 6px rgba(18, 59, 99, 0.3)); }
 .ws-ghost__dot { position: absolute; left: -16px; top: -16px; width: 32px; height: 32px; border-radius: 50%; background: rgba(255, 210, 63, 0.55); border: 3px dashed #c45f00; opacity: 0; transition: opacity 200ms; }
 .ws-ghost.is-dragging .ws-ghost__dot { opacity: 1; }
 .ws-ghost__ring { position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.9); opacity: 0; }
@@ -421,9 +380,74 @@
 .ws-badge-row > .ws-badge, .ws-badge-row > .ws-greatjob { position: static; translate: none; }
 
 .ws-badge-row > .ws-lens { position: static; }
-/* A picked answer pill stays yellow, deeper, with a gold ring (never the plain option's white). */
-.ws-option.ws-option--pill.is-selected { border-color: #fff; background: linear-gradient(180deg, #ffd84a 0%, #ffb81f 45%, #f59a0f 100%); box-shadow: 0 0 0 4px #c98a00, 0 0 16px 3px rgba(255, 196, 0, 0.6), inset 0 -3px 0 rgba(205, 100, 0, 0.38); }
 /* Both-ways checkpoint: rows of equal width, one row in focus at a time. */
-.ws-dual .ws-option--pill { min-width: 200px; }
 .ws-dual .ws-group { transition: opacity 300ms var(--ease-out), filter 300ms var(--ease-out); }
 .ws-dual .ws-group.is-waiting { opacity: 0.45; filter: saturate(0.5); }
+
+.ws-corner--0 { --corner: #1565c0; } .ws-corner--1 { --corner: #00796b; } .ws-corner--2 { --corner: #ad1457; } .ws-corner--obtuse { --corner: #d8463b; }
+.ws-figure__wedge.ws-corner--0, .ws-figure__wedge.ws-corner--1, .ws-figure__wedge.ws-corner--2, .ws-figure__wedge.ws-corner--obtuse { fill: var(--corner); fill-opacity: 0.45; }
+.ws-figure__arc[class*="ws-corner--"], .ws-figure__square[class*="ws-corner--"] { stroke: var(--corner); stroke-width: 4; fill: none; }
+.ws-figure__label--angle[class*="ws-corner--"] { fill: var(--corner); }
+
+.ws-ghost__hand { overflow: visible; }
+
+/* ---------- Buttons and answer states: Polygon's button kit (assets/images/workshop/btn-ui*.webp, made in Figma) ----------
+   One picture per colour, 3-sliced: caps keep their proportion, the middle stretches, and the same pill drawn again
+   behind the label (::before) hides the slice seams. Gold acts (answers, CHECK), blue moves on (CONTINUE), green is
+   a right answer, red a wrong one. */
+.ws-option.ws-option--pill, .ws-pill {
+  position: relative; isolation: isolate; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  height: 72px; padding: 0 8px; white-space: nowrap; cursor: pointer;
+  background: none; border: 0 solid transparent; border-width: 0 40px; border-radius: 0;
+  border-image: var(--pill) 0 var(--cap) 0 var(--cap) fill stretch;
+  font-family: var(--font-display); font-weight: 800; font-size: 27px; letter-spacing: 0.3px; color: #fff;
+  filter: drop-shadow(0 4px 0 var(--drop)); text-shadow: 0 2px 0 var(--shade);
+  transition: transform 90ms, filter 90ms, opacity 160ms;
+  --pill: url("../assets/images/workshop/btn-uiPrimary.webp"); --cap: 82; --shade: rgba(255, 244, 200, 0.7); --drop: rgba(140, 80, 0, 0.35);
+}
+.ws-option.ws-option--pill::before, .ws-pill::before {
+  content: ''; position: absolute; z-index: -1; pointer-events: none; top: 0; bottom: 0; left: -41px; right: -41px;
+  border-style: solid; border-width: 0 40px; border-image: inherit;
+}
+.ws-option.ws-option--pill, .ws-pill--yellow { color: #5a2a00; text-shadow: 0 1px 0 var(--shade); }
+.ws-pill { position: absolute; }
+.ws-pill--green { --pill: url("../assets/images/workshop/btn-uiNav.webp"); --cap: 83; --shade: rgba(12, 70, 140, 0.55); --drop: rgba(10, 60, 120, 0.35); color: #fff; }
+.ws-pill--green::after { content: ''; flex: none; width: 0.62em; height: 0.62em; margin-left: 0.15em;
+  background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 1 L9 5 L2 9 Z' fill='%23fff'/%3E%3C/svg%3E");
+  filter: drop-shadow(0 2px 0 rgba(12, 70, 140, 0.55)); }
+.ws-option.ws-option--pill.is-correct { --pill: url("../assets/images/workshop/btn-uiSuccess.webp"); --cap: 83; --shade: rgba(20, 90, 30, 0.5); --drop: rgba(20, 90, 30, 0.35); color: #fff; text-shadow: 0 2px 0 var(--shade); animation: ws-opt-good 600ms ease-out both; }
+.ws-option.ws-option--pill.is-incorrect { --pill: url("../assets/images/workshop/btn-uiDanger.webp"); --cap: 83; --shade: rgba(130, 20, 20, 0.5); --drop: rgba(130, 20, 20, 0.35); color: #fff; text-shadow: 0 2px 0 var(--shade); }
+.ws-option.ws-option--pill.is-selected { filter: drop-shadow(0 0 3px #fff) drop-shadow(0 0 10px rgba(255, 196, 0, 0.95)) drop-shadow(0 4px 0 var(--drop)); transform: translateY(2px); }
+@media (hover: hover) { .ws-option.ws-option--pill:not(:disabled):not(.is-selected):hover, .ws-pill:not(:disabled):hover { transform: translateY(-3px); filter: brightness(1.05) drop-shadow(0 6px 0 var(--drop)); } }
+.ws-option.ws-option--pill:active:not(:disabled), .ws-pill:active:not(:disabled) { transform: translateY(4px); filter: drop-shadow(0 0 0 transparent) brightness(0.94); }
+.ws-option.ws-option--pill:disabled:not(.is-correct):not(.is-incorrect), .ws-pill:disabled { opacity: 0.55; cursor: default; }
+.ws-option.ws-option--pill .ws-option__dot { display: none; }
+
+/* Both-ways checkpoint: Polygon's smaller pill, so both rows and CHECK fit under the shape. */
+.ws-dual .ws-option.ws-option--pill { height: 60px; font-size: 24px; border-width: 0 33px; min-width: 150px; }
+.ws-dual .ws-option.ws-option--pill::before { left: -34px; right: -34px; border-width: 0 33px; }
+
+/* The beaver's own lines use the game's speech bubble (components.css), inside the card, above everything. */
+.workshop__card > .speech-bubble.ws-say { z-index: 7; max-width: 440px; }
+/* Card angle values: the corner's colour, one shade deeper so small numbers stay readable on white (>= 4.5:1). */
+.ws-figure__label--angle.ws-corner--0 { fill: #0d4fa3; } .ws-figure__label--angle.ws-corner--1 { fill: #00695c; }
+.ws-figure__label--angle.ws-corner--2 { fill: #8e1047; } .ws-figure__label--angle.ws-corner--obtuse { fill: #b3261e; }
+
+/* Side lengths: equal lengths share a colour, different lengths differ (a toned side keeps its own colour). */
+.ws-side-label[data-hue="0"] .ws-side-label__text, .ws-figure__label--side.ws-sidehue--0 { fill: #b45309; }
+.ws-side-label[data-hue="1"] .ws-side-label__text, .ws-figure__label--side.ws-sidehue--1 { fill: #1b6e38; }
+.ws-side-label[data-hue="2"] .ws-side-label__text, .ws-figure__label--side.ws-sidehue--2 { fill: #5b2bb5; }
+.ws-side-label[data-tone][data-hue] .ws-side-label__text { fill: var(--tone-deep); }
+
+/* A wrong answer stays out: greyed, red-tinted, not tappable. */
+.ws-option.ws-option--pill.is-incorrect:disabled { --pill: url("../assets/images/workshop/btn-uiDanger.webp"); --cap: 83; color: #fff; opacity: 0.6; filter: grayscale(0.35); cursor: not-allowed; }
+.ws-pick.is-ruled-out { opacity: 0.45; filter: grayscale(1); cursor: not-allowed; }
+
+/* The summary's two columns: a gold title chip over each, shown when its first card lands. */
+.ws-summary__title { position: absolute; translate: -50% 0; padding: 7px 22px 6px; border-radius: 999px; background: #fff8e3; border: 4px solid #f0b000;
+  box-shadow: 0 3px 10px rgba(110, 70, 0, 0.16); font-family: var(--font-display); font-size: 21px; font-weight: 800; letter-spacing: 0.6px; color: #6b4300; white-space: nowrap;
+  opacity: 0; transform: translateY(8px); transition: opacity 300ms, transform 360ms var(--ease-back); }
+.ws-summary__title.is-shown { opacity: 1; transform: none; }
+/* The closing "both ways" card wears the same shape-card look as the collected cards. */
+.ws-summary__big.ws-summary__big--both { background: linear-gradient(180deg, #ffffff 0%, #eef6ff 100%); border: 4px solid #fff; border-radius: 22px;
+  box-shadow: 0 0 0 3px #8db9ee, 0 8px 0 3px #5b8fd6, 0 14px 20px rgba(18, 59, 99, 0.16); }
