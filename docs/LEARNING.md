@@ -140,7 +140,19 @@ the voice of vo001.mp3. Every line the lesson and its intro speak has its id in 
 (vo021 onward). A line without its studio clip is shown at a reading pace, never read by another voice
 (`?speech=1` turns the device voice on for review only).
 
-The studio could not record in this session: its Google Gemini account answers "Exceeded monthly Gemini
+How the studio makes the voice (read from its app): Gemini `gemini-3-flash-preview` rewrites the English line in
+Devanagari (that gives the Indian accent), then `gemini-3.1-flash-tts-preview` speaks it with the prebuilt
+voice "Charon" (= "Male Teacher (Formal)"). `tools/vo/vo-gemini.py` makes those same two calls with any Gemini
+API key, so the beaver's voice can be recorded without the studio:
+
+```sh
+export GEMINI_API_KEY=...                # from https://aistudio.google.com/apikey
+python3 tools/vo/vo-gemini.py            # records the lesson's missing lines (--list shows them)
+python3 tools/vo_word_times.py
+python3 tools/build.py
+```
+
+The studio itself could not record in this session: its Google Gemini account answers "Exceeded monthly Gemini
 API spending cap / prepayment credits depleted" (HTTP 402) for every line. Once its credit is topped up:
 
 ```sh
