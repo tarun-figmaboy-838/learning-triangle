@@ -1,0 +1,477 @@
+/**
+ * The workshop's live triangle: three steel sides with bolted corners drawn as SVG from exact
+ * vertices, with side lengths, angle arcs, ticks and the right-angle square computed from the
+ * shape every frame. Corners can be dragged (pointer capture, touch, a wide invisible hit area);
+ * while a goal is set, a corner near a position that makes the goal true snaps onto it.
+ */
+import { measure, formatCm, formatDeg, constrainVertex, snapVertex, goalMet, solutionFor, vec, PX_PER_CM } from './triangle-model.js';
+import { svgEl, fmt, sideLabelPoint, angleLabelPoint, arcPath, squarePoints, tickSegment, cornerFrame, outwardNormal, sideMidpoint, centroid } from './triangle-draw.js';
+import { tween, easings, wait, prefersReducedMotion, playClassAnimation } from '../core/motion.js';
+
+const VERTEX_HIT_RADIUS = 46;
+const DEFAULT_VISIBLE = Object.freeze({ sides: true, vertices: true, sideLabels: false, angleArcs: false, angleLabels: false, ticks: false, square: false });
+
+const normaliseSet = (value) => (value === true ? [0, 1, 2] : Array.isArray(value) ? value : []);
+
+export function createTriangleCanvas({ host, width, height, audio }) {
+  const svg = svgEl('svg', { class: 'ws-canvas', viewBox: `0 0 ${width} ${height}`, 'aria-hidden': 'true' });
+  host.appendChild(svg);
+  const defs = svgEl('defs');
+  const pattern = svgEl('pattern', { id: 'ws-tape-ticks', patternUnits: 'userSpaceOnUse', width: 14, height: 26 });
+  pattern.append(svgEl('rect', { x: 0, y: 0, width: 2, height: 9, fill: '#1d3a5f' }), svgEl('rect', { x: 7, y: 0, width: 2, height: 5, fill: '#1d3a5f' }));
+  defs.appendChild(pattern);
+  svg.appendChild(defs);
+  const toolLayer = svgEl('g', { class: 'ws-tools' });
+  const tri = svgEl('g', { class: 'ws-tri' });
+  const fxLayer = svgEl('g', { class: 'ws-fx' });
+  svg.append(toolLayer, tri, fxLayer);
+
+  const sides = [0, 1, 2].map((i) => {
+    const group = svgEl('g', { class: 'ws-side', 'data-index': i });
+    const body = svgEl('line', { class: 'ws-side__body' });
+    const trace = svgEl('line', { class: 'ws-side__trace' });
+    const tick = svgEl('line', { class: 'ws-tick' });
+    group.append(body, trace, tick);
+    return { group, body, trace, tick };
+  });
+  const angles = [0, 1, 2].map((i) => {
+    const group = svgEl('g', { class: 'ws-angle', 'data-index': i });
+    const arc = svgEl('path', { class: 'ws-angle__arc' });
+    const square = svgEl('polyline', { class: 'ws-angle__square' });
+    const label = svgEl('text', { class: 'ws-angle__label' });
+    group.append(arc, square, label);
+    return { group, arc, square, label };
+  });
+  const sideLabels = [0, 1, 2].map((i) => {
+    const group = svgEl('g', { class: 'ws-side-label', 'data-index': i });
+    const text = svgEl('text', { class: 'ws-side-label__text' });
+    group.append(text);
+    return { group, text };
+  });
+  const vertices = [0, 1, 2].map((i) => {
+    const group = svgEl('g', { class: 'ws-vertex', 'data-index': i });
+    const hit = svgEl('circle', { class: 'ws-vertex__hit', r: VERTEX_HIT_RADIUS });
+    const point = svgEl('g', { class: 'ws-vertex__point' });      // the dot that breathes / pulses as one piece
+    const plate = svgEl('circle', { class: 'ws-vertex__plate', r: 16 });
+    const bolt = svgEl('circle', { class: 'ws-vertex__bolt', r: 6 });
+    point.append(plate, bolt);
+    group.append(hit, point);
+    return { group, hit, point, plate, bolt };
+  });
+  for (const s of sides) tri.appendChild(s.group);
+  for (const a of angles) tri.appendChild(a.group);
+  for (const l of sideLabels) tri.appendChild(l.group);
+  for (const v of vertices) tri.appendChild(v.group);
+
+  let points = [[width / 2, 120], [width / 2 - 180, 420], [width / 2 + 180, 420]];
+  let visible = { ...DEFAULT_VISIBLE };
+  let measured = measure(points);
+  let drag = { enabled: false, goal: null, bounds: null, silentSnaps: false, onChange: null, onRelease: null };
+  let active = null;      // the drag in progress
+  let lastSnap = null;
+  let hint = null;
+  const chips = [];
+
+  const setHidden = (element, hidden) => element.classList.toggle('ws-hidden', hidden);
+  const inSet = (value, i) => value === true || (Array.isArray(value) && value.includes(i));
+
+  /** Positions every element from the current corners; cheap enough to run on every pointer move. */
+  function render() {
+    measured = measure(points);
+    for (let i = 0; i < 3; i += 1) {
+      const [x1, y1] = points[i];
+      const [x2, y2] = points[(i + 1) % 3];
+      const s = sides[i];
+      for (const line of [s.body, s.trace]) {
+        line.setAttribute('x1', fmt(x1)); line.setAttribute('y1', fmt(y1));
+        line.setAttribute('x2', fmt(x2)); line.setAttribute('y2', fmt(y2));
+      }
+      const tick = tickSegment(points, i);
+      for (const [key, value] of Object.entries(tick)) s.tick.setAttribute(key, value);
+      setHidden(s.group, !visible.sides);
+      setHidden(s.tick, !(visible.ticks && measured.equalSides[i]));
+
+      const v = vertices[i];
+      v.group.setAttribute('transform', `translate(${fmt(points[i][0])} ${fmt(points[i][1])})`);
+      setHidden(v.group, !visible.vertices);
+
+      const a = angles[i];
+      const isRight = measured.rightAt === i;
+      a.arc.setAttribute('d', arcPath(points, i));
+      a.square.setAttribute('points', squarePoints(points, i));
+      const showArc = inSet(visible.angleArcs, i);
+      const showSquare = visible.square && isRight;
+      setHidden(a.arc, !showArc || showSquare);
+      setHidden(a.square, !showSquare);
+      const [lx, ly] = angleLabelPoint(points, i);
+      a.label.setAttribute('x', fmt(lx)); a.label.setAttribute('y', fmt(ly));
+      a.label.textContent = formatDeg(measured.deg[i]);
+      setHidden(a.label, !inSet(visible.angleLabels, i));
+      a.group.classList.toggle('is-right', isRight);
+      a.group.classList.toggle('is-obtuse', measured.obtuseAt === i);
+
+      const l = sideLabels[i];
+      l.text.textContent = formatCm(measured.cm[i]);
+      // The number sits clear of the line and its equal-side tick whichever way the side runs: the gap
+      // grows by the half of the text that lies along the side's normal (its width on a vertical side).
+      const normal = outwardNormal(points, i);
+      const gap = 22 + Math.abs(normal[0]) * (l.text.textContent.length * 8.5) + Math.abs(normal[1]) * 15;
+      const [sx, sy] = sideLabelPoint(points, i, gap);
+      l.text.setAttribute('x', fmt(sx)); l.text.setAttribute('y', fmt(sy));
+      setHidden(l.group, !inSet(visible.sideLabels, i));
+    }
+    tri.dataset.bySides = measured.bySides;
+    tri.dataset.byAngles = measured.byAngles;
+  }
+
+  /* ---------- Pointer mapping (works through the stage scale and the camera's world transform) ---------- */
+  function toSvg(clientX, clientY) {
+    const matrix = svg.getScreenCTM();
+    if (!matrix) return [clientX, clientY];
+    const point = new DOMPoint(clientX, clientY).matrixTransform(matrix.inverse());
+    return [point.x, point.y];
+  }
+  function toClient(x, y) {
+    const matrix = svg.getScreenCTM();
+    if (!matrix) return { x, y };
+    const point = new DOMPoint(x, y).matrixTransform(matrix);
+    return { x: point.x, y: point.y };
+  }
+
+  /* ---------- Dragging ---------- */
+  function onPointerDown(index, event) {
+    if (!drag.enabled || active) return;
+    event.preventDefault();
+    const group = vertices[index].group;
+    try { group.setPointerCapture(event.pointerId); } catch { /* older browsers */ }
+    const pointer = toSvg(event.clientX, event.clientY);
+    active = { index, pointerId: event.pointerId, offset: vec.sub(points[index], pointer), moved: false };
+    group.classList.add('is-dragging');
+    svg.classList.add('is-dragging');
+    clearHint();
+    audio?.play('vertexPick');
+  }
+  function onPointerMove(event) {
+    if (!active || event.pointerId !== active.pointerId) return;
+    event.preventDefault();
+    const wanted = vec.add(toSvg(event.clientX, event.clientY), active.offset);
+    const constrained = constrainVertex(active.index, wanted, points, drag.bounds);
+    const { point, snapped } = snapVertex(drag.goal, active.index, constrained, points);
+    const settled = constrainVertex(active.index, point, points, drag.bounds);
+    points = points.map((p, i) => (i === active.index ? settled : p));
+    active.moved = true;
+    render();
+    if (snapped !== lastSnap) {
+      lastSnap = snapped;
+      if (snapped && !drag.silentSnaps) {
+        audio?.play(snapped === 'equal' || snapped === 'equilateral' ? 'snapEqual' : 'snapRight');
+        sparkleAt(points[active.index], { count: 6 });
+      }
+      tri.classList.toggle('is-snapped', Boolean(snapped));
+    }
+    drag.onChange?.(measured, { snapped, goalMet: goalMet(drag.goal, measured) });
+  }
+  function endDrag(event) {
+    if (!active || (event && event.pointerId !== active.pointerId)) return;
+    const { index, moved } = active;
+    vertices[index].group.classList.remove('is-dragging');
+    svg.classList.remove('is-dragging');
+    tri.classList.remove('is-snapped');
+    active = null;
+    lastSnap = null;
+    drag.onRelease?.(measured, { moved, goalMet: goalMet(drag.goal, measured), index });
+  }
+  vertices.forEach((v, index) => {
+    v.group.addEventListener('pointerdown', (event) => onPointerDown(index, event));
+    v.group.addEventListener('pointermove', onPointerMove);
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) v.group.addEventListener(type, endDrag);
+  });
+  svg.addEventListener('contextmenu', (event) => event.preventDefault());
+
+  /* ---------- Tools and hints ---------- */
+  function clearHint() {
+    hint?.remove();
+    hint = null;
+    for (const v of vertices) v.group.classList.remove('is-hinted');
+  }
+
+  /** A ghost corner and a dashed arrow showing which corner to drag and roughly where. */
+  function showHint(index, direction = null) {
+    clearHint();
+    const from = points[index];
+    let dir = direction;
+    if (!dir) {
+      const target = solutionFor(drag.goal, index, points, drag.bounds);
+      const away = vec.sub(target, from);
+      dir = vec.length(away) > 24 ? vec.unit(away) : vec.mul(outwardNormal(points, (index + 1) % 3), 1);
+    }
+    // From the corner outwards: a dashed shaft, an arrowhead pointing the way, and the ghost corner to drag to.
+    const start = vec.add(from, vec.mul(dir, 30));
+    const shaftEnd = vec.add(from, vec.mul(dir, 66));
+    const ghost = vec.add(from, vec.mul(dir, 102));
+    const group = svgEl('g', { class: 'ws-hint' });
+    group.append(
+      svgEl('line', { class: 'ws-hint__line', x1: fmt(start[0]), y1: fmt(start[1]), x2: fmt(shaftEnd[0]), y2: fmt(shaftEnd[1]) }),
+      svgEl('polygon', { class: 'ws-hint__arrow', points: arrowHead(from, dir) }),
+      svgEl('circle', { class: 'ws-hint__ghost', cx: fmt(ghost[0]), cy: fmt(ghost[1]), r: 12 }),
+    );
+    fxLayer.appendChild(group);
+    hint = group;
+    vertices.forEach((v, i) => v.group.classList.toggle('is-hinted', i === index));
+  }
+  function arrowHead(at, dir) {
+    const base = vec.add(at, vec.mul(dir, 64));
+    const n = vec.perp(dir);
+    const p1 = vec.add(at, vec.mul(dir, 86));       // the tip points away from the corner, towards the ghost
+    const p2 = vec.add(base, vec.mul(n, 11));
+    const p3 = vec.sub(base, vec.mul(n, 11));
+    return [p1, p2, p3].map((p) => `${fmt(p[0])},${fmt(p[1])}`).join(' ');
+  }
+
+  function clearChips() {
+    chips.splice(0).forEach((chip) => chip.remove());
+  }
+  /** A bold number beside side i (the "1, 2, 3" count of PDF L02): text alone, no tag behind it. */
+  function showCountChip(index, text) {
+    const [x, y] = sideLabelPoint(points, index, 48);
+    const group = svgEl('g', { class: 'ws-coin', transform: `translate(${fmt(x)} ${fmt(y)})` });
+    group.append(svgEl('text', { class: 'ws-coin__text', y: 1 }, [document.createTextNode(text)]));
+    fxLayer.appendChild(group);
+    chips.push(group);
+    return playClassAnimation(group, 'is-pop', 500);
+  }
+
+  const reduced = () => prefersReducedMotion();
+
+  /** A little burst of sparks at a point (a snap, a success): eight dots thrown outward. */
+  function sparkleAt([x, y], { count = 8 } = {}) {
+    if (reduced()) return;
+    const group = svgEl('g', { class: 'ws-sparks', transform: `translate(${fmt(x)} ${fmt(y)})` });
+    for (let i = 0; i < count; i += 1) {
+      const angle = (i / count) * Math.PI * 2 + Math.random() * 0.4;
+      const distance = 34 + Math.random() * 26;
+      const dot = svgEl('circle', { class: 'ws-spark', r: 4 + Math.random() * 3 });
+      dot.style.setProperty('--dx', `${(Math.cos(angle) * distance).toFixed(1)}px`);
+      dot.style.setProperty('--dy', `${(Math.sin(angle) * distance).toFixed(1)}px`);
+      group.appendChild(dot);
+    }
+    fxLayer.appendChild(group);
+    setTimeout(() => group.remove(), 700);
+  }
+
+  /** PDF L01: the triangle is built corner → side → corner → side → corner → closing side, then clicks shut. */
+  async function drawIn({ signal } = {}) {
+    visible = { ...DEFAULT_VISIBLE };
+    render();
+    tri.classList.add('is-drawing');
+    for (const s of sides) { s.body.style.strokeDasharray = ''; setHidden(s.group, true); }
+    for (const v of vertices) setHidden(v.group, true);
+    for (let i = 0; i < 3; i += 1) {
+      const v = vertices[i];
+      setHidden(v.group, false);
+      playClassAnimation(v.group, 'is-pop', 420);
+      audio?.play('bolt');
+      await wait(reduced() ? 0 : 480, signal);
+      const s = sides[i];
+      const length = measured.px[i];
+      for (const line of [s.body]) {
+        line.style.strokeDasharray = `${fmt(length)} ${fmt(length)}`;
+        line.style.strokeDashoffset = fmt(length);
+      }
+      setHidden(s.group, false);
+      audio?.play('drawLine');
+      await tween({ duration: reduced() ? 0 : 950, ease: easings.mechanical, signal, onUpdate: (t) => {
+        const offset = fmt(length * (1 - t));
+        s.body.style.strokeDashoffset = offset;
+      } });
+      await wait(reduced() ? 0 : 260, signal);
+    }
+    for (const s of sides) { s.body.style.strokeDasharray = ''; s.body.style.strokeDashoffset = ''; }
+    tri.classList.remove('is-drawing');
+    audio?.play('clank', { variant: 1 });
+    await playClassAnimation(tri, 'is-closed', 620);
+  }
+
+  /** Slide the corners to new positions (the shape keeps its identity, nothing is swapped). */
+  async function morphTo(target, { duration = 800, ease = easings.inOutCubic, signal } = {}) {
+    const from = points.map((p) => [...p]);
+    if (reduced() || duration <= 0) {
+      points = target.map((p) => [...p]);
+      render();
+      return;
+    }
+    await tween({ duration, ease, signal, onUpdate: (t) => {
+      points = from.map((p, i) => [p[0] + (target[i][0] - p[0]) * t, p[1] + (target[i][1] - p[1]) * t]);
+      render();
+    } });
+    points = target.map((p) => [...p]);
+    render();
+  }
+
+  /** A construction tape runs along side i and leaves its length on a tag (PDF L04). */
+  async function measureSide(index, { signal, fromEnd = 0, tool = true, onProgress = null } = {}) {
+    const s = sides[index];
+    const a = fromEnd ? points[(index + 1) % 3] : points[index];
+    const b = fromEnd ? points[index] : points[(index + 1) % 3];
+    const n = outwardNormal(points, index);
+    const direction = vec.unit(vec.sub(b, a));
+    const angle = (Math.atan2(direction[1], direction[0]) * 180) / Math.PI;
+    const length = measured.px[index];
+    const tape = svgEl('g', { class: 'ws-tape' });
+    tape.append(
+      svgEl('rect', { class: 'ws-tape__body', x: -30, y: -13, width: 60, height: 26, rx: 7 }),
+      ...[-20, -10, 0, 10, 20].map((x) => svgEl('line', { class: 'ws-tape__tick', x1: x, y1: -13, x2: x, y2: x % 20 === 0 ? -3 : -7 })),
+      svgEl('circle', { class: 'ws-tape__reel', cx: 0, cy: 3, r: 5 }),
+    );
+    if (tool) toolLayer.appendChild(tape);
+    // The tape itself, spread along the side as far as it has been pulled: a yellow band with tick marks.
+    const stripAngle = (Math.atan2(direction[1], direction[0]) * 180) / Math.PI;
+    const strip = svgEl('g', { class: 'ws-tape-strip', transform: `translate(${fmt(a[0])} ${fmt(a[1])}) rotate(${fmt(stripAngle)})` });
+    const band = svgEl('rect', { class: 'ws-tape-strip__band', x: 0, y: -13, width: 0, height: 26, rx: 4 });
+    const ticks = svgEl('rect', { class: 'ws-tape-strip__ticks', x: 0, y: -13, width: 0, height: 26, fill: 'url(#ws-tape-ticks)' });
+    const hook = svgEl('rect', { class: 'ws-tape-strip__hook', x: -3, y: -17, width: 7, height: 34, rx: 2 });
+    strip.append(band, ticks, hook);
+    toolLayer.appendChild(strip);
+    s.group.classList.add('is-measuring');
+    // The trace line is drawn A→B in the DOM; measuring from the other end runs its dash the other way.
+    for (const line of [s.trace]) { line.setAttribute('x1', fmt(a[0])); line.setAttribute('y1', fmt(a[1])); line.setAttribute('x2', fmt(b[0])); line.setAttribute('y2', fmt(b[1])); }
+    s.trace.style.strokeDasharray = `${fmt(length)} ${fmt(length)}`;
+    s.trace.style.strokeDashoffset = fmt(length);
+    setHidden(s.trace, false);
+    audio?.play('drawLine');
+    await tween({ duration: reduced() ? 0 : 1500, ease: easings.mechanical, signal, onUpdate: (t) => {
+      const along = vec.add(a, vec.mul(direction, length * t));
+      const at = vec.add(along, vec.mul(n, 30));
+      tape.setAttribute('transform', `translate(${fmt(at[0])} ${fmt(at[1])}) rotate(${fmt(angle)})`);
+      band.setAttribute('width', fmt(length * t));
+      ticks.setAttribute('width', fmt(length * t));
+      hook.setAttribute('x', fmt(length * t - 3));
+      s.trace.style.strokeDashoffset = fmt(length * (1 - t));
+      onProgress?.(t, along);
+    } });
+    visible.sideLabels = [...new Set([...normaliseSet(visible.sideLabels), index])];
+    render();
+    audio?.play('measure');
+    playClassAnimation(sideLabels[index].group, 'is-pop', 520);
+    await wait(reduced() ? 0 : 700, signal);
+    tape.classList.add('is-leaving');
+    strip.classList.add('is-leaving');
+    s.group.classList.remove('is-measuring');
+    setHidden(s.trace, true);
+    await wait(reduced() ? 0 : 400, signal);
+    tape.remove();
+    strip.remove();
+  }
+
+  /** A protractor sits on corner i, its arc sweeps open to the angle, the value appears (PDF L11). */
+  async function measureAngle(index, { signal } = {}) {
+    const a = angles[index];
+    const v = points[index];
+    const { u, theta } = cornerFrame(points, index);
+    const sign = vec.cross(u, cornerFrame(points, index).w) > 0 ? 1 : -1;
+    const baseAngle = (Math.atan2(u[1], u[0]) * 180) / Math.PI;
+    const protractor = svgEl('g', { class: 'ws-protractor', transform: `translate(${fmt(v[0])} ${fmt(v[1])}) rotate(${fmt(baseAngle)}) scale(1 ${sign})` });
+    const R = 96;
+    protractor.appendChild(svgEl('path', { class: 'ws-protractor__disc', d: `M ${R} 0 A ${R} ${R} 0 0 1 ${-R} 0 Z` }));
+    protractor.appendChild(svgEl('path', { class: 'ws-protractor__inner', d: `M ${R * 0.5} 0 A ${R * 0.5} ${R * 0.5} 0 0 1 ${-R * 0.5} 0` }));
+    for (let deg = 0; deg <= 180; deg += 10) {
+      const r = (deg * Math.PI) / 180;
+      const inner = deg % 30 === 0 ? R - 22 : R - 12;
+      protractor.appendChild(svgEl('line', { class: 'ws-protractor__tick', x1: fmt(inner * Math.cos(r)), y1: fmt(inner * Math.sin(r)), x2: fmt((R - 3) * Math.cos(r)), y2: fmt((R - 3) * Math.sin(r)) }));
+    }
+    protractor.appendChild(svgEl('circle', { class: 'ws-protractor__pin', cx: 0, cy: 0, r: 5 }));
+    toolLayer.appendChild(protractor);
+    playClassAnimation(protractor, 'is-pop', 400);
+    a.group.classList.add('is-measuring');
+    setHidden(a.arc, false);
+    audio?.play('drawLine');
+    await tween({ duration: reduced() ? 0 : 1400, ease: easings.mechanical, signal, onUpdate: (t) => {
+      a.arc.setAttribute('d', arcPath(points, index, undefined, Math.max(0.02, t)));
+    } });
+    a.arc.setAttribute('d', arcPath(points, index));
+    visible.angleArcs = [...new Set([...normaliseSet(visible.angleArcs), index])];
+    await wait(reduced() ? 0 : 500, signal);          // the reading settles on the protractor
+    protractor.classList.add('is-leaving');           // the tool lifts away first, so the value never sits on top of it
+    await wait(reduced() ? 0 : 400, signal);
+    protractor.remove();
+    visible.angleLabels = [...new Set([...normaliseSet(visible.angleLabels), index])];
+    render();
+    audio?.play('measure');
+    playClassAnimation(a.label, 'is-pop', 520);
+    a.group.classList.remove('is-measuring');
+    await wait(reduced() ? 0 : 500, signal);
+    void theta;
+  }
+
+  render();
+
+  return {
+    svg,
+    get points() { return points.map((p) => [...p]); },
+    get measured() { return measured; },
+    get width() { return width; },
+    get height() { return height; },
+    setPoints(next) {
+      points = next.map((p) => [...p]);
+      render();
+    },
+    /** Which parts show: sides, vertices, sideLabels, angleArcs, angleLabels (true | [indices]), ticks, square. */
+    setVisible(next, { merge = true } = {}) {
+      visible = merge ? { ...visible, ...next } : { ...DEFAULT_VISIBLE, ...next };
+      render();
+    },
+    get visible() { return { ...visible }; },
+    setTone(index, tone) {
+      for (const el of [sides[index].group, sideLabels[index].group]) {
+        if (tone) el.dataset.tone = tone;
+        else delete el.dataset.tone;
+      }
+    },
+    clearTones() {
+      for (const el of [...sides, ...sideLabels]) delete el.group.dataset.tone;
+    },
+    emphasiseSides(indices) {
+      sides.forEach((s, i) => s.group.classList.toggle('is-emphasis', indices.includes(i)));
+    },
+    emphasiseAngles(indices) {
+      angles.forEach((a, i) => a.group.classList.toggle('is-emphasis', indices.includes(i)));
+    },
+    clearEmphasis() {
+      for (const s of sides) s.group.classList.remove('is-emphasis');
+      for (const a of angles) a.group.classList.remove('is-emphasis');
+    },
+    pulseSide: (i) => playClassAnimation(sides[i].group, 'is-pulse', 620),
+    pulseSideLabel: (i) => playClassAnimation(sideLabels[i].group, 'is-pulse', 620),
+    pulseAngle: (i) => playClassAnimation(angles[i].group, 'is-pulse', 700),
+    pulseVertex: (i) => playClassAnimation(vertices[i].group, 'is-pop', 420),
+    pulseAll: () => playClassAnimation(tri, 'is-closed', 620),
+    drawIn,
+    morphTo,
+    measureSide,
+    measureAngle,
+    showHint,
+    clearHint,
+    showCountChip,
+    clearChips,
+    sparkleAt,
+    sparkleVertices: () => points.forEach((p) => sparkleAt(p)),
+    /** Dragging: enabled, goal ('isosceles' | 'equilateral' | 'right' | 'obtuse' | 'rightIsosceles'), bounds, callbacks. */
+    setDrag(next) {
+      drag = { ...drag, ...next };
+      if (!drag.bounds) drag.bounds = { left: 50, top: 50, right: width - 50, bottom: height - 40 };
+      svg.classList.toggle('is-draggable', Boolean(drag.enabled));
+      if (!drag.enabled && active) endDrag(null);
+    },
+    get isDragging() { return Boolean(active); },
+    toSvg,
+    toClient,
+    solutionFor: (goal, index, bounds = drag.bounds) => solutionFor(goal, index, points, bounds),
+    centroid: () => centroid(points),
+    sideMidpoint: (i) => sideMidpoint(points, i),
+    outwardNormal: (i) => outwardNormal(points, i),
+    cmToPx: (cm) => cm * PX_PER_CM,
+    destroy() {
+      svg.remove();
+    },
+  };
+}

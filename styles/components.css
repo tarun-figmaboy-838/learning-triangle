@@ -1,0 +1,209 @@
+/* ---------- Task panel (after Fishing Frenzy): a translucent deep-navy plate with a faint gold rim ----------
+   A plate to read, not a button: frosted navy over the scene, cream text, the key words in gold. It sits
+   centred at the top, and gives a little squash-and-stretch "boing" each time a new task is read out. */
+.instruction-banner {
+  position: absolute;
+  left: 50%;
+  translate: -50% 0;
+  top: 104px;             /* just under the crane's jib, above the claw at rest */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 50px 20px;
+  border-radius: 30px;
+  background: rgba(8, 36, 84, 0.62);
+  border: 3px solid rgba(255, 214, 140, 0.35);
+  box-shadow: 0 13px 38px rgba(0, 20, 60, 0.3), inset 0 3px 0 rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: #fff8ec;
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+.instruction__text { margin: 0; }
+.instruction-banner.is-entering, .instruction-banner.is-swapping { animation: instruction-boing 550ms cubic-bezier(0.2, 1.8, 0.4, 1) both; }
+.instruction-banner.is-complete { background: rgba(14, 92, 52, 0.66); }
+.instruction-banner.is-pushed { animation: instruction-nudge 700ms ease-in-out 2; }
+
+/* ---------- Words appearing as they are read (task sign and speech bubble) ---------- */
+.reveal-line .w {
+  display: inline-block;
+  animation: word-in 460ms cubic-bezier(.33, .1, .25, 1) both;
+  animation-delay: var(--wdly, 0ms);
+}
+/* Key words: gold on the navy plate, nothing behind them, no tilt (several in a row must not bump). */
+.reveal-line .w.key { color: #ffd166; font-weight: 700; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4); }
+/* In the white speech bubble the key words take the crane's deep orange instead. */
+.speech-bubble .reveal-line .w.key { color: #e8590c; text-shadow: none; }
+.reveal-line.is-instant .w { animation: none; }
+.reveal-line.is-waiting .w { animation-play-state: paused; }   /* until the voice is heard */
+
+/* ---------- Mute button ---------- */
+.mute-button {
+  position: absolute;
+  right: var(--safe);
+  top: 24px;
+  width: 88px; height: 88px;
+  border-radius: 50%;
+  background: var(--color-navy);
+  border: 4px solid #fff;
+  color: #fff;
+  box-shadow: var(--shadow-soft);
+  display: grid; place-items: center;
+  transition: transform var(--t-micro) var(--ease-out);
+}
+.mute-button::before { content: "♪"; font-size: 44px; line-height: 1; font-family: var(--font-display); }
+.mute-button.is-muted::after {
+  content: ""; position: absolute; width: 54px; height: 6px; border-radius: 3px;
+  background: var(--color-red); transform: rotate(-45deg);
+}
+.mute-button:active, .mute-button.is-pressed { transform: scale(0.92); }
+
+/* ---------- Builder speech bubble ---------- */
+/* Speech bubble (after the Polygon game's): a white rounded body with a navy keyline and one swept tail
+   leaning toward the speaker, drawn by js/gameplay/bubble-shape.js for whatever box the words need.
+   One hard soft-blue shadow under the whole silhouette, a slight tilt, a pop-in and a gentle wobble. */
+.speech-bubble {
+  position: absolute;
+  left: 120px;
+  top: 236px;
+  width: max-content;
+  max-width: 600px;
+  padding: 22px 34px 24px;
+  rotate: -1.1deg;
+  animation: bubble-wobble 3.4s ease-in-out 460ms infinite;
+}
+.speech-bubble__shape {
+  position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none;
+  filter: drop-shadow(0 0 0.5px #b07800) drop-shadow(7px 10px 0 rgba(150, 95, 0, 0.3));
+}
+.speech-bubble__face { fill: #ffffff; stroke: #f5b400; stroke-width: 7; stroke-linejoin: round; stroke-linecap: round; }   /* the crane's yellow */
+.speech-bubble__text {
+  position: relative; z-index: 1; margin: 0;
+  color: #0c3352;
+  font-family: var(--font-display);
+  font-size: 34px;
+  line-height: 1.3;
+  text-align: center;
+  text-wrap: balance;
+}
+.speech-bubble.is-entering { animation: bubble-in 380ms cubic-bezier(.2, 1.8, .35, 1) both, bubble-wobble 3.4s ease-in-out 420ms infinite; }
+.speech-bubble.is-leaving { animation: bubble-leave 280ms var(--ease-in) forwards; }
+
+/* ---------- How to play card (PDF: G0.3): clean card, a title tab, one row per control ---------- */
+.howto-card {
+  position: absolute;
+  right: 44px;
+  top: 128px;
+  width: 580px;
+  padding: 44px 24px 20px;
+  border-radius: 28px;
+  background: var(--color-card);
+  border: 5px solid #fff;
+  box-shadow: 0 8px 0 rgba(15, 45, 77, 0.2), var(--shadow-card);
+  color: var(--color-navy);
+}
+.howto-card.is-entering { animation: bubble-enter 520ms var(--ease-back) both; }
+.howto-card.is-leaving { animation: card-leave-right 420ms var(--ease-in) forwards; }
+.howto-step.is-active { opacity: 1; transform: scale(1.02); background: #fff3c4; border-color: #f2b400; }
+.howto-step.is-done { opacity: 1; background: #e5f6e9; border-color: #3bc26a; }
+.howto-step.is-done .howto-step__check { animation: check-pop 420ms var(--ease-back) forwards; }
+.howto-card__footer.is-entering { animation: cta-enter 480ms var(--ease-back) both; }
+
+/* ---------- Shared CTA button ---------- */
+.cta-button {
+  padding: 18px 42px;
+  border-radius: 999px;
+  background: linear-gradient(#ffe066, #f2b400);
+  border: 5px solid #fff;
+  box-shadow: 0 8px 0 #a86f00, 0 14px 22px rgba(0,0,0,0.3);
+  font-family: var(--font-display);
+  font-size: 30px;
+  color: #2a1a05;
+  white-space: nowrap;
+  transition: transform var(--t-micro) var(--ease-out), box-shadow var(--t-micro) var(--ease-out);
+}
+.cta-button:active, .cta-button.is-pressed { transform: translateY(6px); box-shadow: 0 2px 0 #a86f00, 0 6px 10px rgba(0,0,0,0.25); }
+.cta-button.is-entering { animation: cta-enter 480ms var(--ease-back) both; }
+.overlay-cta { position: absolute; right: 60px; bottom: 60px; }
+/* Icon-only round buttons (no text buttons): the icon says what it does, aria-label names it. */
+.icon-cta { width: 132px; height: 132px; padding: 0; border-radius: 50%; display: grid; place-items: center; color: #2a1a05; }
+.icon-cta svg { width: 66px; height: 66px; }
+
+/* ---------- Completion: the painted BRIDGE BUILT! sign on two ropes, the replay button in the centre ---------- */
+.completion { position: absolute; inset: 0; }
+.completion__sign.is-entering { animation: sign-drop 1100ms var(--ease-out) both; }
+/* The button stays put (centred); only its picture breathes and presses, so a tap always lands on it. */
+.completion__replay.icon-cta { left: 50%; top: 860px; right: auto; bottom: auto; width: 160px; height: 174px; transform: translate(-50%, -50%); background: none; border: 0; box-shadow: none; padding: 0; animation: none; }
+.completion__replay.icon-cta:active, .completion__replay.icon-cta.is-pressed { transform: translate(-50%, -50%); box-shadow: none; }
+.completion__replay.icon-cta img { width: 112%; max-width: none; margin: -6% -6% -12% -6%; height: auto; display: block; filter: drop-shadow(0 14px 14px rgba(6, 24, 48, 0.35)); animation: start-breathe 1.7s ease-in-out infinite; }
+.completion__replay.icon-cta:active img { animation: none; transform: translateY(8px) scale(0.96); }
+.completion__replay.icon-cta.is-entering { animation: none; }
+.completion__replay.icon-cta.is-entering img { animation: logo-pop 520ms var(--ease-back) both; }   /* then it breathes (base rule) */
+
+/* ---------- Debug overlay ---------- */
+.debug-overlay {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.72);
+  color: #b7f5c0;
+  font: 14px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre;
+  pointer-events: none;
+}
+.controls.is-entering .dpad-dock { animation: dock-enter-left 620ms var(--ease-out) both; }
+.controls.is-entering .action-dock { animation: dock-enter-right 620ms var(--ease-out) both; }
+.dpad.is-locked .dpad__key { cursor: default; }
+.dpad.is-locked .dpad__key:not(.is-pressed) img { filter: saturate(0.85) brightness(0.93) drop-shadow(0 5px 3px rgba(6, 24, 48, 0.3)); }
+
+/* ---------- Title: the painted play button, breathing gently, a soft pulse rippling out behind it ---------- */
+.start-button {
+  position: absolute;
+  left: 50%; top: 596px;     /* lower, standing just above the bridge's road */
+  width: 300px; height: 300px; padding: 0;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  display: grid; place-items: center;
+}
+.start-button > * { position: absolute; pointer-events: none; }
+.start-button__glow {
+  width: 300px; height: 300px; border-radius: 50%; margin-top: -14px;
+  background: radial-gradient(circle, rgba(255, 226, 120, 0.7) 0%, rgba(255, 214, 90, 0.42) 40%, rgba(255, 200, 70, 0.14) 58%, rgba(255, 200, 70, 0) 70%);
+  animation: glow-pulse 1.7s ease-in-out infinite;
+}
+.start-button__face {
+  width: 246.4px; max-width: none; margin: -13.2px -13.2px -26.4px; height: auto; display: block;   /* 220 px of picture + its clear margin */
+  filter: drop-shadow(0 14px 14px rgba(6, 24, 48, 0.3));
+  animation: start-breathe 1.7s ease-in-out infinite;
+  transition: transform var(--t-micro) var(--ease-out);
+}
+.start-button:active .start-button__face, .start-button.is-pressed .start-button__face { animation: none; transform: translateY(8px) scale(0.96); }
+.start-button:focus-visible { outline: none; box-shadow: none; }
+.start-button:focus-visible .start-button__face { border-color: #fff9d6; }
+.start-button.is-leaving { animation: start-leave 380ms var(--ease-in) forwards; }
+.start-button.is-entering { animation: start-enter 520ms var(--ease-back) both; }
+
+/* ---------- Drone intro: aerial shots played as one flight (js/screens/drone-intro.js) ---------- */
+.drone-intro { position: absolute; inset: 0; z-index: 15; overflow: hidden; background: #6fc3ff; }
+.drone-intro__hover { position: absolute; inset: 0; animation: drone-hover 3.2s ease-in-out infinite; }
+.drone-intro__shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; will-change: transform, opacity; }
+
+/* ---------- Title: the painted BRIDGE BUILDER logo ---------- */
+.title-card { position: absolute; left: 0; right: 0; top: 104px; text-align: center; pointer-events: none; }
+.title-card__headline { margin: 0; }
+.title-card__logo { display: inline-block; width: 954.0px; max-width: none; margin: -27.0px -27.0px -45.2px; height: auto; filter: drop-shadow(0 12px 14px rgba(6, 24, 48, 0.3)); }
+.title-card.is-entering .title-card__logo { animation: logo-pop 700ms var(--ease-back) both; }
+.title-card.is-leaving { animation: title-leave 460ms var(--ease-in) forwards; }
+.drone-caption {
+  position: absolute; left: 50%; bottom: 120px; margin: 0; padding: 18px 40px; border-radius: 999px;
+  background: rgba(9, 29, 51, 0.55); color: #fff; font-family: var(--font-display); font-size: 40px; white-space: nowrap;
+  transform: translateX(-50%); pointer-events: none;
+  animation: drone-caption 2600ms ease-in-out both;
+}
+

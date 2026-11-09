@@ -1,0 +1,507 @@
+/**
+ * The board's reusable widgets: option card, multi-select grid, sorting crates, the two-way classifier,
+ * classification badges, lenses, the 90° reference card, tool chips, buttons, the entry and summary views.
+ * Each returns plain DOM plus a small API; the flow (learning-flow.js) decides when they appear.
+ * Before an answer every option has the same look: no colour, size or motion gives the answer away.
+ */
+import { buildTriangleFigure } from './triangle-figure.js';
+import { LEARNING_COPY } from './learning-content.js';
+import { playClassAnimation, prefersReducedMotion } from '../core/motion.js';
+
+const ASSETS = 'assets/images/workshop/';
+export const WIDGET_IMAGES = [`${ASSETS}sort-crate.png`, `${ASSETS}btn-pill.png`, `${ASSETS}name-tag.png`, `${ASSETS}card-frame.png`, `${ASSETS}summary-card.png`];
+
+const escapeHtml = (value) => String(value).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function element(tag, className, html = '') {
+  const node = document.createElement(tag);
+  node.className = className;
+  if (html) node.innerHTML = html;
+  return node;
+}
+
+function place(node, { left, top, right, bottom, width, height } = {}) {
+  if (left !== undefined) node.style.left = `${left}px`;
+  if (top !== undefined) node.style.top = `${top}px`;
+  if (right !== undefined) node.style.right = `${right}px`;
+  if (bottom !== undefined) node.style.bottom = `${bottom}px`;
+  if (width !== undefined) node.style.width = `${width}px`;
+  if (height !== undefined) node.style.height = `${height}px`;
+  return node;
+}
+
+const enter = (node, name = 'is-entering', ms = 520) => playClassAnimation(node, name, ms);
+async function leave(node, ms = 320) {
+  if (!node.isConnected) return;
+  if (!prefersReducedMotion()) await playClassAnimation(node, 'is-leaving', ms);
+  node.remove();
+}
+
+/* ---------- Buttons ---------- */
+
+/** A yellow (or green) pill with words: BEGIN LEARNING, CHECK, CONTINUE. */
+export function createPillButton({ overlayEl, text, tone = 'yellow', at = {}, onPress, enabled = true }) {
+  const button = element('button', `ws-pill ws-pill--${tone} ws-interactive`, escapeHtml(text));
+  button.type = 'button';
+  button.disabled = !enabled;
+  place(button, at);
+  if (at.center) button.classList.add('ws-pill--center');
+  button.addEventListener('click', () => {
+    if (button.disabled) return;
+    onPress?.();
+  });
+  overlayEl.appendChild(button);
+  enter(button, 'is-entering', 480);
+  return {
+    element: button,
+    setEnabled(value) { button.disabled = !value; },
+    pressOnce() { button.disabled = true; },
+    remove: () => leave(button, 240),
+  };
+}
+
+/* ---------- Chips, badges, cards ---------- */
+
+export function createBadge({ overlayEl, text, tone, at, size = 'normal' }) {
+  const badge = element('div', `ws-badge ws-badge--${tone} ws-badge--${size}`, escapeHtml(text));
+  place(badge, at);
+  overlayEl.appendChild(badge);
+  enter(badge, 'is-entering', 600);
+  return { element: badge, remove: () => leave(badge) };
+}
+
+/** A lens: "BY SIDES → Isosceles". Two of them merge into the badge stack (PDF L20). */
+export function createLens({ overlayEl, title, result, tone, at }) {
+  const lens = element('div', `ws-lens ws-lens--${tone}`, `<span class="ws-lens__title">${escapeHtml(title)}</span><span class="ws-lens__arrow" aria-hidden="true">→</span><span class="ws-lens__result">${escapeHtml(result)}</span>`);
+  place(lens, at);
+  overlayEl.appendChild(lens);
+  enter(lens, 'is-entering', 560);
+  return { element: lens, merge: () => playClassAnimation(lens, 'is-merging', 700), remove: () => leave(lens) };
+}
+
+export function createGreatJob({ overlayEl, at }) {
+  const chip = element('div', 'ws-greatjob', `<span class="ws-greatjob__tick" aria-hidden="true"></span>${escapeHtml(LEARNING_COPY.greatJob)}`);
+  place(chip, at);
+  overlayEl.appendChild(chip);
+  enter(chip, 'is-entering', 620);
+  return { element: chip, remove: () => leave(chip) };
+}
+
+/* ---------- Single-choice question: a centred row of options under the triangle ---------- */
+
+export function createOptionCard({ overlayEl, prompt, options, audio, onSelect, at = { top: 556 } }) {
+  const row = element('div', 'ws-options-row');
+  row.setAttribute('role', 'radiogroup');
+  row.setAttribute('aria-label', prompt);
+  place(row, at);
+  const buttons = options.map((option, index) => {
+    const button = element('button', 'ws-option ws-option--pill ws-interactive', `<span class="ws-option__text">${escapeHtml(option)}</span>`);
+    button.type = 'button';
+    button.dataset.option = option;
+    button.setAttribute('role', 'radio');
+    button.setAttribute('aria-checked', 'false');
+    button.style.setProperty('--i', String(index));
+    button.addEventListener('click', () => {
+      if (!enabled || button.disabled) return;
+      audio?.play('uiTap');
+      for (const other of buttons) {
+        other.classList.toggle('is-selected', other === button);
+        other.setAttribute('aria-checked', String(other === button));
+      }
+      onSelect?.(option, button);
+    });
+    row.appendChild(button);
+    return button;
+  });
+  let enabled = true;
+  overlayEl.appendChild(row);
+  enter(row, 'is-entering', 560);
+  return {
+    element: row,
+    setEnabled(value) {
+      enabled = Boolean(value);
+      row.classList.toggle('is-locked', !enabled);
+    },
+    markCorrect(option) {
+      for (const button of buttons) {
+        button.classList.toggle('is-correct', button.dataset.option === option);
+        button.disabled = true;
+      }
+    },
+    /** A gentle shake; the choice is cleared so the learner can try again. */
+    async markIncorrect(option) {
+      const button = buttons.find((b) => b.dataset.option === option);
+      if (!button) return;
+      button.classList.add('is-incorrect');
+      await playClassAnimation(button, 'is-shaking', 520);
+      button.classList.remove('is-selected', 'is-incorrect');
+      button.setAttribute('aria-checked', 'false');
+    },
+    remove: () => leave(row),
+  };
+}
+
+/* ---------- Multi-select grid (CFU: which are acute-angled?) ---------- */
+
+export function createMultiGrid({ overlayEl, cards, audio, onChange }) {
+  const root = element('div', 'ws-grid');
+  const selection = new Set();
+  const buttons = cards.map((card, index) => {
+    const button = element('button', 'ws-pick ws-interactive');
+    button.type = 'button';
+    button.dataset.card = card.id;
+    button.setAttribute('aria-pressed', 'false');
+    button.style.setProperty('--i', String(index));
+    const figure = buildTriangleFigure(card.spec, { width: 300, height: 206, labels: 'angles', arcs: true, square: true, pad: 30 });
+    button.append(element('span', 'ws-letter', escapeHtml(card.id)), figure.svg, element('span', 'ws-pick__state', ''));
+    place(button, { left: 70 + index * 350, top: 56 });
+    button.addEventListener('click', () => {
+      if (!enabled) return;
+      audio?.play('uiTap');
+      const on = !selection.has(card.id);
+      if (on) selection.add(card.id); else selection.delete(card.id);
+      button.classList.toggle('is-selected', on);
+      button.setAttribute('aria-pressed', String(on));
+      onChange?.(new Set(selection));
+    });
+    root.appendChild(button);
+    return button;
+  });
+  let enabled = true;
+  overlayEl.appendChild(root);
+  enter(root, 'is-entering', 560);
+  return {
+    element: root,
+    get selection() { return new Set(selection); },
+    setEnabled(value) { enabled = Boolean(value); root.classList.toggle('is-locked', !enabled); },
+    /** After a wrong CHECK: wrong picks shake and clear, right picks stay. */
+    async shakeWrong(correctIds) {
+      const wrong = buttons.filter((b) => selection.has(b.dataset.card) && !correctIds.includes(b.dataset.card));
+      await Promise.all(wrong.map((b) => playClassAnimation(b, 'is-shaking', 520)));
+      for (const b of wrong) {
+        selection.delete(b.dataset.card);
+        b.classList.remove('is-selected');
+        b.setAttribute('aria-pressed', 'false');
+      }
+    },
+    markResult(correctIds) {
+      for (const b of buttons) {
+        const right = correctIds.includes(b.dataset.card);
+        b.classList.toggle('is-correct', right);
+        b.classList.toggle('is-dimmed', !right);
+        b.querySelector('.ws-pick__state').textContent = right ? '✓ SELECTED' : '';
+      }
+    },
+    remove: () => leave(root),
+  };
+}
+
+/* ---------- Sorting: drag each triangle card into its crate ---------- */
+
+export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
+  const root = element('div', 'ws-sort');
+  const CARD = { width: 360, height: 210, xs: [120, 600, 1080], top: 8 };
+  const BIN = { width: 360, xs: [120, 600, 1080], top: 282 };
+  const cardEls = new Map();
+  const binEls = new Map();
+  let enabled = true;
+  let selected = null;
+  let placedCount = 0;
+
+  cards.forEach((card, index) => {
+    const node = element('div', 'ws-sort-card ws-interactive');
+    node.dataset.card = card.id;
+    node.setAttribute('role', 'button');
+    node.setAttribute('tabindex', '0');
+    node.setAttribute('aria-label', `Triangle ${card.id}`);
+    const figure = buildTriangleFigure(card.spec, { width: 340, height: 192, labels: 'sides', ticks: true, pad: 32 });
+    node.append(element('span', 'ws-letter', escapeHtml(card.id)), figure.svg);
+    node.style.setProperty('--i', String(index));
+    const home = { left: CARD.xs[index], top: CARD.top };
+    place(node, home);
+    root.appendChild(node);
+    cardEls.set(card.id, { node, home, card, placed: false });
+  });
+  const chip = element('div', 'ws-chip ws-chip--sort', escapeHtml(LEARNING_COPY.dragToSort));
+  place(chip, { top: 232 });
+  root.appendChild(chip);
+  bins.forEach((bin, index) => {
+    const node = element('div', 'ws-bin ws-interactive');
+    node.dataset.bin = bin.id;
+    node.setAttribute('role', 'button');
+    node.setAttribute('tabindex', '0');
+    node.setAttribute('aria-label', `${bin.label} crate`);
+    node.innerHTML = `<span class="ws-bin__label ws-tag ws-tag--${bin.id}">${escapeHtml(bin.label)}</span><div class="ws-bin__crate"><img src="${ASSETS}sort-crate.png" alt="" draggable="false"><span class="ws-bin__slot">${escapeHtml(LEARNING_COPY.dropHere)}</span></div>`;
+    node.style.setProperty('--i', String(index));
+    place(node, { left: BIN.xs[index], top: BIN.top, width: BIN.width });
+    root.appendChild(node);
+    binEls.set(bin.id, { node, bin });
+  });
+
+  const scaleFactor = () => (root.getBoundingClientRect().width / root.offsetWidth) || 1;
+  function binAt(clientX, clientY) {
+    for (const { node, bin } of binEls.values()) {
+      const r = node.getBoundingClientRect();
+      if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) return bin.id;
+    }
+    return null;
+  }
+  function highlightBin(id) {
+    for (const { node, bin } of binEls.values()) node.classList.toggle('is-over', bin.id === id);
+  }
+  function select(id) {
+    selected = id;
+    for (const entry of cardEls.values()) entry.node.classList.toggle('is-selected', entry.card.id === id);
+  }
+
+  async function settleInto(entry, binId) {
+    const bin = binEls.get(binId);
+    entry.placed = true;
+    entry.node.classList.remove('is-dragging', 'is-selected');
+    entry.node.classList.add('is-placed');
+    entry.node.style.transform = '';
+    const slotLeft = BIN.xs[bins.findIndex((b) => b.id === binId)] + (BIN.width - 200) / 2;
+    place(entry.node, { left: slotLeft, top: BIN.top + 44 });
+    bin.node.classList.add('is-filled');
+    bin.node.querySelector('.ws-bin__slot').textContent = '';
+    audio?.play('snapRight');
+    playClassAnimation(bin.node, 'is-receiving', 520);
+    placedCount += 1;
+  }
+  async function bounceBack(entry) {
+    entry.node.classList.remove('is-dragging');
+    entry.node.style.transform = '';
+    audio?.play('softNo');
+    await playClassAnimation(entry.node, 'is-shaking', 520);
+  }
+  async function attempt(cardId, binId) {
+    const entry = cardEls.get(cardId);
+    if (!entry || entry.placed || !enabled) return;
+    const ok = onDrop?.(cardId, binId);
+    select(null);
+    highlightBin(null);
+    if (ok) await settleInto(entry, binId);
+    else await bounceBack(entry);
+  }
+
+  for (const entry of cardEls.values()) {
+    const { node } = entry;
+    let drag = null;
+    node.addEventListener('pointerdown', (event) => {
+      if (!enabled || entry.placed) return;
+      event.preventDefault();
+      try { node.setPointerCapture(event.pointerId); } catch { /* older browsers */ }
+      drag = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
+      node.classList.add('is-dragging');
+      audio?.play('vertexPick');
+    });
+    node.addEventListener('pointermove', (event) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      const k = scaleFactor();
+      const dx = (event.clientX - drag.x) / k;
+      const dy = (event.clientY - drag.y) / k;
+      if (Math.hypot(dx, dy) > 4) drag.moved = true;
+      node.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) scale(1.04)`;
+      highlightBin(binAt(event.clientX, event.clientY));
+    });
+    const finish = async (event) => {
+      if (!drag || (event && event.pointerId !== drag.id)) return;
+      const { moved } = drag;
+      drag = null;
+      if (!moved) {                                  // a tap: pick it up; tapping a crate puts it there
+        node.classList.remove('is-dragging');
+        node.style.transform = '';
+        select(selected === entry.card.id ? null : entry.card.id);
+        return;
+      }
+      const target = binAt(event.clientX, event.clientY);
+      if (target) await attempt(entry.card.id, target);
+      else {
+        node.classList.remove('is-dragging');
+        node.style.transform = '';
+        highlightBin(null);
+      }
+    };
+    node.addEventListener('pointerup', finish);
+    node.addEventListener('pointercancel', finish);
+    node.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select(selected === entry.card.id ? null : entry.card.id); }
+    });
+  }
+  for (const { node, bin } of binEls.values()) {
+    const choose = () => { if (selected) attempt(selected, bin.id); };
+    node.addEventListener('click', choose);
+    node.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(); }
+    });
+  }
+
+  overlayEl.appendChild(root);
+  enter(root, 'is-entering', 560);
+  return {
+    element: root,
+    get placedCount() { return placedCount; },
+    setEnabled(value) { enabled = Boolean(value); root.classList.toggle('is-locked', !enabled); },
+    /** Client-space centres (for the automated play-through). */
+    targets() {
+      const centre = (node) => { const r = node.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
+      return { cards: Object.fromEntries([...cardEls].map(([id, e]) => [id, centre(e.node)])), bins: Object.fromEntries([...binEls].map(([id, e]) => [id, centre(e.node)])) };
+    },
+    remove: () => leave(root),
+  };
+}
+
+/** After sorting: the three triangles in their categories with a tick each (PDF CFU01 success). */
+export function createSortResult({ overlayEl, cards, bins }) {
+  const root = element('div', 'ws-sort-result');
+  bins.forEach((bin, index) => {
+    const card = cards.find((c) => c.answer === bin.id);
+    const panel = element('div', `ws-result-card ws-result-card--${bin.id}`);
+    const figure = buildTriangleFigure(card.spec, { width: 340, height: 200, labels: null, ticks: true, pad: 30 });
+    const cm = figure.measured.cm.map((v) => Math.round(v * 10) / 10).join(' / ');
+    panel.append(element('span', 'ws-result-card__tick', ''), figure.svg, element('span', 'ws-result-card__name', escapeHtml(bin.label)), element('span', 'ws-result-card__cm', `${cm} cm`));
+    panel.style.setProperty('--i', String(index));
+    place(panel, { left: 120 + index * 480, top: 60 });
+    root.appendChild(panel);
+  });
+  overlayEl.appendChild(root);
+  enter(root, 'is-entering', 700);
+  return { element: root, remove: () => leave(root) };
+}
+
+/* ---------- Two-way classifier (CFU: by sides and by angles): two rows under the triangle ---------- */
+
+export function createDualCard({ overlayEl, prompt, groups, audio, onChange, at = { top: 446 } }) {
+  const card = element('section', 'ws-dual');
+  card.setAttribute('aria-label', prompt);
+  place(card, at);
+  const selections = {};
+  const groupEls = {};
+  let enabled = true;
+  for (const group of groups) {
+    const wrap = element('div', 'ws-group');
+    wrap.dataset.group = group.id;
+    wrap.innerHTML = `<span class="ws-group__label">${escapeHtml(group.label)}</span><div class="ws-group__options" role="radiogroup" aria-label="${escapeHtml(group.label)}"></div>`;
+    const list = wrap.querySelector('.ws-group__options');
+    const buttons = group.options.map((option) => {
+      const button = element('button', 'ws-option ws-option--pill ws-interactive', `<span class="ws-option__text">${escapeHtml(option)}</span>`);
+      button.type = 'button';
+      button.dataset.option = option;
+      button.setAttribute('role', 'radio');
+      button.setAttribute('aria-checked', 'false');
+      button.addEventListener('click', () => {
+        if (!enabled) return;
+        audio?.play('uiTap');
+        selections[group.id] = option;
+        for (const other of buttons) {
+          other.classList.toggle('is-selected', other === button);
+          other.setAttribute('aria-checked', String(other === button));
+        }
+        onChange?.({ ...selections });
+      });
+      list.appendChild(button);
+      return button;
+    });
+    card.appendChild(wrap);
+    groupEls[group.id] = { wrap, buttons, group };
+  }
+  overlayEl.appendChild(card);
+  enter(card, 'is-entering', 560);
+  return {
+    element: card,
+    get selections() { return { ...selections }; },
+    setEnabled(value) { enabled = Boolean(value); card.classList.toggle('is-locked', !enabled); },
+    markCorrect() {
+      for (const { buttons } of Object.values(groupEls)) for (const b of buttons) { b.disabled = true; if (b.classList.contains('is-selected')) b.classList.add('is-correct'); }
+    },
+    async markWrong(groupIds) {
+      await Promise.all(groupIds.map(async (id) => {
+        const { buttons } = groupEls[id];
+        const chosen = buttons.find((b) => b.classList.contains('is-selected'));
+        if (!chosen) return;
+        chosen.classList.add('is-incorrect');
+        await playClassAnimation(chosen, 'is-shaking', 520);
+        chosen.classList.remove('is-selected', 'is-incorrect');
+        chosen.setAttribute('aria-checked', 'false');
+        delete selections[id];
+      }));
+      onChange?.({ ...selections });
+    },
+    remove: () => leave(card),
+  };
+}
+
+/* ---------- Summary ---------- */
+
+/**
+ * The summary (PDF p48), told as a recap: each category pops up as one big card the beaver explains from
+ * behind, then shrinks into the collection row below; last comes the "both" card with its example.
+ */
+export function createSummaryView({ overlayEl, screen }) {
+  const root = element('div', 'ws-summary');
+  root.innerHTML = `<div class="ws-summary__row" aria-label="${escapeHtml(LEARNING_COPY.summary.sidesTitle)}, ${escapeHtml(LEARNING_COPY.summary.anglesTitle)}"></div>`;
+  const row = root.querySelector('.ws-summary__row');
+  const items = [...screen.bySides, ...screen.byAngles];
+  const slots = items.map((item, index) => {
+    const slot = element('div', `ws-summary__slot ws-summary__slot--${item.tone}`);
+    place(slot, { left: 80 + index * 235, top: 528 });
+    row.appendChild(slot);
+    return slot;
+  });
+  overlayEl.appendChild(root);
+  const BIG = { left: 545, top: 24, width: 470, height: 488 };
+  let big = null;
+
+  function figureFor(item, size) {
+    const [width, height] = size;
+    return buildTriangleFigure(item.spec, { width, height, labels: null, ticks: item.labels === 'sides', arcs: item.labels === 'angles', square: true, pad: Math.round(width * 0.08), strokeScale: width > 200 ? 1.3 : 0.9 }).svg;
+  }
+  return {
+    element: root,
+    slots,
+    /** Pops the big card for one category (the beaver peeks over its top edge from behind). */
+    popCard(index) {
+      const item = items[index];
+      big = element('div', `ws-summary__big ws-summary__big--${item.tone}`);
+      big.append(figureFor(item, [320, 220]), element('span', 'ws-summary__name', escapeHtml(item.name)), element('span', 'ws-summary__text', escapeHtml(item.text)));
+      place(big, BIG);
+      root.appendChild(big);
+      enter(big, 'is-entering', 620);
+      return big;
+    },
+    /** The big card shrinks into its slot in the row and stays there as a small card. */
+    async collectCard(index) {
+      const item = items[index];
+      const slot = slots[index];
+      const card = big;
+      big = null;
+      if (!card) return;
+      const target = { left: 80 + index * 235, top: 528 };
+      card.classList.add('is-collecting');
+      card.style.left = `${target.left}px`;
+      card.style.top = `${target.top}px`;
+      card.style.width = '200px';
+      card.style.height = '126px';
+      await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 560));
+      card.remove();
+      slot.classList.add('is-filled');
+      slot.append(figureFor(item, [120, 70]), element('span', 'ws-summary__slot-name', escapeHtml(item.name)));
+      playClassAnimation(slot, 'is-receiving', 480);
+    },
+    /** The closing card: the example classified both ways, and the sentence that says so. */
+    popBothCard() {
+      big = element('div', 'ws-summary__big ws-summary__big--both');
+      const example = buildTriangleFigure(screen.example.spec, { width: 220, height: 160, labels: null, ticks: true, square: true, pad: 18, strokeScale: 1.2 }).svg;
+      const badges = element('div', 'ws-summary__badges', screen.example.badges.map((b) => `<span class="ws-badge ws-badge--${b.tone} ws-badge--small">${escapeHtml(b.text)}</span>`).join(''));
+      const side = element('div', 'ws-summary__both-figure');
+      side.append(example, badges);
+      big.append(side, element('p', 'ws-summary__both', escapeHtml(LEARNING_COPY.summary.both)));
+      place(big, { left: 380, top: 70, width: 800 });
+      root.appendChild(big);
+      enter(big, 'is-entering', 620);
+      return big;
+    },
+    get bigCard() { return big; },
+    remove: () => leave(root),
+  };
+}

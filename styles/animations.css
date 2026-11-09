@@ -1,0 +1,360 @@
+/* Motion hierarchy: micro (fast) / mechanical (moderate) / reward (longer) / collapse (readable). */
+
+@keyframes camera-shake {
+  0% { transform: translate(0, 0); }
+  15% { transform: translate(var(--shake-px, 6px), calc(var(--shake-px, 6px) * -0.6)); }
+  30% { transform: translate(calc(var(--shake-px, 6px) * -0.9), calc(var(--shake-px, 6px) * 0.5)); }
+  45% { transform: translate(calc(var(--shake-px, 6px) * 0.7), calc(var(--shake-px, 6px) * 0.3)); }
+  60% { transform: translate(calc(var(--shake-px, 6px) * -0.5), calc(var(--shake-px, 6px) * -0.3)); }
+  80% { transform: translate(calc(var(--shake-px, 6px) * 0.2), 0); }
+  100% { transform: translate(0, 0); }
+}
+@keyframes dock-enter-left {
+  0% { opacity: 0; transform: translateX(-80px) rotate(-8deg); }
+  70% { opacity: 1; transform: translateX(8px) rotate(1deg); }
+  100% { transform: translateX(0) rotate(0); }
+}
+@keyframes dock-enter-right {
+  0% { opacity: 0; transform: translateX(80px) rotate(8deg); }
+  70% { opacity: 1; transform: translateX(-8px) rotate(-1deg); }
+  100% { transform: translateX(0) rotate(0); }
+}
+@keyframes bubble-enter {
+  0% { opacity: 0; transform: scale(0.85) translateY(10px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes bubble-leave {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.92) translateY(8px); }
+}
+@keyframes card-leave {
+  0% { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(-60px); }
+}
+@keyframes cta-enter {
+  0% { opacity: 0; transform: scale(0.8) translateY(14px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+/* ----- Crane & claw ----- */
+@keyframes motor-hum {
+  0% { translate: 0 0; }
+  100% { translate: 0 0.8px; }
+}
+@keyframes claw-squeeze {
+  0% { transform: scale(1, 1); }
+  50% { transform: scale(1.04, 0.93); }
+  100% { transform: scale(1, 1); }
+}
+@keyframes claw-react {
+  0% { transform: rotate(0); }
+  20% { transform: rotate(-9deg) translateY(-6px); }
+  45% { transform: rotate(7deg); }
+  70% { transform: rotate(-3deg); }
+  100% { transform: rotate(0); }
+}
+@keyframes claw-relief {
+  0% { transform: translateY(0); }
+  35% { transform: translateY(-10px) scale(1.02, 0.98); }
+  70% { transform: translateY(3px); }
+  100% { transform: translateY(0); }
+}
+
+/* ----- Options & platform ----- */
+@keyframes option-drop-in {
+  0% { opacity: 0; transform: translateY(-48px); }
+  65% { opacity: 1; transform: translateY(6px); }
+  85% { transform: translateY(-3px); }
+  100% { transform: translateY(0); }
+}
+@keyframes option-slide-out {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(70px); }
+}
+@keyframes option-focus {
+  0% { transform: translateY(0) scale(1); }
+  40% { transform: translateY(-12px) scale(1.03); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes option-settle {
+  0% { transform: translateY(-6px); }
+  60% { transform: translateY(3px); }
+  100% { transform: translateY(0); }
+}
+@keyframes platform-nudge {
+  0% { transform: translateY(0); }
+  35% { transform: translateY(5px); }
+  70% { transform: translateY(-2px); }
+  100% { transform: translateY(0); }
+}
+@keyframes platform-enter {
+  0% { opacity: 0; transform: translateY(80px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* ----- Triangle outcomes ----- */
+@keyframes triangle-seat {
+  0% { transform: scale(1.05); }
+  55% { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+@keyframes triangle-dissolve {
+  0% { opacity: 1; filter: brightness(1); transform: scale(1); }
+  100% { opacity: 0; filter: brightness(1.8); transform: scale(0.94); }
+}
+@keyframes triangle-reject {
+  0% { transform: translateX(0) rotate(0); }
+  20% { transform: translateX(-10px) rotate(-2deg); }
+  40% { transform: translateX(9px) rotate(2deg); }
+  60% { transform: translateX(-6px) rotate(-1deg); }
+  80% { transform: translateX(4px); }
+  100% { transform: translateX(0); }
+}
+@keyframes triangle-fall {
+  0% { opacity: 1; transform: translateY(0) rotate(0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(460px) rotate(34deg); }
+}
+
+/* ----- Truss ----- */
+@keyframes truss-warning {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(1.5px, -1px); }
+  20% { transform: translate(-1.5px, 1px); }
+  30% { transform: translate(1px, 1px); }
+  40% { transform: translate(-1px, -1.5px); }
+  50% { transform: translate(2px, 0); }
+  60% { transform: translate(-2px, 1px); }
+  70% { transform: translate(1.5px, -1px); }
+  80% { transform: translate(-1px, 0.5px); }
+  90% { transform: translate(1px, -0.5px); }
+}
+@keyframes truss-sway {
+  0% { transform: rotate(0); }
+  18% { transform: rotate(1.2deg); }
+  36% { transform: rotate(-1.8deg); }
+  54% { transform: rotate(2.6deg); }
+  72% { transform: rotate(-3.4deg); }
+  90% { transform: rotate(3.6deg); }
+  100% { transform: rotate(-2.4deg); }
+}
+@keyframes member-fall {
+  0% { transform: translate(0, 0) rotate(0); opacity: 1; }
+  20% { transform: translate(0, 6px) rotate(calc(var(--fall-rot, 20deg) * 0.15)); }
+  80% { opacity: 1; }
+  100% { transform: translate(var(--fall-dx, 0px), 560px) rotate(var(--fall-rot, 20deg)); opacity: 0; }
+}
+@keyframes node-fall {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate(var(--fall-dx, 0px), 560px) scale(0.8); opacity: 0; }
+}
+@keyframes truss-settle {
+  0% { transform: translateY(-4px); }
+  45% { transform: translateY(3px); }
+  75% { transform: translateY(-1px); }
+  100% { transform: translateY(0); }
+}
+@keyframes truss-proud {
+  0% { transform: translateY(0) scale(1); }
+  35% { transform: translateY(-8px) scale(1.012); }
+  70% { transform: translateY(2px) scale(1); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes pillar-impact {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(4px); }
+  100% { transform: translateY(0); }
+}
+@keyframes pillar-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-3px); }
+  40% { transform: translateX(3px); }
+  60% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+}
+/* ----- Water ----- */
+@keyframes reflection-wobble {
+  0%, 100% { transform: scaleY(-0.6) skewX(0deg); }
+  50% { transform: scaleY(-0.62) skewX(2.5deg); }
+}
+
+/* ----- FX ----- */
+@keyframes spark-burst {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(0); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.25) rotate(25deg); }
+}
+@keyframes dust-puff {
+  0% { opacity: 0.85; transform: translate(-50%, -50%) scale(0.4); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(2.1); }
+}
+@keyframes ripple-grow {
+  0% { opacity: 0.95; transform: translate(-50%, -50%) scale(0.45); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.7); }
+}
+@keyframes drop-arc {
+  0% { opacity: 1; transform: translate(0, 0); }
+  50% { transform: translate(var(--dx, 20px), -60px); }
+  100% { opacity: 0; transform: translate(calc(var(--dx, 20px) * 2), 30px); }
+}
+@keyframes confetti-fall {
+  0% { opacity: 1; transform: translateY(-40px) rotate(0); }
+  100% { opacity: 1; transform: translateY(1160px) rotate(720deg); }
+}
+@keyframes beacon-glow { 0% { opacity: 0.15; transform: scale(0.85); } 100% { opacity: 1; transform: scale(1.08); } }
+@keyframes builder-hop {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  30% { transform: translateY(-34px) scale(0.96, 1.05); }
+  55% { transform: translateY(0) scale(1.05, 0.95); }
+  75% { transform: translateY(-10px); }
+}
+@keyframes fresh-paint { 0% { filter: brightness(1.45) saturate(1.2); } 100% { filter: brightness(1) saturate(1); } }
+
+@keyframes start-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.07); }
+}
+@keyframes start-leave {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { transform: scale(0.9); opacity: 0.55; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
+@keyframes card-leave-right {
+  0% { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(60px); }
+}
+@keyframes chevron-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(16px); }
+}
+
+/* ----- Colour plates ----- */
+@keyframes plate-pop {
+  0% { transform: scale(0.6); }
+  70% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+@keyframes plate-shine {
+  0% { fill-opacity: 0.82; }
+  100% { fill-opacity: 1; }
+}
+
+@keyframes puff-burst {
+  0% { opacity: 0.95; transform: translate(0, 0) scale(0.3); }
+  45% { opacity: 1; transform: translate(calc(var(--dx) * 0.8 + var(--drift, 0px)), calc(var(--dy) * 0.8)) scale(1.1); }
+  100% { opacity: 0; transform: translate(calc(var(--dx) * 1.3 + var(--drift, 0px)), calc(var(--dy) * 1.3 - 14px)) scale(1.35); }
+}
+
+/* ----- Water: the plane's texture rolls toward the viewer (positive y in plane space) ----- */
+
+/* Pulses with transform only: the glow filter is drawn once, so the pulse never repaints it (it lagged on slower devices). */
+@keyframes frame-glow {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+/* ----- Start button arrives after the drone intro ----- */
+@keyframes start-enter {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* The drone holds its line but never sits perfectly still. */
+@keyframes drone-hover {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(2px, -2px); }
+}
+
+/* ----- Title card and drone caption ----- */
+@keyframes title-leave {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: translateY(-60px) scale(1.12); }
+}
+@keyframes drone-caption {
+  0% { opacity: 0; transform: translate(-50%, 18px); }
+  15%, 82% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -10px); }
+}
+
+/* ----- How-to card ----- */
+@keyframes check-pop {
+  0% { opacity: 0; transform: scale(0.2); }
+  70% { opacity: 1; transform: scale(1.18); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* ----- Task sign, speech bubble and words (Polygon-style) ----- */
+@keyframes word-in {
+  0% { opacity: 0; translate: 0 .38em; scale: .88; }
+  100% { opacity: 1; translate: 0 0; scale: 1; }
+}
+@keyframes bubble-in {
+  0% { opacity: 0; scale: .4; }
+  100% { opacity: 1; scale: 1; }
+}
+@keyframes bubble-wobble { 0%, 100% { rotate: -1.4deg; } 50% { rotate: -0.4deg; } }
+@keyframes instruction-boing {
+  0% { transform: scale(0.6, 1.2); opacity: 0; }
+  45% { transform: scale(1.08, 0.94); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes instruction-nudge { 50% { transform: scale(1.08); } }
+
+/* ----- Hot metal: weld point, cooling glow, sparks on a gravity arc, smoke ----- */
+@keyframes weld-core { 0% { opacity: 0; transform: scale(0.3); } 25% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0.7); } }
+@keyframes weld-glow { 0% { opacity: 0; transform: scale(0.5); } 15% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.1); } }
+@keyframes weld-cool { 0% { opacity: 0; } 20% { opacity: 0.9; } 100% { opacity: 0; transform: scale(0.85); } }
+@keyframes spark-drift { from { transform: translateX(0); } to { transform: translateX(var(--dx, 40px)); } }
+/* Rises while it slows (ease-out), then falls faster and faster (ease-in): a gravity arc. */
+@keyframes spark-arc {
+  0% { transform: translateY(0) scale(1); background: #ffffff; opacity: 1; animation-timing-function: cubic-bezier(.2, .6, .4, 1); }
+  35% { transform: translateY(var(--up, -30px)) scale(0.95); background: #fff2b0; opacity: 1; animation-timing-function: cubic-bezier(.5, 0, .9, .6); }
+  75% { background: #ffb02e; opacity: 0.9; }
+  100% { transform: translateY(var(--fall, 70px)) scale(0.5); background: #e2540c; opacity: 0; }
+}
+@keyframes smoke-rise { 0% { opacity: 0; transform: translateY(0) scale(0.8); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateY(-46px) scale(2.2); } }
+
+/* ----- Townsfolk and the opening ----- */
+@keyframes townie-ride { from { transform: translateY(0); } to { transform: translateY(-2.5px); } }
+@keyframes townie-pedal { from { transform: translateY(0) rotate(-0.8deg); } to { transform: translateY(-1.5px) rotate(0.8deg); } }
+@keyframes townie-walk { from { transform: translateY(0) rotate(-2deg); } to { transform: translateY(-4px) rotate(2deg); } }
+@keyframes plate-bolted { 0% { filter: brightness(1.6); } 100% { filter: brightness(1); } }
+
+@keyframes logo-pop { 0% { opacity: 0; transform: scale(0.6) translateY(-30px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+/* The BRIDGE BUILT! sign is let down on its ropes: it falls, the ropes go taut, it bounces and settles. */
+@keyframes sign-drop {
+  0% { opacity: 0; transform: translateY(-520px) rotate(-2deg); animation-timing-function: cubic-bezier(.55, 0, .9, .45); }
+  55% { opacity: 1; transform: translateY(18px) rotate(1.2deg); animation-timing-function: cubic-bezier(.2, .6, .35, 1); }
+  78% { transform: translateY(-6px) rotate(-0.6deg); }
+  100% { opacity: 1; transform: translateY(0) rotate(0); }
+}
+@keyframes frame-wiggle { 0%, 100% { rotate: 0deg; } 25% { rotate: -3deg; } 60% { rotate: 2.5deg; } }
+@keyframes frame-lift { 0% { scale: 1 1; } 30% { scale: 0.92 1.1; } 65% { scale: 1.05 0.96; } 100% { scale: 1 1; } }
+
+/* The operator's small satisfied nod after a clean grab (body only, stays in the seat). */
+@keyframes operator-nod {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  30% { transform: translateY(3px) rotate(2deg); }
+  60% { transform: translateY(-1px) rotate(-1deg); }
+}
+
+/* The spot's light breathes gently; at touchdown a green burst flashes out under the frame. */
+@keyframes beam-breathe { 0%, 100% { opacity: 0.85; scale: 1 0.97; } 50% { opacity: 1; scale: 1 1.03; } }
+@keyframes beam-flow { from { background-position: 0 0%; } to { background-position: 0 100%; } }
+@keyframes pool-pulse { 0% { opacity: 0.9; transform: scale(0.55, 0.7); } 100% { opacity: 0; transform: scale(1.3, 1); } }
+@keyframes mote-rise {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.6); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--drift, 4px), -190px) scale(1.1); }
+}
+
+@keyframes chevron-bob { 0%, 100% { translate: 0 0; opacity: 0.75; } 50% { translate: 0 8px; opacity: 1; } }
+@keyframes spot-lock-on { 0% { transform: scale(1); } 45% { transform: scale(1.14); } 100% { transform: scale(1.06); } }
+@keyframes spot-shockwave { 0% { opacity: 1; transform: scale(0.25, 0.4); } 100% { opacity: 0; transform: scale(1.2, 1); } }
+@keyframes spot-flash { 0% { opacity: 0; transform: scale(0.4); } 25% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }
+@keyframes spot-spark { 0% { opacity: 1; transform: translate(0, 0) scale(1); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.4); } }

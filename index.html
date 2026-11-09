@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <title>Bridge Builder: Triangle Workshop</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles/tokens.css">
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/layout.css">
+  <link rel="stylesheet" href="styles/components.css">
+  <link rel="stylesheet" href="styles/gameplay.css">
+  <link rel="stylesheet" href="styles/animations.css">
+  <link rel="stylesheet" href="styles/learning.css">
+  <link rel="stylesheet" href="styles/responsive.css">
+  <!-- One classic script (built from js/ by tools/build.py) so the workshop also runs when index.html is opened from disk. -->
+  <script src="js/learning.bundle.js" defer></script>
+</head>
+<body>
+  <div id="viewport" class="viewport">
+    <div id="stage" class="stage" aria-label="Triangle Workshop stage">
+
+      <!-- World: everything the camera controller moves. -->
+      <div id="world" class="world">
+        <div id="shake" class="shake-layer">
+          <div class="backdrop"><img src="assets/images/background/canal.png" alt="" draggable="false"></div>
+          <div id="water" class="water-layer" aria-hidden="true"></div>
+          <div id="bridge" class="bridge"></div>
+          <div id="placed" class="placed-layer"></div>
+          <div id="workshop" class="workshop-layer"></div>
+          <div id="platform" class="platform"></div>
+          <div id="crane" class="crane"></div>
+          <div id="fx" class="fx-layer" aria-hidden="true"></div>
+        </div>
+      </div>
+
+      <!-- HUD: fixed to the stage, never moved by the camera. -->
+      <div id="hud" class="hud">
+        <div id="instruction" class="instruction-banner" role="status" aria-live="polite" hidden></div>
+        <button id="mute" class="icon-button mute-button" type="button" aria-label="Mute sound" aria-pressed="false"></button>
+      </div>
+
+      <!-- Screen overlays: title, the operator's speech bubble, the replay button. -->
+      <div id="overlays" class="overlays"></div>
+
+      <div id="loader" class="loader" role="status" aria-label="Loading the workshop"><img class="loader__logo" src="assets/images/kit/title-logo.png" alt="" draggable="false" fetchpriority="high"><div class="loader__bar"><span class="loader__fill"><span class="loader__hook"></span></span></div><p class="loader__text">Loading the workshop<span class="loader__dots"><i>.</i><i>.</i><i>.</i></span></p></div>
+    </div>
+  </div>
+  <noscript><p style="color:#fff;font:20px sans-serif;text-align:center">Please enable JavaScript to play.</p></noscript>
+</body>
+</html>
