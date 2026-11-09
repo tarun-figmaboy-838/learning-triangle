@@ -18,7 +18,6 @@ import { createSequenceScope, wait, isAbortError, prefersReducedMotion } from '.
 
 const FRAME = Object.freeze({ center: { cx: 780, cy: 300 }, stack: { cx: 780, cy: 250 }, dual: { cx: 780, cy: 215 } });
 const DRAG_BOUNDS = Object.freeze({ left: 80, top: 40, right: BOARD.canvas.width - 80, bottom: BOARD.canvas.height - 40 });
-const COLUMN_GAP = 60;                     // badges and lenses sit this far right of the triangle
 const SIDE_ORDER = [0, 2, 1];              // left, right, bottom: the deck's reading order (5 cm, 4 cm, 6 cm) and a clockwise walk
 const CORNER_ORDER = [0, 2, 1];            // top, right, left: clockwise
 /** The beaver appears only where he does something: measuring the shape, and explaining the summary cards. */
@@ -182,12 +181,14 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
     audio.play('badge');
     return createBadge({ overlayEl: board.overlayEl, text, tone, at: { left: Math.round(box.cx), top: Math.round(Math.min(box.bottom + 66, BOARD.canvas.height - 62)), center: true } });
   }
-  function columnX() {
-    return Math.round(triangleBox().right + COLUMN_GAP);
-  }
-  function badgeInColumn(text, tone, row) {
-    audio.play('badge');
-    return createBadge({ overlayEl: board.overlayEl, text, tone, at: { left: columnX(), top: 170 + row * 86, width: 330 } });
+  /** A centred row under the triangle that chips join one after another (placed from the shape, not fixed). */
+  function rowUnderTriangle() {
+    const box = triangleBox();
+    const row = document.createElement('div');
+    row.className = 'ws-badge-row';
+    row.style.top = `${Math.round(Math.min(box.bottom + 66, BOARD.canvas.height - 70))}px`;
+    board.overlayEl.appendChild(row);
+    return { element: row, add: (widget) => { row.appendChild(widget.element); return widget; }, remove: () => row.remove() };
   }
   async function pulseLabelsInOrder(indices, gapMs = 640) {
     for (const i of indices) {
@@ -219,7 +220,8 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
     await pause(200);
     canvas.clearEmphasis();
   }
-  async function continueButton(top = 440) {
+  const FOOT = BOARD.canvas.height - 96;      // CHECK and CONTINUE always sit at the foot of the card
+  async function continueButton(top = FOOT) {
     await pause(300);
     setState('WAITING_FOR_INPUT');
     let resolvePressed;
@@ -376,8 +378,9 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
     async question(screen) {
       const { question } = screen;
       let resolveAnswer = null;
+      const optionsTop = Math.round(Math.min(556, Math.max(430, triangleBox().bottom + 84)));   // under the shape and its labels
       const card = createOptionCard({
-        overlayEl: board.overlayEl, prompt: question.prompt, options: question.options, audio,
+        overlayEl: board.overlayEl, prompt: question.prompt, options: question.options, audio, at: { top: optionsTop },
         onSelect: (option) => resolveAnswer?.(option),
       });
       live.card = card;
@@ -501,17 +504,20 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       audio.play('snapRight');
       canvas.emphasiseSides(equalSideIndices());
       await pulseLabelsInOrder(equalSideIndices(), 320);
-      live.badgeA = badgeInColumn(screen.success.badges[0].text, screen.success.badges[0].tone, 0);
+      live.row = rowUnderTriangle();
+      audio.play('badge');
+      live.badgeA = live.row.add(createBadge({ overlayEl: board.overlayEl, text: screen.success.badges[0].text, tone: screen.success.badges[0].tone, at: {} }));
       await pause(760);
       canvas.emphasiseAngles([m.rightAt]);
       await pulseAnglesInOrder([m.rightAt], 320);
-      live.badgeB = badgeInColumn(screen.success.badges[1].text, screen.success.badges[1].tone, 1);
+      audio.play('badge');
+      live.badgeB = live.row.add(createBadge({ overlayEl: board.overlayEl, text: screen.success.badges[1].text, tone: screen.success.badges[1].tone, at: {} }));
       await pause(700);
       audio.play('celebration');
       fx.confetti(70);
       await narrate(screen.success.narration, { focus: 'sides and angles', cues: [
         { phrase: 'sides', run: () => { canvas.emphasiseSides(equalSideIndices()); equalSideIndices().forEach((i) => canvas.pulseSideLabel(i)); } },
-        { phrase: 'angles', run: () => { canvas.emphasiseAngles([m.rightAt]); canvas.pulseAngle(m.rightAt); live.greatJob = createGreatJob({ overlayEl: board.overlayEl, at: { left: columnX(), top: 360 } }); canvas.sparkleVertices(); } },
+        { phrase: 'angles', run: () => { canvas.emphasiseAngles([m.rightAt]); canvas.pulseAngle(m.rightAt); live.greatJob = live.row.add(createGreatJob({ overlayEl: board.overlayEl, at: {} })); canvas.sparkleVertices(); } },
       ] });
       await settle(screen.success.narration);
       canvas.clearEmphasis();
@@ -546,7 +552,7 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       live.sorter = null;
       live.result = createSortResult({ overlayEl: board.overlayEl, cards: screen.cards, bins: screen.bins });
       await narrate(screen.success);
-      await continueButton(440);
+      await continueButton();
     },
 
     async multi(screen) {
@@ -555,7 +561,7 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       let resolveChecked;
       let checked = new Promise((resolve) => { resolveChecked = resolve; });
       const grid = createMultiGrid({ overlayEl: board.overlayEl, cards: screen.cards, audio, onChange: (selection) => check.setEnabled(selection.size > 0) });
-      const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: 452 }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
+      const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: FOOT }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
       live.grid = grid;
       live.check = check;
       ghostGuide(pointAt('.ws-pick'), { firstMs: 6000 });
@@ -580,7 +586,7 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       await check.remove();
       live.check = null;
       await narrate(screen.success);
-      await continueButton(400);
+      await continueButton();
     },
 
     async dual(screen) {
@@ -589,8 +595,8 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       let resolveChecked;
       let checked = new Promise((resolve) => { resolveChecked = resolve; });
       const bothChosen = (s) => screen.groups.every((g) => s[g.id]);
-      const card = createDualCard({ overlayEl: board.overlayEl, prompt: screen.prompt, groups: screen.groups, audio, onChange: (s) => check.setEnabled(bothChosen(s)) });
-      const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: 566 }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
+      const card = createDualCard({ overlayEl: board.overlayEl, prompt: screen.prompt, groups: screen.groups, audio, at: { top: Math.round(Math.min(FOOT - 150, triangleBox().bottom + 70)) }, onChange: (s) => check.setEnabled(bothChosen(s)) });
+      const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: FOOT }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
       live.card = card;
       live.check = check;
       ghostGuide(pointAt('.ws-dual .ws-option--pill'), { firstMs: 6000 });
@@ -618,9 +624,11 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       live.check = null;
       // Sides first, then the angle: both classification systems, each on its word.
       const m = canvas.measured;
+      live.row = rowUnderTriangle();
+      const chip = (b) => { audio.play('badge'); return live.row.add(createBadge({ overlayEl: board.overlayEl, text: b.text, tone: b.tone, at: {} })); };
       await narrate(screen.success.narration, { cues: [
-        { phrase: 'scalene', run: () => { fire(() => pulseLabelsInOrder(SIDE_ORDER, 240))(); live.badgeA = badgeInColumn(screen.success.badges[0].text, screen.success.badges[0].tone, 0); } },
-        { phrase: 'obtuse-angled', run: () => { canvas.emphasiseAngles([m.obtuseAt]); canvas.pulseAngle(m.obtuseAt); live.badgeB = badgeInColumn(screen.success.badges[1].text, screen.success.badges[1].tone, 1); canvas.sparkleVertices(); } },
+        { phrase: 'scalene', run: () => { canvas.emphasiseSides([0, 1, 2]); fire(() => pulseLabelsInOrder(SIDE_ORDER, 240))(); live.badgeA = chip(screen.success.badges[0]); } },
+        { phrase: 'obtuse-angled', run: () => { canvas.clearEmphasis(); canvas.emphasiseAngles([m.obtuseAt]); canvas.pulseAngle(m.obtuseAt); live.badgeB = chip(screen.success.badges[1]); canvas.sparkleVertices(); } },
       ] });
       await settle(screen.success.narration);
       canvas.clearEmphasis();
@@ -629,9 +637,13 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
     async dualReveal(screen) {
       setState('DEMONSTRATING');
       const m = canvas.measured;
+      live.row = rowUnderTriangle();
+      const chip = (b) => { audio.play('badge'); return live.row.add(createBadge({ overlayEl: board.overlayEl, text: b.text, tone: b.tone, at: {} })); };
       await narrate(screen.narration, { focus: screen.focus, cues: [
-        { phrase: 'isosceles', run: () => { canvas.emphasiseSides(equalSideIndices()); equalSideIndices().forEach((i) => canvas.pulseSideLabel(i)); live.badgeA = badgeInColumn(screen.badges[0].text, screen.badges[0].tone, 0); } },
-        { phrase: 'right angled', run: () => { canvas.clearEmphasis(); canvas.emphasiseAngles([m.rightAt]); canvas.pulseAngle(m.rightAt); live.badgeB = badgeInColumn(screen.badges[1].text, screen.badges[1].tone, 1); canvas.sparkleVertices(); } },
+        // "isosceles": the two equal sides light up (the rest steps back) and its name pops under the shape
+        { phrase: 'isosceles', run: () => { canvas.emphasiseSides(equalSideIndices()); equalSideIndices().forEach((i) => canvas.pulseSideLabel(i)); live.badgeA = chip(screen.badges[0]); } },
+        // "right angled": now the 90° corner lights up and its name joins the first
+        { phrase: 'right angled', run: () => { canvas.clearEmphasis(); canvas.emphasiseAngles([m.rightAt]); canvas.pulseAngle(m.rightAt); live.badgeB = chip(screen.badges[1]); canvas.sparkleVertices(); } },
       ] });
       await settle(screen.narration);
       canvas.clearEmphasis();
@@ -642,21 +654,25 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       const m = canvas.measured;
       let lensA = null;
       let lensB = null;
+      live.row = rowUnderTriangle();
+      const lensChip = (k) => { audio.play('badge'); return live.row.add(createLens({ overlayEl: board.overlayEl, title: screen.lenses[k].title, result: screen.lenses[k].result, tone: screen.lenses[k].tone, at: {} })); };
       const spoken = board.narrate(screen.narration, { focus: screen.focus, cues: [
-        { phrase: 'sides', run: () => { lensA = createLens({ overlayEl: board.overlayEl, title: screen.lenses[0].title, result: screen.lenses[0].result, tone: screen.lenses[0].tone, at: { left: columnX(), top: 160 } }); canvas.emphasiseSides(equalSideIndices()); equalSideIndices().forEach((i) => canvas.pulseSideLabel(i)); } },
-        { phrase: 'angles', run: () => { canvas.clearEmphasis(); lensB = createLens({ overlayEl: board.overlayEl, title: screen.lenses[1].title, result: screen.lenses[1].result, tone: screen.lenses[1].tone, at: { left: columnX(), top: 270 } }); canvas.emphasiseAngles([m.rightAt]); canvas.pulseAngle(m.rightAt); } },
+        { phrase: 'sides', run: () => { lensA = lensChip(0); canvas.emphasiseSides(equalSideIndices()); equalSideIndices().forEach((i) => canvas.pulseSideLabel(i)); } },
+        { phrase: 'angles', run: () => { canvas.clearEmphasis(); lensB = lensChip(1); canvas.emphasiseAngles([m.rightAt]); canvas.pulseAngle(m.rightAt); } },
       ] });
       await withSignal(spoken.finished, signal());
-      lensA ??= createLens({ overlayEl: board.overlayEl, title: screen.lenses[0].title, result: screen.lenses[0].result, tone: screen.lenses[0].tone, at: { left: columnX(), top: 160 } });
-      lensB ??= createLens({ overlayEl: board.overlayEl, title: screen.lenses[1].title, result: screen.lenses[1].result, tone: screen.lenses[1].tone, at: { left: columnX(), top: 270 } });
+      lensA ??= lensChip(0);
+      lensB ??= lensChip(1);
       await pause(700);
       canvas.clearEmphasis();
-      // The two lenses merge into one label stack beside the triangle.
+      // The two lenses merge into the two names, in the same row under the shape.
       await Promise.all([lensA.merge(), lensB.merge()]);
       await Promise.all([lensA.remove(), lensB.remove()]);
-      live.badgeA = badgeInColumn('ISOSCELES', 'isosceles', 0);
+      audio.play('badge');
+      live.badgeA = live.row.add(createBadge({ overlayEl: board.overlayEl, text: 'ISOSCELES', tone: 'isosceles', at: {} }));
       await pause(200);
-      live.badgeB = badgeInColumn('RIGHT-ANGLED', 'right', 1);
+      audio.play('badge');
+      live.badgeB = live.row.add(createBadge({ overlayEl: board.overlayEl, text: 'RIGHT-ANGLED', tone: 'right', at: {} }));
       await settle(screen.narration);
     },
 

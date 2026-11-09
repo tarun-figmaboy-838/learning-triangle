@@ -53,10 +53,22 @@ export function createVoiceManager({ audio }) {
   const clipFor = (text) => VO_LINES[normalize(text)] ?? null;
   const sourceFor = (clip) => blobUrls.get(clip.file) ?? VO_DIR + fileFor(clip);
 
+  /**
+   * Until the beaver's studio lines exist, the device reads them: a MALE Indian English voice first, so it
+   * sounds like the operator's recorded voice (Male Teacher), then any Indian English voice, then the rest.
+   */
+  const MALE_VOICE_NAMES = ['rishi', 'aman', 'ravi', 'prabhat', 'hemant', 'kumar', 'daniel', 'arthur', 'oliver', 'aaron', 'alex', 'fred', 'guy', 'ryan', 'thomas'];
+  const FEMALE_VOICE_NAMES = ['tara', 'veena', 'isha', 'lekha', 'heera', 'neerja', 'kalpana', 'swara', 'samantha', 'karen', 'moira', 'tessa', 'fiona', 'victoria', 'kate', 'serena', 'susan', 'zira', 'aria', 'jenny', 'female'];
+  const nameHas = (voice, names) => names.some((n) => voice.name?.toLowerCase().includes(n));
   function pickSpeechVoice() {
     const voices = speechSynthesis.getVoices();
     for (const lang of PREFERRED_SPEECH_LANGS) {
-      const match = voices.find((voice) => voice.lang?.toLowerCase().startsWith(lang.toLowerCase()));
+      const inLang = voices.filter((voice) => voice.lang?.toLowerCase().replace('_', '-').startsWith(lang.toLowerCase()));
+      const male = inLang.find((voice) => nameHas(voice, MALE_VOICE_NAMES)) ?? inLang.find((voice) => !nameHas(voice, FEMALE_VOICE_NAMES));
+      if (male) return male;
+    }
+    for (const lang of PREFERRED_SPEECH_LANGS) {
+      const match = voices.find((voice) => voice.lang?.toLowerCase().replace('_', '-').startsWith(lang.toLowerCase()));
       if (match) return match;
     }
     return voices[0] ?? null;

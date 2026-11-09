@@ -41,7 +41,7 @@ export const LEARNING_SCREENS = Object.freeze([
     narration: "Triangles can be of different types. Let's explore them!" },
 
   /* ---- Sides ---- */
-  { id: 'L04', kind: 'measureSides', zoom: 1.3, section: 'sides', triangle: SCALENE_546,
+  { id: 'L04', kind: 'measureSides', zoom: 1.2, section: 'sides', triangle: SCALENE_546,
     narration: "Let's measure the sides of this triangle.", focus: 'measure the sides' },
   { id: 'L05', kind: 'question', section: 'sides', triangle: SCALENE_546, layout: 'stack',
     show: { sideLabels: true },
@@ -86,7 +86,7 @@ export const LEARNING_SCREENS = Object.freeze([
     success: { badge: 'ISOSCELES', tone: 'isosceles', narration: 'Great! This triangle is isosceles.', highlightEqual: true, name: 'isosceles' } },
 
   /* ---- Angles ---- */
-  { id: 'L11', kind: 'measureAngles', zoom: 1.3, section: 'angles', triangle: { angles: [60, 60, 60], base: 5 },
+  { id: 'L11', kind: 'measureAngles', zoom: 1.2, section: 'angles', triangle: { angles: [60, 60, 60], base: 5 },
     narration: "Now let's measure the angles.", focus: 'measure the angles' },
   { id: 'L12', kind: 'question', section: 'angles', triangle: { angles: [60, 60, 60], base: 5 }, layout: 'stack',
     show: { angleArcs: true, angleLabels: true },
@@ -151,11 +151,11 @@ export const LEARNING_SCREENS = Object.freeze([
       correct: 'Right-angled',
       reinforce: 'rightAngle',
     } },
-  { id: 'L21', kind: 'dualReveal', section: 'both', triangle: RIGHT_ISOSCELES,
+  { id: 'L21', kind: 'dualReveal', section: 'both', layout: 'stack', triangle: RIGHT_ISOSCELES,
     show: { sideLabels: true, ticks: true, angleLabels: [1], square: true },
     badges: [{ text: 'ISOSCELES', tone: 'isosceles', about: 'sides' }, { text: 'RIGHT-ANGLED', tone: 'right', about: 'angle' }],
     narration: 'This triangle is both isosceles and right angled.', focus: 'both' },
-  { id: 'L22', kind: 'lenses', section: 'both', triangle: RIGHT_ISOSCELES,
+  { id: 'L22', kind: 'lenses', section: 'both', layout: 'stack', triangle: RIGHT_ISOSCELES,
     show: { sideLabels: true, ticks: true, angleLabels: [1], square: true },
     lenses: [{ title: 'BY SIDES', result: 'Isosceles', tone: 'isosceles' }, { title: 'BY ANGLES', result: 'Right-angled', tone: 'right' }],
     narration: 'So a triangle can be classified by both its sides and its angles.', focus: 'both its sides and its angles' },
@@ -171,7 +171,7 @@ export const LEARNING_SCREENS = Object.freeze([
     ],
     success: { badges: [{ text: 'SCALENE', tone: 'scalene', about: 'sides' }, { text: 'OBTUSE-ANGLED', tone: 'obtuse', about: 'angle' }],
       narration: 'Correct! This triangle is scalene and obtuse-angled.' } },
-  { id: 'CFU06', kind: 'drag', section: 'checkpoint', triangle: SCALENE_546, goal: 'rightIsosceles', hintVertex: 0, hintAfterMs: 30000, silentSnaps: true,
+  { id: 'CFU06', kind: 'drag', section: 'checkpoint', layout: 'stack', triangle: SCALENE_546, goal: 'rightIsosceles', hintVertex: 0, hintAfterMs: 30000, silentSnaps: true,
     show: { sideLabels: true, ticks: true, angleLabels: true, square: true },
     narration: 'Make a right-angled isosceles triangle.', instruction: 'Satisfy both conditions in one shape.',
     success: { final: true, badges: [{ text: 'ISOSCELES', tone: 'isosceles', about: 'sides' }, { text: 'RIGHT-ANGLED', tone: 'right', about: 'angle' }],

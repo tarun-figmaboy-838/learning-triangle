@@ -57,9 +57,9 @@
 .ws-pill.is-entering { animation: cta-enter 480ms var(--ease-back) both; }
 
 /* ----- Chips, badges, reference, lenses ----- */
-.ws-badge, .ws-bin__label {
+.ws-badge {
   /* Fishing Frenzy's name chip: a flat white pill with a thick bright-blue rim, never button-like. */
-  display: inline-flex; align-items: center; justify-content: center; padding: 8px 36px 6px; white-space: nowrap; text-align: center;
+  display: inline-flex; align-items: center; justify-content: center; padding: 7px 26px 6px; white-space: nowrap; text-align: center;
   background: #fff; border: 4px solid #1e7bff; border-radius: 999px; color: #123b63;
   font-family: var(--font-display); font-size: 29px; font-weight: 800; line-height: 1.1; letter-spacing: 0.2px;
   box-shadow: 0 3px 10px rgba(20, 60, 130, 0.18);
@@ -82,7 +82,7 @@
 .ws-greatjob__tick::after { content: ""; position: absolute; left: 10px; top: 5px; width: 7px; height: 13px; border: solid #1f8a44; border-width: 0 4px 4px 0; transform: rotate(40deg); }
 .ws-greatjob.is-entering { animation: ws-badge-in 620ms cubic-bezier(0.2, 1.6, 0.4, 1) both; }
 .ws-lens {
-  position: absolute; display: inline-flex; align-items: center; gap: 12px; width: 300px; padding: 12px 18px; border-radius: 16px;
+  position: absolute; display: inline-flex; align-items: center; gap: 12px; width: max-content; padding: 10px 18px; border-radius: 999px;
   background: #fff; border: 3px solid var(--badge, #1e88e5); color: var(--color-navy); box-shadow: var(--shadow-soft); font-family: var(--font-display);
 }
 .ws-lens__title { font-size: 17px; letter-spacing: 1.5px; color: #40546b; }
@@ -130,14 +130,14 @@
   --pill-line: #e3901a; border: 3px solid #fff; border-radius: 999px;
   background: linear-gradient(180deg, #ffe066 0%, #ffcb33 40%, #ffa71f 74%, #f58c12 100%);
   box-shadow: 0 0 0 2px var(--pill-line), inset 0 -6px 0 rgba(205, 100, 0, 0.38), inset 0 2px 0 rgba(255, 255, 255, 0.55);
-  color: #4a2300; font-family: var(--font-display); font-weight: 700; font-size: 27px; line-height: 1.05; letter-spacing: 0.4px;
-  text-shadow: 0 1.5px 0 rgba(255, 244, 200, 0.75);
+  color: #2b1300; font-family: var(--font-display); font-weight: 800; font-size: 27px; line-height: 1.05; letter-spacing: 0.4px;
+  text-shadow: none;
   filter: drop-shadow(0 6px 8px rgba(120, 60, 0, 0.22));
   transition: transform 120ms ease, filter 120ms ease, opacity 300ms ease;
 }
 .ws-option.ws-option--pill::before, .ws-option.ws-option--pill::after, .ws-pill::before, .ws-pill::after { content: ''; position: absolute; z-index: -1; border-radius: 50%; background: rgba(255, 255, 255, 0.72); pointer-events: none; }
-.ws-option.ws-option--pill::before, .ws-pill::before { left: 13%; top: 9%; width: 26%; height: 24%; }
-.ws-option.ws-option--pill::after, .ws-pill::after { left: 44%; top: 12%; width: 8%; height: 15%; }
+.ws-option.ws-option--pill::before, .ws-pill::before { left: 7%; top: 7%; width: 13%; height: 18%; background: rgba(255, 255, 255, 0.6); }
+.ws-option.ws-option--pill::after, .ws-pill::after { display: none; }
 .ws-option.ws-option--pill:active:not(:disabled), .ws-option.ws-option--pill.is-selected { transform: translateY(4px); box-shadow: 0 0 0 2px var(--pill-line), inset 0 -3px 0 rgba(205, 100, 0, 0.38), inset 0 2px 0 rgba(255, 255, 255, 0.55); filter: drop-shadow(0 2px 3px rgba(120, 60, 0, 0.2)); }
 .ws-option.ws-option--pill.is-correct {
   --pill-line: #2f9617; background: linear-gradient(180deg, #b9f591 0%, #82e35c 40%, #4dc930 74%, #35ad1c 100%);
@@ -187,7 +187,7 @@
 .ws-sort-card.is-placed svg { width: 118px; height: 118px; left: 2px; top: 2px; }
 .ws-sort-card.is-shaking { animation: ws-shake 520ms ease-in-out; }
 .ws-sort-card .ws-figure__body.is-lit { stroke: #ffd000; filter: drop-shadow(0 0 4px #ffb020) drop-shadow(0 0 10px rgba(255, 176, 32, 0.9)); }   /* the equal sides light up on a right drop */
-.ws-figure__label.is-pulse { animation: ws-label-pulse 560ms var(--ease-back); transform-box: fill-box; transform-origin: center; }
+.ws-figure__label.is-pulse { animation: ws-glow-pulse 700ms ease-out; }
 .ws-sort.is-entering .ws-sort-card, .ws-sort.is-entering .ws-bin, .ws-sort.is-entering .ws-bin-front { animation: ws-pop-in 560ms var(--ease-back) both; animation-delay: calc(var(--i) * 110ms); }
 .ws-bin, .ws-bin-front { position: absolute; height: 196px; text-align: center; font-family: var(--font-display); }
 .ws-bin { z-index: 1; cursor: pointer; }
@@ -197,8 +197,11 @@
 .ws-bin.is-over img, .ws-bin-front.is-over img { transform: scale(1.05); filter: brightness(1.08) drop-shadow(0 0 10px rgba(255, 214, 60, 0.9)); }
 .ws-bin.is-receiving img, .ws-bin-front.is-receiving img { animation: ws-receive 520ms var(--ease-out); }
 .ws-sort-card.is-dropping { transition: top 420ms cubic-bezier(0.5, 0, 0.75, 0); }       /* falls in */
-.ws-bin__label { position: absolute; z-index: 2; left: 50%; top: 94px; translate: -50% 0; padding: 5px 22px 4px; font-size: 22px; }   /* on the crate's front plate */
-.ws-bin__label.is-pulse { animation: ws-warm-pulse 480ms cubic-bezier(0.3, 1.25, 0.45, 1); }
+.ws-bin__label {   /* painted on the crate's navy plate: the plate is the tag */
+  position: absolute; z-index: 2; left: 50%; top: 96px; translate: -50% 0; width: 188px; height: 44px; display: flex; align-items: center; justify-content: center;
+  color: #fff; font-family: var(--font-display); font-size: 22px; font-weight: 800; letter-spacing: 1px; text-shadow: 0 2px 0 rgba(4, 18, 50, 0.6); white-space: nowrap;
+}
+.ws-bin__label.is-pulse { animation: ws-glow-pulse 700ms ease-out; }
 .ws-sort-result { position: absolute; inset: 0; }
 .ws-result-card { position: absolute; width: 400px; height: 300px; padding: 10px 16px 0; text-align: center; font-family: var(--font-display); color: #123b63; overflow: visible; }
 .ws-result-card svg { display: block; margin: 4px auto 0; width: 360px; height: 250px; }
@@ -217,7 +220,7 @@
 }
 .ws-summary__big.is-entering { animation: ws-card-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 .ws-summary__big.is-collecting { opacity: 0; animation: ws-collect-arc 560ms ease-in-out both; }   /* flies to its slot on a small upward arc */
-.ws-summary__big .ws-summary__name.is-pulse, .ws-summary__big svg.is-pulse { animation: ws-warm-pulse 480ms cubic-bezier(0.3, 1.25, 0.45, 1); transform-origin: center; }
+.ws-summary__big .ws-summary__name.is-pulse, .ws-summary__big svg.is-pulse { animation: ws-glow-pulse 700ms ease-out; }
 .ws-summary__big.is-collecting > * { opacity: 0; transition: opacity 200ms; }
 .ws-summary__big .ws-summary__name { font-size: 40px; letter-spacing: 1px; color: var(--badge); }
 .ws-summary__big .ws-summary__text { font-size: 27px; color: #40546b; font-family: var(--font-body); }
@@ -284,13 +287,13 @@
 .ws-angle__label { font-family: var(--font-display); font-size: 30px; font-weight: 700; fill: var(--angle); paint-order: stroke; stroke: #fff; stroke-width: 7px; stroke-linejoin: round; text-anchor: middle; dominant-baseline: central; transition: fill 300ms; }
 .ws-angle.is-emphasis .ws-angle__arc, .ws-angle.is-emphasis .ws-angle__square { stroke-width: 10; filter: drop-shadow(0 0 4px var(--angle)) drop-shadow(0 0 14px var(--angle)); }
 .ws-angle.is-emphasis .ws-angle__label { font-size: 34px; }
-.ws-angle.is-pulse .ws-angle__label { animation: ws-label-pulse 620ms var(--ease-back); transform-box: fill-box; transform-origin: center; }
-.ws-angle__label.is-pop { animation: ws-label-out 600ms cubic-bezier(0.22, 1, 0.36, 1) both; transform-box: fill-box; transform-origin: center; }   /* the value slides out of the corner */
+.ws-angle.is-pulse .ws-angle__label { animation: ws-glow-pulse 700ms ease-out; }
+.ws-angle__label.is-pop { animation: ws-glow-in 700ms ease-out both; }   /* the value appears where it stays, with a glow */
 /* Side lengths: just the number, outlined in white; it takes the side's colour when the sides are coloured. */
 .ws-side-label__text { font-family: var(--font-display); font-size: 31px; font-weight: 700; fill: #10243a; paint-order: stroke; stroke: #fff; stroke-width: 8px; stroke-linejoin: round; text-anchor: middle; dominant-baseline: central; transition: fill 300ms; }
 .ws-side-label[data-tone] .ws-side-label__text { fill: var(--tone-deep); }
-.ws-side-label.is-pulse { animation: ws-label-pulse 560ms var(--ease-back); transform-box: fill-box; transform-origin: center; }
-.ws-side-label.is-pop { animation: ws-label-out 600ms cubic-bezier(0.22, 1, 0.36, 1) both; transform-box: fill-box; transform-origin: center; }   /* the value slides out of the side */
+.ws-side-label.is-pulse { animation: ws-glow-pulse 700ms ease-out; }
+.ws-side-label.is-pop { animation: ws-glow-in 700ms ease-out both; }
 .ws-tape { filter: drop-shadow(0 3px 3px rgba(6, 24, 48, 0.3)); transition: opacity 260ms; }
 .ws-tape__body { fill: #f7b400; stroke: #5a4310; stroke-width: 3; }
 .ws-tape__tick { stroke: #5a4310; stroke-width: 2; }
@@ -316,7 +319,7 @@
 .ws-figure__body { fill: none; stroke: #ff8f1f; stroke-linecap: round; }
 .ws-figure__node { fill: #fff; stroke: #c45f00; stroke-width: 3; }
 .ws-figure__tick { stroke: #10243a; stroke-width: 4; stroke-linecap: round; }
-.ws-figure__wedge { fill: #1565c0; opacity: 0.2; }
+.ws-figure__wedge { fill: #1565c0; fill-opacity: 0.45; }
 .ws-figure__arc { fill: none; stroke: #1565c0; stroke-width: 4; stroke-linecap: round; }
 .ws-figure__square { fill: none; stroke: #1565c0; stroke-width: 4; }
 .ws-figure__label { font-family: var(--font-display); font-weight: 700; text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
@@ -359,11 +362,10 @@
 @keyframes ws-point-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.14); } }
 @keyframes ws-vertex-pop { 0% { transform: scale(0.2); } 60% { transform: scale(1.3); } 100% { transform: scale(1); } }
 @keyframes ws-opt-good { 0% { transform: scale(1); } 45% { transform: scale(1.07); } 100% { transform: scale(1); } }
-@keyframes ws-label-pulse { 0% { transform: scale(0.7); } 55% { transform: scale(1.18); } 100% { transform: scale(1); } }
-@keyframes ws-label-out { 0% { opacity: 0; transform: translate(var(--ox, 0px), var(--oy, 0px)) scale(0.85); } 100% { opacity: 1; transform: translate(0, 0) scale(1); } }
+@keyframes ws-glow-pulse { 0%, 100% { filter: none; } 40% { filter: drop-shadow(0 0 5px rgba(255, 170, 40, 0.95)) drop-shadow(0 0 12px rgba(255, 170, 40, 0.7)); } }
+@keyframes ws-glow-in { 0% { opacity: 0; filter: none; } 35% { opacity: 1; filter: drop-shadow(0 0 5px rgba(255, 170, 40, 0.95)) drop-shadow(0 0 12px rgba(255, 170, 40, 0.7)); } 100% { opacity: 1; filter: none; } }
 @keyframes ws-card-enter { 0% { opacity: 0; transform: scale(0.82) translateY(14px); } 62% { opacity: 1; transform: scale(1.03) translateY(0); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
 @keyframes ws-collect-arc { 0% { translate: 0 0; } 50% { translate: 0 -40px; } 100% { translate: 0 0; } }
-@keyframes ws-warm-pulse { 0% { transform: scale(1); filter: brightness(1); } 40% { transform: scale(1.3); filter: brightness(1.12) drop-shadow(0 0 7px rgba(255, 150, 40, 0.85)); } 100% { transform: scale(1); filter: brightness(1); } }
 @keyframes ws-stroke-pulse { 0% { stroke-width: 18; } 45% { stroke-width: 27; filter: drop-shadow(0 0 3px var(--tone-deep)) drop-shadow(0 0 14px var(--tone)) brightness(1.15); } 100% { stroke-width: 18; } }
 @keyframes ws-arc-pulse { 0% { stroke-width: 7; } 45% { stroke-width: 12; filter: drop-shadow(0 0 10px var(--angle)); } 100% { stroke-width: 7; } }
 @keyframes ws-flash { 0% { filter: brightness(1); } 30% { filter: brightness(1.45) drop-shadow(0 0 4px var(--tone-deep)) drop-shadow(0 0 16px var(--tone)); } 100% { filter: brightness(1); } }
@@ -408,3 +410,20 @@
 @keyframes ws-ghost-press { 0% { opacity: 0.9; transform: scale(0.6); } 100% { opacity: 0; transform: scale(1.6); } }
 
 .ws-sort-card.is-placed .ws-figure__label--side { font-size: 0; }
+
+/* Focus: while the shape's sides or angles are being named, the other UI steps back; a chip that has just
+   appeared is the focus, so the rest of the overlay steps back until it settles. */
+.ws-overlay > * { transition: opacity 300ms var(--ease-out), filter 300ms var(--ease-out); }
+.workshop.is-shape-focus .ws-overlay > *:not(.is-fresh):not(.ws-ghost):not(:has(.is-fresh)) { opacity: 0.35; filter: saturate(0.6); }
+.ws-overlay:has(> .is-fresh) > *:not(.is-fresh):not(.ws-ghost):not(.ws-badge-row) { opacity: 0.4; filter: saturate(0.6); }
+.ws-badge-row:has(> .is-fresh) > *:not(.is-fresh) { opacity: 0.45; }
+.ws-badge-row { position: absolute; left: 50%; translate: -50% 0; display: flex; align-items: center; gap: 16px; }
+.ws-badge-row > .ws-badge, .ws-badge-row > .ws-greatjob { position: static; translate: none; }
+
+.ws-badge-row > .ws-lens { position: static; }
+/* A picked answer pill stays yellow, deeper, with a gold ring (never the plain option's white). */
+.ws-option.ws-option--pill.is-selected { border-color: #fff; background: linear-gradient(180deg, #ffd84a 0%, #ffb81f 45%, #f59a0f 100%); box-shadow: 0 0 0 4px #c98a00, 0 0 16px 3px rgba(255, 196, 0, 0.6), inset 0 -3px 0 rgba(205, 100, 0, 0.38); }
+/* Both-ways checkpoint: rows of equal width, one row in focus at a time. */
+.ws-dual .ws-option--pill { min-width: 200px; }
+.ws-dual .ws-group { transition: opacity 300ms var(--ease-out), filter 300ms var(--ease-out); }
+.ws-dual .ws-group.is-waiting { opacity: 0.45; filter: saturate(0.5); }

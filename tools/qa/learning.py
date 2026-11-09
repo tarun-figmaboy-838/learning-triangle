@@ -85,7 +85,7 @@ OVERLAP_JS = """
   for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
     const a = items[i], b = items[j];
     if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
-    const inCrate = (x, y) => x.el.matches('.ws-sort-card.is-placed, .ws-bin') && y.el.matches('.ws-bin, .ws-bin-front');   // a sorted card sits in its crate by design
+    const inCrate = (x, y) => x.el.matches('.ws-sort-card.is-placed, .ws-bin') && y.el.matches('.ws-bin, .ws-bin-front, .ws-bin__label');   // a sorted card sits in its crate by design
     if (inCrate(a, b) || inCrate(b, a)) continue;
     if (a.el.matches('.ws-sort-card.is-waiting') || b.el.matches('.ws-sort-card.is-waiting')) continue;   // the deck sits behind the bench card
     if (a.el.matches('.ws-ghost') || b.el.matches('.ws-ghost')) continue;                           // the ghost hand passes over things
@@ -102,6 +102,73 @@ def check(condition, message):
     print(("  ok   " if condition else "  FAIL ") + message)
     if not condition:
         failures.append(message)
+
+
+# Design QA: run at every screenshot. Each rule names the design parameter it guards.
+DESIGN_JS = """
+(() => {
+  const card = document.querySelector('.workshop__card');
+  if (!card) return [];
+  const out = [];
+  const shown = (el) => { if (el.closest('[hidden], .ws-hidden')) return false; const r = el.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return false;
+    for (let n = el; n && n !== document.body; n = n.parentElement) { const cs = getComputedStyle(n); if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) < 0.05) return false; } return true; };
+  const surface = card.querySelector('.workshop__surface').getBoundingClientRect();
+  const k = surface.width / 1560;                          // stage px per surface px
+  const cardRect = card.getBoundingClientRect();
+  const state = window.__learning?.state?.() ?? {};
+  // 1. shape centred and big (screens that show the live triangle, not the sort / grid / summary)
+  const tri = card.querySelector('.ws-tri');
+  const busy = card.querySelector('.ws-sort, .ws-grid, .ws-summary, .ws-sort-result');
+  if (tri && shown(tri) && !busy && Array.isArray(state.points)) {
+    const xs = state.points.map((p) => p[0]); const ys = state.points.map((p) => p[1]);
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys);
+    if (Math.abs(cx - 780) > 24 && state.state !== 'INTERACTING') out.push(`shape off-centre by ${Math.round(cx - 780)}px`);
+    if (Math.max(w, h) < 330) out.push(`shape small (${Math.round(Math.max(w, h))}px)`);
+  }
+  // 2. everything inside the card
+  card.querySelectorAll('.ws-overlay > *, .ws-option--pill, .ws-badge, .ws-pill, .ws-side-label, .ws-angle__label').forEach((el) => {
+    if (!shown(el) || el.matches('.ws-ghost, .ws-sort, .ws-grid, .ws-summary, .ws-sort-result')) return;
+    const r = el.getBoundingClientRect();
+    if (r.left < cardRect.left + 8 || r.right > cardRect.right - 8 || r.top < cardRect.top + 8 || r.bottom > cardRect.bottom - 8) out.push(`outside the card: ${(el.textContent || el.className.baseVal || el.className).toString().trim().slice(0, 24)}`);
+  });
+  // 3. readable text: size and contrast
+  const lum = (c) => { const m = c.match(/[\\d.]+/g); if (!m) return 1; const [r, g, b] = m.slice(0, 3).map((v) => { v = +v / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  const textChecks = [
+    ['.ws-narration__text', 'rgb(29, 58, 95)'], ['.ws-option--pill', 'rgb(255, 203, 51)'], ['.ws-badge', 'rgb(255, 255, 255)'],
+    ['.ws-bin__label', 'rgb(29, 47, 107)'], ['.ws-side-label__text', 'rgb(255, 255, 255)'], ['.ws-angle__label', 'rgb(255, 255, 255)'], ['.ws-figure__label', 'rgb(255, 255, 255)'],
+  ];
+  for (const [sel, bg] of textChecks) card.querySelectorAll(sel).forEach((el) => {
+    if (!shown(el) || el.closest('.is-placed, .is-waiting, .is-dimmed, .is-waiting') || el.matches(':disabled')) return;
+    const cs = getComputedStyle(el); const size = parseFloat(cs.fontSize) * (el.closest('svg') ? (el.closest('svg').getBoundingClientRect().width / (el.closest('svg').viewBox.baseVal.width || 1)) : 1) / k;
+    const color = el.closest('svg') ? cs.fill : cs.color;
+    if (size < 17) out.push(`text too small (${size.toFixed(0)}px): ${el.textContent.trim().slice(0, 18)}`);
+    const need = size >= 24 ? 3 : 4.5;
+    const c = ratio(color, bg);
+    if (c < need && !el.closest('.is-correct, .is-incorrect')) out.push(`low contrast ${c.toFixed(1)}:1 ${sel} "${el.textContent.trim().slice(0, 18)}"`);
+  });
+  // 4. chips hug their words
+  card.querySelectorAll('.ws-badge').forEach((el) => {
+    if (!shown(el)) return;
+    const range = document.createRange(); range.selectNodeContents(el); const text = range.getBoundingClientRect().width;
+    const spare = el.getBoundingClientRect().width - text;
+    if (spare > 90 * k) out.push(`chip has empty space (${Math.round(spare / k)}px): ${el.textContent.trim()}`);
+  });
+  // 5. the narration is one line
+  const nar = card.querySelector('.ws-narration');
+  if (nar && shown(nar) && nar.getBoundingClientRect().height > 110 * k) out.push('narration wraps to two lines');
+  // 6. corner marks share one size
+  const radii = new Set([...card.querySelectorAll('.ws-tri .ws-angle__arc')].filter(shown).map((el) => (el.getAttribute('d').match(/A ([\\d.]+)/) || [])[1]).filter(Boolean).map((r) => Math.round(+r)));
+  if (radii.size > 1) out.push(`corner marks differ in size: ${[...radii].join(', ')}`);
+  // 7. CHECK / CONTINUE at the card's foot
+  card.querySelectorAll('.ws-pill').forEach((el) => {
+    if (!shown(el) || el.closest('.ws-summary')) return;
+    const y = (el.getBoundingClientRect().top - surface.top) / k;
+    if (Math.abs(y - 544) > 6 && !/ready/i.test(el.textContent)) out.push(`button not at the foot (${Math.round(y)}px): ${el.textContent.trim()}`);
+  });
+  return out;
+})()
+"""
 
 
 class Lesson:
@@ -127,6 +194,8 @@ class Lesson:
         self.page.screenshot(os.path.join(OUT, f"{self.shots:02d}-{name}.png"))
         hits = self.page.evaluate(OVERLAP_JS, await_promise=False) or []
         check(not hits, f"{name}: no overlapping UI" + (f" -> {hits}" if hits else ""))
+        design = self.page.evaluate(DESIGN_JS, await_promise=False) or []
+        check(not design, f"{name}: design QA" + (f" -> {design}" if design else ""))
 
     def buttons(self):
         return self.page.evaluate("window.__learning.buttons()", await_promise=False) or []

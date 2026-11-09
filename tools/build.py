@@ -104,6 +104,20 @@ def build():
     print(f"{OUTPUT}: {len(modules)} modules")
 
 
+
+
+def cache_bust(html_path="index.html"):
+    """Stamps the page's bundle and stylesheet links with this build's time, so a browser never shows an old build."""
+    import os, re, time
+    if not os.path.exists(html_path) or OUTPUT != "js/learning.bundle.js":
+        return
+    stamp = str(int(time.time()))
+    html = open(html_path, encoding="utf-8").read()
+    html = re.sub(r'(src|href)="((?:js/learning\.bundle\.js)|(?:styles/[a-z-]+\.css))(\?v=\d+)?"', lambda m: f'{m.group(1)}="{m.group(2)}?v={stamp}"', html)
+    open(html_path, "w", encoding="utf-8").write(html)
+
+
 if __name__ == "__main__":
     build()
+    cache_bust(os.path.join(ROOT, "index.html"))
     sys.exit(0)

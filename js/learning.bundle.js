@@ -1060,10 +1060,22 @@ function createVoiceManager({ audio }) {
   const clipFor = (text) => VO_LINES[normalize(text)] ?? null;
   const sourceFor = (clip) => blobUrls.get(clip.file) ?? VO_DIR + fileFor(clip);
 
+  /**
+   * Until the beaver's studio lines exist, the device reads them: a MALE Indian English voice first, so it
+   * sounds like the operator's recorded voice (Male Teacher), then any Indian English voice, then the rest.
+   */
+  const MALE_VOICE_NAMES = ['rishi', 'aman', 'ravi', 'prabhat', 'hemant', 'kumar', 'daniel', 'arthur', 'oliver', 'aaron', 'alex', 'fred', 'guy', 'ryan', 'thomas'];
+  const FEMALE_VOICE_NAMES = ['tara', 'veena', 'isha', 'lekha', 'heera', 'neerja', 'kalpana', 'swara', 'samantha', 'karen', 'moira', 'tessa', 'fiona', 'victoria', 'kate', 'serena', 'susan', 'zira', 'aria', 'jenny', 'female'];
+  const nameHas = (voice, names) => names.some((n) => voice.name?.toLowerCase().includes(n));
   function pickSpeechVoice() {
     const voices = speechSynthesis.getVoices();
     for (const lang of PREFERRED_SPEECH_LANGS) {
-      const match = voices.find((voice) => voice.lang?.toLowerCase().startsWith(lang.toLowerCase()));
+      const inLang = voices.filter((voice) => voice.lang?.toLowerCase().replace('_', '-').startsWith(lang.toLowerCase()));
+      const male = inLang.find((voice) => nameHas(voice, MALE_VOICE_NAMES)) ?? inLang.find((voice) => !nameHas(voice, FEMALE_VOICE_NAMES));
+      if (male) return male;
+    }
+    for (const lang of PREFERRED_SPEECH_LANGS) {
+      const match = voices.find((voice) => voice.lang?.toLowerCase().replace('_', '-').startsWith(lang.toLowerCase()));
       if (match) return match;
     }
     return voices[0] ?? null;
@@ -4275,7 +4287,7 @@ const LEARNING_SCREENS = Object.freeze([
     narration: "Triangles can be of different types. Let's explore them!" },
 
   /* ---- Sides ---- */
-  { id: 'L04', kind: 'measureSides', zoom: 1.3, section: 'sides', triangle: SCALENE_546,
+  { id: 'L04', kind: 'measureSides', zoom: 1.2, section: 'sides', triangle: SCALENE_546,
     narration: "Let's measure the sides of this triangle.", focus: 'measure the sides' },
   { id: 'L05', kind: 'question', section: 'sides', triangle: SCALENE_546, layout: 'stack',
     show: { sideLabels: true },
@@ -4320,7 +4332,7 @@ const LEARNING_SCREENS = Object.freeze([
     success: { badge: 'ISOSCELES', tone: 'isosceles', narration: 'Great! This triangle is isosceles.', highlightEqual: true, name: 'isosceles' } },
 
   /* ---- Angles ---- */
-  { id: 'L11', kind: 'measureAngles', zoom: 1.3, section: 'angles', triangle: { angles: [60, 60, 60], base: 5 },
+  { id: 'L11', kind: 'measureAngles', zoom: 1.2, section: 'angles', triangle: { angles: [60, 60, 60], base: 5 },
     narration: "Now let's measure the angles.", focus: 'measure the angles' },
   { id: 'L12', kind: 'question', section: 'angles', triangle: { angles: [60, 60, 60], base: 5 }, layout: 'stack',
     show: { angleArcs: true, angleLabels: true },
@@ -4385,11 +4397,11 @@ const LEARNING_SCREENS = Object.freeze([
       correct: 'Right-angled',
       reinforce: 'rightAngle',
     } },
-  { id: 'L21', kind: 'dualReveal', section: 'both', triangle: RIGHT_ISOSCELES,
+  { id: 'L21', kind: 'dualReveal', section: 'both', layout: 'stack', triangle: RIGHT_ISOSCELES,
     show: { sideLabels: true, ticks: true, angleLabels: [1], square: true },
     badges: [{ text: 'ISOSCELES', tone: 'isosceles', about: 'sides' }, { text: 'RIGHT-ANGLED', tone: 'right', about: 'angle' }],
     narration: 'This triangle is both isosceles and right angled.', focus: 'both' },
-  { id: 'L22', kind: 'lenses', section: 'both', triangle: RIGHT_ISOSCELES,
+  { id: 'L22', kind: 'lenses', section: 'both', layout: 'stack', triangle: RIGHT_ISOSCELES,
     show: { sideLabels: true, ticks: true, angleLabels: [1], square: true },
     lenses: [{ title: 'BY SIDES', result: 'Isosceles', tone: 'isosceles' }, { title: 'BY ANGLES', result: 'Right-angled', tone: 'right' }],
     narration: 'So a triangle can be classified by both its sides and its angles.', focus: 'both its sides and its angles' },
@@ -4405,7 +4417,7 @@ const LEARNING_SCREENS = Object.freeze([
     ],
     success: { badges: [{ text: 'SCALENE', tone: 'scalene', about: 'sides' }, { text: 'OBTUSE-ANGLED', tone: 'obtuse', about: 'angle' }],
       narration: 'Correct! This triangle is scalene and obtuse-angled.' } },
-  { id: 'CFU06', kind: 'drag', section: 'checkpoint', triangle: SCALENE_546, goal: 'rightIsosceles', hintVertex: 0, hintAfterMs: 30000, silentSnaps: true,
+  { id: 'CFU06', kind: 'drag', section: 'checkpoint', layout: 'stack', triangle: SCALENE_546, goal: 'rightIsosceles', hintVertex: 0, hintAfterMs: 30000, silentSnaps: true,
     show: { sideLabels: true, ticks: true, angleLabels: true, square: true },
     narration: 'Make a right-angled isosceles triangle.', instruction: 'Satisfy both conditions in one shape.',
     success: { final: true, badges: [{ text: 'ISOSCELES', tone: 'isosceles', about: 'sides' }, { text: 'RIGHT-ANGLED', tone: 'right', about: 'angle' }],
@@ -5422,7 +5434,7 @@ __define('js/learning/triangle-model.js', function () {
  * Vertex order is A (apex), B (base left), C (base right). Side i joins vertex i and vertex i + 1,
  * so sides are [AB, BC, CA] and angles are [at A, at B, at C], as the PDF labels them.
  */
-const PX_PER_CM = 84;
+const PX_PER_CM = 92;
 const MIN_VERTEX_GAP_CM = 1.6;      // two corners never come closer than this
 const MIN_ALTITUDE_CM = 1.1;        // a dragged corner never comes closer than this to the opposite side
 const MIN_ANGLE_DEG = 10;           // no needle-thin triangles
@@ -5843,8 +5855,9 @@ const { tween, easings, wait, prefersReducedMotion, playClassAnimation } = __req
 const VERTEX_HIT_RADIUS = 46;
 const DEFAULT_VISIBLE = Object.freeze({ sides: true, vertices: true, sideLabels: false, angleArcs: false, angleLabels: false, ticks: false, square: false });
 
-/** The corner mark's radius: a little bigger for narrow angles so the slice still reads (Fishing Frenzy's rule). */
-const angleRadius = (deg) => ARC_RADIUS * Math.min(1.25, Math.max(0.85, Math.sqrt(90 / Math.max(1, deg))));
+/** Every corner mark is the same size, big enough to read at a glance. */
+const CORNER_RADIUS = 50;
+const angleRadius = () => CORNER_RADIUS;
 const normaliseSet = (value) => (value === true ? [0, 1, 2] : Array.isArray(value) ? value : []);
 
 function createTriangleCanvas({ host, width, height, audio }) {
@@ -5942,9 +5955,13 @@ function createTriangleCanvas({ host, width, height, audio }) {
       const radius = angleRadius(measured.deg[i]);
       a.arc.setAttribute('d', arcPath(points, i, radius));
       a.wedge.setAttribute('d', wedgePath(points, i, radius));
-      a.square.setAttribute('points', squarePoints(points, i));
+      a.square.setAttribute('points', squarePoints(points, i, CORNER_RADIUS * 0.62));
       const showArc = inSet(visible.angleArcs, i);
-      const showSquare = visible.square && isRight;
+      const showSquare = (visible.square || showArc) && isRight;      // a right angle is marked with its square, never a curve
+      if (showSquare) {
+        const [p1, p2, p3] = squarePoints(points, i, CORNER_RADIUS * 0.62).split(' ');
+        a.wedge.setAttribute('d', `M ${fmt(points[i][0])} ${fmt(points[i][1])} L ${p1} L ${p2} L ${p3} Z`);   // the square, filled
+      }
       setHidden(a.arc, !showArc || showSquare);
       setHidden(a.wedge, !showArc && !showSquare);
       setHidden(a.square, !showSquare);
@@ -6323,17 +6340,20 @@ function createTriangleCanvas({ host, width, height, audio }) {
     emphasiseSides(indices) {
       sides.forEach((s, i) => s.group.classList.toggle('is-emphasis', indices.includes(i)));
       tri.classList.toggle('is-focusing', indices.length > 0);
+      svg.closest('.workshop')?.classList.toggle('is-shape-focus', indices.length > 0);
       indices.forEach((i, n) => traceSide(i, { delay: n * 120 }));
     },
     emphasiseAngles(indices) {
       angles.forEach((a, i) => angleClass(a, 'is-emphasis', indices.includes(i)));
       tri.classList.toggle('is-focusing', indices.length > 0);
+      svg.closest('.workshop')?.classList.toggle('is-shape-focus', indices.length > 0);
       indices.forEach((i, n) => traceAngle(i, { delay: n * 120 }));
     },
     clearEmphasis() {
       for (const s of sides) s.group.classList.remove('is-emphasis');
       for (const a of angles) angleClass(a, 'is-emphasis', false);
       tri.classList.remove('is-focusing');
+      svg.closest('.workshop')?.classList.remove('is-shape-focus');
     },
     pulseSide: (i) => { traceSide(i); return playClassAnimation(sides[i].group, 'is-pulse', 620); },
     pulseSideLabel: (i) => playClassAnimation(sideLabels[i].group, 'is-pulse', 620),
@@ -6643,7 +6663,7 @@ __define('js/learning/triangle-figure.js', function () {
  * angles, ticks and the right-angle square are all computed from the shape, never typed in.
  */
 const { cmPointsFromSpec, measure, formatCm, formatDeg, PX_PER_CM } = __require('js/learning/triangle-model.js');
-const { svgEl, fmt, sideLabelPoint, angleLabelPoint, arcPath, squarePoints, tickSegment, outwardNormal } = __require('js/learning/triangle-draw.js');
+const { svgEl, fmt, sideLabelPoint, arcPath, squarePoints, tickSegment, outwardNormal, cornerFrame } = __require('js/learning/triangle-draw.js');
 /**
  * Options: labels 'sides' | 'angles' | null; ticks (equal-side marks); square (right-angle mark); arcs;
  * tone (side colour); silhouette (filled, no detail).
@@ -6654,7 +6674,7 @@ function buildTriangleFigure(spec, { width = 260, height = 200, labels = null, t
   const ys = pts.map((p) => p[1]);
   const spanX = Math.max(...xs) - Math.min(...xs);
   const spanY = Math.max(...ys) - Math.min(...ys);
-  const labelPad = labels ? pad + labelSize * 1.6 : pad;   // room for the numbers outside the shape
+  const labelPad = labels === 'angles' ? pad + labelSize * 2.6 : labels ? pad + labelSize * 1.6 : pad;   // room for the numbers outside the shape (angle values sit beyond the corners)
   const scale = Math.min(maxScale, (width - labelPad * 2) / spanX, (height - labelPad * 2) / spanY);
   const midX = (Math.min(...xs) + Math.max(...xs)) / 2;
   const minY = Math.min(...ys);
@@ -6675,21 +6695,24 @@ function buildTriangleFigure(spec, { width = 260, height = 200, labels = null, t
     const attrs = { x1: fmt(x1), y1: fmt(y1), x2: fmt(x2), y2: fmt(y2) };
     sides.append(svgEl('line', { ...attrs, class: 'ws-figure__edge', style: `stroke-width:${14 * strokeScale}` }), svgEl('line', { ...attrs, class: 'ws-figure__body', style: `stroke-width:${8 * strokeScale}` }));
   }
-  svg.appendChild(sides);
-  const marks = svgEl('g', { class: 'ws-figure__marks' });
+  // Corner marks go UNDER the sides (a coloured slice rimmed by its arc, as on the big triangle), ticks on top.
+  const corners = svgEl('g', { class: 'ws-figure__marks' });
+  const radius = Math.max(26, 18 * strokeScale + 12);
+  for (let i = 0; i < 3; i += 1) {
+    const isRight = m.rightAt === i;
+    if (square && isRight) corners.appendChild(svgEl('polyline', { points: squarePoints(vertices, i, radius * 0.7), class: 'ws-figure__square' }));
+    else if (arcs) {
+      const arc = arcPath(vertices, i, radius);
+      corners.appendChild(svgEl('path', { d: `M ${fmt(vertices[i][0])} ${fmt(vertices[i][1])} L ${arc.slice(2)} Z`, class: 'ws-figure__wedge' }));
+      corners.appendChild(svgEl('path', { d: arc, class: 'ws-figure__arc' }));
+    }
+  }
+  svg.append(corners, sides);
+  const marks = svgEl('g', { class: 'ws-figure__ticks' });
   if (ticks) {
     m.equalSides.forEach((equal, i) => {
       if (equal) marks.appendChild(svgEl('line', { ...tickSegment(vertices, i, 8), class: 'ws-figure__tick' }));
     });
-  }
-  for (let i = 0; i < 3; i += 1) {
-    const isRight = m.rightAt === i;
-    if (square && isRight) marks.appendChild(svgEl('polyline', { points: squarePoints(vertices, i, 16), class: 'ws-figure__square' }));
-    else if (arcs) {
-      const arc = arcPath(vertices, i, 24);
-      marks.appendChild(svgEl('path', { d: `M ${fmt(vertices[i][0])} ${fmt(vertices[i][1])} L ${arc.slice(2)} Z`, class: 'ws-figure__wedge' }));
-      marks.appendChild(svgEl('path', { d: arc, class: 'ws-figure__arc' }));
-    }
   }
   svg.appendChild(marks);
   for (let i = 0; i < 3; i += 1) {
@@ -6709,8 +6732,12 @@ function buildTriangleFigure(spec, { width = 260, height = 200, labels = null, t
   }
   if (labels === 'angles') {
     for (let i = 0; i < 3; i += 1) {
-      const [x, y] = angleLabelPoint(vertices, i, 0.62);
-      svg.appendChild(svgEl('text', { x: fmt(x), y: fmt(y), class: 'ws-figure__label ws-figure__label--angle' }, [document.createTextNode(formatDeg(m.deg[i]))]));
+      // Outside the corner, straight back along its bisector: on a small card the three values never meet.
+      const text = formatDeg(m.deg[i]);
+      const { bisector } = cornerFrame(vertices, i);
+      const away = 10 * strokeScale + 8 + Math.abs(bisector[0]) * (text.length * labelSize * 0.3) + Math.abs(bisector[1]) * (labelSize * 0.6);
+      const [x, y] = [vertices[i][0] - bisector[0] * away, vertices[i][1] - bisector[1] * away];
+      svg.appendChild(svgEl('text', { x: fmt(x), y: fmt(y), class: 'ws-figure__label ws-figure__label--angle', style: `font-size:${labelSize}px` }, [document.createTextNode(text)]));
     }
   }
   return { svg, vertices, measured: m };
@@ -6788,6 +6815,7 @@ function createBadge({ overlayEl, text, tone, at, size = 'normal' }) {
   if (center) badge.classList.add('ws-badge--centred');            // hugs its word, centred on `left`
   overlayEl.appendChild(badge);
   enter(badge, 'is-entering', 600);
+  freshFocus(badge);
   return { element: badge, remove: () => leave(badge) };
 }
 
@@ -6797,6 +6825,7 @@ function createLens({ overlayEl, title, result, tone, at }) {
   place(lens, at);
   overlayEl.appendChild(lens);
   enter(lens, 'is-entering', 560);
+  freshFocus(lens);
   return { element: lens, merge: () => playClassAnimation(lens, 'is-merging', 700), remove: () => leave(lens) };
 }
 
@@ -6805,7 +6834,14 @@ function createGreatJob({ overlayEl, at }) {
   place(chip, at);
   overlayEl.appendChild(chip);
   enter(chip, 'is-entering', 620);
+  freshFocus(chip);
   return { element: chip, remove: () => leave(chip) };
+}
+
+/** A newly shown chip is the focus for a moment: the rest of the overlay steps back, then comes back. */
+function freshFocus(el, ms = 1500) {
+  el.classList.add('is-fresh');
+  setTimeout(() => el.classList.remove('is-fresh'), prefersReducedMotion() ? 0 : ms);
 }
 
 /* ---------- Single-choice question: a centred row of options under the triangle ---------- */
@@ -6874,7 +6910,7 @@ function createMultiGrid({ overlayEl, cards, audio, onChange }) {
     button.setAttribute('aria-pressed', 'false');
     button.style.setProperty('--i', String(index));
     button.setAttribute('aria-label', `Triangle ${card.id}`);
-    const figure = buildTriangleFigure(card.spec, { width: 310, height: 250, labels: 'angles', arcs: true, square: true, pad: 30 });
+    const figure = buildTriangleFigure(card.spec, { width: 318, height: 270, labels: 'angles', arcs: true, square: true, pad: 6, strokeScale: 1.2, labelSize: 21 });
     button.append(figure.svg, element('span', 'ws-pick__tick', ''));     // picked: a tick badge, no words
     place(button, { left: 60 + index * 370, top: 70 });
     button.addEventListener('click', () => {
@@ -6960,7 +6996,7 @@ function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     node.innerHTML = `<img class="ws-bin__back" src="${ASSETS}crate-back.png" alt="" draggable="false">`;
     node.style.setProperty('--i', String(index));
     place(node, { left: BIN.xs[index], top: BIN.top, width: BIN.width });
-    const front = element('div', 'ws-bin-front', `<img src="${ASSETS}crate-front.png" alt="" draggable="false"><span class="ws-bin__label ws-tag ws-tag--${bin.id}">${escapeHtml(bin.label)}</span>`);
+    const front = element('div', 'ws-bin-front', `<img src="${ASSETS}crate-front.png" alt="" draggable="false"><span class="ws-bin__label">${escapeHtml(bin.label)}</span>`);
     front.style.setProperty('--i', String(index));
     place(front, { left: BIN.xs[index], top: BIN.top, width: BIN.width });
     root.append(node, front);
@@ -7165,6 +7201,7 @@ function createDualCard({ overlayEl, prompt, groups, audio, onChange, at = { top
           other.setAttribute('aria-checked', String(other === button));
         }
         onChange?.({ ...selections });
+        focusNextGroup();
       });
       list.appendChild(button);
       return button;
@@ -7174,6 +7211,13 @@ function createDualCard({ overlayEl, prompt, groups, audio, onChange, at = { top
   }
   overlayEl.appendChild(card);
   enter(card, 'is-entering', 560);
+  // One row is the focus at a time: the first is open, the next waits (dimmed) until the first has an answer.
+  function focusNextGroup() {
+    const rows = [...card.querySelectorAll('.ws-group')];
+    const firstOpen = rows.findIndex((row) => !row.querySelector('.is-selected'));
+    rows.forEach((row, k) => { row.classList.toggle('is-waiting', firstOpen >= 0 && k > firstOpen); row.classList.toggle('is-active', k === firstOpen); });
+  }
+  focusNextGroup();
   return {
     element: card,
     get selections() { return { ...selections }; },
@@ -7345,7 +7389,6 @@ const { createPillButton, createBadge, createLens, createGreatJob, createOptionC
 const { createSequenceScope, wait, isAbortError, prefersReducedMotion } = __require('js/core/motion.js');
 const FRAME = Object.freeze({ center: { cx: 780, cy: 300 }, stack: { cx: 780, cy: 250 }, dual: { cx: 780, cy: 215 } });
 const DRAG_BOUNDS = Object.freeze({ left: 80, top: 40, right: BOARD.canvas.width - 80, bottom: BOARD.canvas.height - 40 });
-const COLUMN_GAP = 60;                     // badges and lenses sit this far right of the triangle
 const SIDE_ORDER = [0, 2, 1];              // left, right, bottom: the deck's reading order (5 cm, 4 cm, 6 cm) and a clockwise walk
 const CORNER_ORDER = [0, 2, 1];            // top, right, left: clockwise
 /** The beaver appears only where he does something: measuring the shape, and explaining the summary cards. */
@@ -7509,12 +7552,14 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
     audio.play('badge');
     return createBadge({ overlayEl: board.overlayEl, text, tone, at: { left: Math.round(box.cx), top: Math.round(Math.min(box.bottom + 66, BOARD.canvas.height - 62)), center: true } });
   }
-  function columnX() {
-    return Math.round(triangleBox().right + COLUMN_GAP);
-  }
-  function badgeInColumn(text, tone, row) {
-    audio.play('badge');
-    return createBadge({ overlayEl: board.overlayEl, text, tone, at: { left: columnX(), top: 170 + row * 86, width: 330 } });
+  /** A centred row under the triangle that chips join one after another (placed from the shape, not fixed). */
+  function rowUnderTriangle() {
+    const box = triangleBox();
+    const row = document.createElement('div');
+    row.className = 'ws-badge-row';
+    row.style.top = `${Math.round(Math.min(box.bottom + 66, BOARD.canvas.height - 70))}px`;
+    board.overlayEl.appendChild(row);
+    return { element: row, add: (widget) => { row.appendChild(widget.element); return widget; }, remove: () => row.remove() };
   }
   async function pulseLabelsInOrder(indices, gapMs = 640) {
     for (const i of indices) {
@@ -7546,7 +7591,8 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
     await pause(200);
     canvas.clearEmphasis();
   }
-  async function continueButton(top = 440) {
+  const FOOT = BOARD.canvas.height - 96;      // CHECK and CONTINUE always sit at the foot of the card
+  async function continueButton(top = FOOT) {
     await pause(300);
     setState('WAITING_FOR_INPUT');
     let resolvePressed;
@@ -7703,8 +7749,9 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
     async question(screen) {
       const { question } = screen;
       let resolveAnswer = null;
+      const optionsTop = Math.round(Math.min(556, Math.max(430, triangleBox().bottom + 84)));   // under the shape and its labels
       const card = createOptionCard({
-        overlayEl: board.overlayEl, prompt: question.prompt, options: question.options, audio,
+        overlayEl: board.overlayEl, prompt: question.prompt, options: question.options, audio, at: { top: optionsTop },
         onSelect: (option) => resolveAnswer?.(option),
       });
       live.card = card;
@@ -7828,17 +7875,20 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       audio.play('snapRight');
       canvas.emphasiseSides(equalSideIndices());
       await pulseLabelsInOrder(equalSideIndices(), 320);
-      live.badgeA = badgeInColumn(screen.success.badges[0].text, screen.success.badges[0].tone, 0);
+      live.row = rowUnderTriangle();
+      audio.play('badge');
+      live.badgeA = live.row.add(createBadge({ overlayEl: board.overlayEl, text: screen.success.badges[0].text, tone: screen.success.badges[0].tone, at: {} }));
       await pause(760);
       canvas.emphasiseAngles([m.rightAt]);
       await pulseAnglesInOrder([m.rightAt], 320);
-      live.badgeB = badgeInColumn(screen.success.badges[1].text, screen.success.badges[1].tone, 1);
+      audio.play('badge');
+      live.badgeB = live.row.add(createBadge({ overlayEl: board.overlayEl, text: screen.success.badges[1].text, tone: screen.success.badges[1].tone, at: {} }));
       await pause(700);
       audio.play('celebration');
       fx.confetti(70);
       await narrate(screen.success.narration, { focus: 'sides and angles', cues: [
         { phrase: 'sides', run: () => { canvas.emphasiseSides(equalSideIndices()); equalSideIndices().forEach((i) => canvas.pulseSideLabel(i)); } },
-        { phrase: 'angles', run: () => { canvas.emphasiseAngles([m.rightAt]); canvas.pulseAngle(m.rightAt); live.greatJob = createGreatJob({ overlayEl: board.overlayEl, at: { left: columnX(), top: 360 } }); canvas.sparkleVertices(); } },
+        { phrase: 'angles', run: () => { canvas.emphasiseAngles([m.rightAt]); canvas.pulseAngle(m.rightAt); live.greatJob = live.row.add(createGreatJob({ overlayEl: board.overlayEl, at: {} })); canvas.sparkleVertices(); } },
       ] });
       await settle(screen.success.narration);
       canvas.clearEmphasis();
@@ -7873,7 +7923,7 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       live.sorter = null;
       live.result = createSortResult({ overlayEl: board.overlayEl, cards: screen.cards, bins: screen.bins });
       await narrate(screen.success);
-      await continueButton(440);
+      await continueButton();
     },
 
     async multi(screen) {
@@ -7882,7 +7932,7 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       let resolveChecked;
       let checked = new Promise((resolve) => { resolveChecked = resolve; });
       const grid = createMultiGrid({ overlayEl: board.overlayEl, cards: screen.cards, audio, onChange: (selection) => check.setEnabled(selection.size > 0) });
-      const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: 452 }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
+      const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: FOOT }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
       live.grid = grid;
       live.check = check;
       ghostGuide(pointAt('.ws-pick'), { firstMs: 6000 });
@@ -7907,7 +7957,7 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       await check.remove();
       live.check = null;
       await narrate(screen.success);
-      await continueButton(400);
+      await continueButton();
     },
 
     async dual(screen) {
@@ -7916,8 +7966,8 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       let resolveChecked;
       let checked = new Promise((resolve) => { resolveChecked = resolve; });
       const bothChosen = (s) => screen.groups.every((g) => s[g.id]);
-      const card = createDualCard({ overlayEl: board.overlayEl, prompt: screen.prompt, groups: screen.groups, audio, onChange: (s) => check.setEnabled(bothChosen(s)) });
-      const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: 566 }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
+      const card = createDualCard({ overlayEl: board.overlayEl, prompt: screen.prompt, groups: screen.groups, audio, at: { top: Math.round(Math.min(FOOT - 150, triangleBox().bottom + 70)) }, onChange: (s) => check.setEnabled(bothChosen(s)) });
+      const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: FOOT }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
       live.card = card;
       live.check = check;
       ghostGuide(pointAt('.ws-dual .ws-option--pill'), { firstMs: 6000 });
@@ -7945,9 +7995,11 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       live.check = null;
       // Sides first, then the angle: both classification systems, each on its word.
       const m = canvas.measured;
+      live.row = rowUnderTriangle();
+      const chip = (b) => { audio.play('badge'); return live.row.add(createBadge({ overlayEl: board.overlayEl, text: b.text, tone: b.tone, at: {} })); };
       await narrate(screen.success.narration, { cues: [
-        { phrase: 'scalene', run: () => { fire(() => pulseLabelsInOrder(SIDE_ORDER, 240))(); live.badgeA = badgeInColumn(screen.success.badges[0].text, screen.success.badges[0].tone, 0); } },
-        { phrase: 'obtuse-angled', run: () => { canvas.emphasiseAngles([m.obtuseAt]); canvas.pulseAngle(m.obtuseAt); live.badgeB = badgeInColumn(screen.success.badges[1].text, screen.success.badges[1].tone, 1); canvas.sparkleVertices(); } },
+        { phrase: 'scalene', run: () => { canvas.emphasiseSides([0, 1, 2]); fire(() => pulseLabelsInOrder(SIDE_ORDER, 240))(); live.badgeA = chip(screen.success.badges[0]); } },
+        { phrase: 'obtuse-angled', run: () => { canvas.clearEmphasis(); canvas.emphasiseAngles([m.obtuseAt]); canvas.pulseAngle(m.obtuseAt); live.badgeB = chip(screen.success.badges[1]); canvas.sparkleVertices(); } },
       ] });
       await settle(screen.success.narration);
       canvas.clearEmphasis();
@@ -7956,9 +8008,13 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
     async dualReveal(screen) {
       setState('DEMONSTRATING');
       const m = canvas.measured;
+      live.row = rowUnderTriangle();
+      const chip = (b) => { audio.play('badge'); return live.row.add(createBadge({ overlayEl: board.overlayEl, text: b.text, tone: b.tone, at: {} })); };
       await narrate(screen.narration, { focus: screen.focus, cues: [
-        { phrase: 'isosceles', run: () => { canvas.emphasiseSides(equalSideIndices()); equalSideIndices().forEach((i) => canvas.pulseSideLabel(i)); live.badgeA = badgeInColumn(screen.badges[0].text, screen.badges[0].tone, 0); } },
-        { phrase: 'right angled', run: () => { canvas.clearEmphasis(); canvas.emphasiseAngles([m.rightAt]); canvas.pulseAngle(m.rightAt); live.badgeB = badgeInColumn(screen.badges[1].text, screen.badges[1].tone, 1); canvas.sparkleVertices(); } },
+        // "isosceles": the two equal sides light up (the rest steps back) and its name pops under the shape
+        { phrase: 'isosceles', run: () => { canvas.emphasiseSides(equalSideIndices()); equalSideIndices().forEach((i) => canvas.pulseSideLabel(i)); live.badgeA = chip(screen.badges[0]); } },
+        // "right angled": now the 90° corner lights up and its name joins the first
+        { phrase: 'right angled', run: () => { canvas.clearEmphasis(); canvas.emphasiseAngles([m.rightAt]); canvas.pulseAngle(m.rightAt); live.badgeB = chip(screen.badges[1]); canvas.sparkleVertices(); } },
       ] });
       await settle(screen.narration);
       canvas.clearEmphasis();
@@ -7969,21 +8025,25 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       const m = canvas.measured;
       let lensA = null;
       let lensB = null;
+      live.row = rowUnderTriangle();
+      const lensChip = (k) => { audio.play('badge'); return live.row.add(createLens({ overlayEl: board.overlayEl, title: screen.lenses[k].title, result: screen.lenses[k].result, tone: screen.lenses[k].tone, at: {} })); };
       const spoken = board.narrate(screen.narration, { focus: screen.focus, cues: [
-        { phrase: 'sides', run: () => { lensA = createLens({ overlayEl: board.overlayEl, title: screen.lenses[0].title, result: screen.lenses[0].result, tone: screen.lenses[0].tone, at: { left: columnX(), top: 160 } }); canvas.emphasiseSides(equalSideIndices()); equalSideIndices().forEach((i) => canvas.pulseSideLabel(i)); } },
-        { phrase: 'angles', run: () => { canvas.clearEmphasis(); lensB = createLens({ overlayEl: board.overlayEl, title: screen.lenses[1].title, result: screen.lenses[1].result, tone: screen.lenses[1].tone, at: { left: columnX(), top: 270 } }); canvas.emphasiseAngles([m.rightAt]); canvas.pulseAngle(m.rightAt); } },
+        { phrase: 'sides', run: () => { lensA = lensChip(0); canvas.emphasiseSides(equalSideIndices()); equalSideIndices().forEach((i) => canvas.pulseSideLabel(i)); } },
+        { phrase: 'angles', run: () => { canvas.clearEmphasis(); lensB = lensChip(1); canvas.emphasiseAngles([m.rightAt]); canvas.pulseAngle(m.rightAt); } },
       ] });
       await withSignal(spoken.finished, signal());
-      lensA ??= createLens({ overlayEl: board.overlayEl, title: screen.lenses[0].title, result: screen.lenses[0].result, tone: screen.lenses[0].tone, at: { left: columnX(), top: 160 } });
-      lensB ??= createLens({ overlayEl: board.overlayEl, title: screen.lenses[1].title, result: screen.lenses[1].result, tone: screen.lenses[1].tone, at: { left: columnX(), top: 270 } });
+      lensA ??= lensChip(0);
+      lensB ??= lensChip(1);
       await pause(700);
       canvas.clearEmphasis();
-      // The two lenses merge into one label stack beside the triangle.
+      // The two lenses merge into the two names, in the same row under the shape.
       await Promise.all([lensA.merge(), lensB.merge()]);
       await Promise.all([lensA.remove(), lensB.remove()]);
-      live.badgeA = badgeInColumn('ISOSCELES', 'isosceles', 0);
+      audio.play('badge');
+      live.badgeA = live.row.add(createBadge({ overlayEl: board.overlayEl, text: 'ISOSCELES', tone: 'isosceles', at: {} }));
       await pause(200);
-      live.badgeB = badgeInColumn('RIGHT-ANGLED', 'right', 1);
+      audio.play('badge');
+      live.badgeB = live.row.add(createBadge({ overlayEl: board.overlayEl, text: 'RIGHT-ANGLED', tone: 'right', at: {} }));
       await settle(screen.narration);
     },
 

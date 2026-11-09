@@ -11,8 +11,9 @@ import { tween, easings, wait, prefersReducedMotion, playClassAnimation } from '
 const VERTEX_HIT_RADIUS = 46;
 const DEFAULT_VISIBLE = Object.freeze({ sides: true, vertices: true, sideLabels: false, angleArcs: false, angleLabels: false, ticks: false, square: false });
 
-/** The corner mark's radius: a little bigger for narrow angles so the slice still reads (Fishing Frenzy's rule). */
-const angleRadius = (deg) => ARC_RADIUS * Math.min(1.25, Math.max(0.85, Math.sqrt(90 / Math.max(1, deg))));
+/** Every corner mark is the same size, big enough to read at a glance. */
+const CORNER_RADIUS = 50;
+const angleRadius = () => CORNER_RADIUS;
 const normaliseSet = (value) => (value === true ? [0, 1, 2] : Array.isArray(value) ? value : []);
 
 export function createTriangleCanvas({ host, width, height, audio }) {
@@ -110,9 +111,13 @@ export function createTriangleCanvas({ host, width, height, audio }) {
       const radius = angleRadius(measured.deg[i]);
       a.arc.setAttribute('d', arcPath(points, i, radius));
       a.wedge.setAttribute('d', wedgePath(points, i, radius));
-      a.square.setAttribute('points', squarePoints(points, i));
+      a.square.setAttribute('points', squarePoints(points, i, CORNER_RADIUS * 0.62));
       const showArc = inSet(visible.angleArcs, i);
-      const showSquare = visible.square && isRight;
+      const showSquare = (visible.square || showArc) && isRight;      // a right angle is marked with its square, never a curve
+      if (showSquare) {
+        const [p1, p2, p3] = squarePoints(points, i, CORNER_RADIUS * 0.62).split(' ');
+        a.wedge.setAttribute('d', `M ${fmt(points[i][0])} ${fmt(points[i][1])} L ${p1} L ${p2} L ${p3} Z`);   // the square, filled
+      }
       setHidden(a.arc, !showArc || showSquare);
       setHidden(a.wedge, !showArc && !showSquare);
       setHidden(a.square, !showSquare);
@@ -491,17 +496,20 @@ export function createTriangleCanvas({ host, width, height, audio }) {
     emphasiseSides(indices) {
       sides.forEach((s, i) => s.group.classList.toggle('is-emphasis', indices.includes(i)));
       tri.classList.toggle('is-focusing', indices.length > 0);
+      svg.closest('.workshop')?.classList.toggle('is-shape-focus', indices.length > 0);
       indices.forEach((i, n) => traceSide(i, { delay: n * 120 }));
     },
     emphasiseAngles(indices) {
       angles.forEach((a, i) => angleClass(a, 'is-emphasis', indices.includes(i)));
       tri.classList.toggle('is-focusing', indices.length > 0);
+      svg.closest('.workshop')?.classList.toggle('is-shape-focus', indices.length > 0);
       indices.forEach((i, n) => traceAngle(i, { delay: n * 120 }));
     },
     clearEmphasis() {
       for (const s of sides) s.group.classList.remove('is-emphasis');
       for (const a of angles) angleClass(a, 'is-emphasis', false);
       tri.classList.remove('is-focusing');
+      svg.closest('.workshop')?.classList.remove('is-shape-focus');
     },
     pulseSide: (i) => { traceSide(i); return playClassAnimation(sides[i].group, 'is-pulse', 620); },
     pulseSideLabel: (i) => playClassAnimation(sideLabels[i].group, 'is-pulse', 620),

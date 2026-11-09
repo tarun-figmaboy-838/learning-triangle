@@ -69,6 +69,7 @@ export function createBadge({ overlayEl, text, tone, at, size = 'normal' }) {
   if (center) badge.classList.add('ws-badge--centred');            // hugs its word, centred on `left`
   overlayEl.appendChild(badge);
   enter(badge, 'is-entering', 600);
+  freshFocus(badge);
   return { element: badge, remove: () => leave(badge) };
 }
 
@@ -78,6 +79,7 @@ export function createLens({ overlayEl, title, result, tone, at }) {
   place(lens, at);
   overlayEl.appendChild(lens);
   enter(lens, 'is-entering', 560);
+  freshFocus(lens);
   return { element: lens, merge: () => playClassAnimation(lens, 'is-merging', 700), remove: () => leave(lens) };
 }
 
@@ -86,7 +88,14 @@ export function createGreatJob({ overlayEl, at }) {
   place(chip, at);
   overlayEl.appendChild(chip);
   enter(chip, 'is-entering', 620);
+  freshFocus(chip);
   return { element: chip, remove: () => leave(chip) };
+}
+
+/** A newly shown chip is the focus for a moment: the rest of the overlay steps back, then comes back. */
+function freshFocus(el, ms = 1500) {
+  el.classList.add('is-fresh');
+  setTimeout(() => el.classList.remove('is-fresh'), prefersReducedMotion() ? 0 : ms);
 }
 
 /* ---------- Single-choice question: a centred row of options under the triangle ---------- */
@@ -155,7 +164,7 @@ export function createMultiGrid({ overlayEl, cards, audio, onChange }) {
     button.setAttribute('aria-pressed', 'false');
     button.style.setProperty('--i', String(index));
     button.setAttribute('aria-label', `Triangle ${card.id}`);
-    const figure = buildTriangleFigure(card.spec, { width: 310, height: 250, labels: 'angles', arcs: true, square: true, pad: 30 });
+    const figure = buildTriangleFigure(card.spec, { width: 318, height: 270, labels: 'angles', arcs: true, square: true, pad: 6, strokeScale: 1.2, labelSize: 21 });
     button.append(figure.svg, element('span', 'ws-pick__tick', ''));     // picked: a tick badge, no words
     place(button, { left: 60 + index * 370, top: 70 });
     button.addEventListener('click', () => {
@@ -241,7 +250,7 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     node.innerHTML = `<img class="ws-bin__back" src="${ASSETS}crate-back.png" alt="" draggable="false">`;
     node.style.setProperty('--i', String(index));
     place(node, { left: BIN.xs[index], top: BIN.top, width: BIN.width });
-    const front = element('div', 'ws-bin-front', `<img src="${ASSETS}crate-front.png" alt="" draggable="false"><span class="ws-bin__label ws-tag ws-tag--${bin.id}">${escapeHtml(bin.label)}</span>`);
+    const front = element('div', 'ws-bin-front', `<img src="${ASSETS}crate-front.png" alt="" draggable="false"><span class="ws-bin__label">${escapeHtml(bin.label)}</span>`);
     front.style.setProperty('--i', String(index));
     place(front, { left: BIN.xs[index], top: BIN.top, width: BIN.width });
     root.append(node, front);
@@ -446,6 +455,7 @@ export function createDualCard({ overlayEl, prompt, groups, audio, onChange, at 
           other.setAttribute('aria-checked', String(other === button));
         }
         onChange?.({ ...selections });
+        focusNextGroup();
       });
       list.appendChild(button);
       return button;
@@ -455,6 +465,13 @@ export function createDualCard({ overlayEl, prompt, groups, audio, onChange, at 
   }
   overlayEl.appendChild(card);
   enter(card, 'is-entering', 560);
+  // One row is the focus at a time: the first is open, the next waits (dimmed) until the first has an answer.
+  function focusNextGroup() {
+    const rows = [...card.querySelectorAll('.ws-group')];
+    const firstOpen = rows.findIndex((row) => !row.querySelector('.is-selected'));
+    rows.forEach((row, k) => { row.classList.toggle('is-waiting', firstOpen >= 0 && k > firstOpen); row.classList.toggle('is-active', k === firstOpen); });
+  }
+  focusNextGroup();
   return {
     element: card,
     get selections() { return { ...selections }; },

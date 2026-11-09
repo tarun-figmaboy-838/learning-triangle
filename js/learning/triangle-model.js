@@ -8,7 +8,7 @@
  * Vertex order is A (apex), B (base left), C (base right). Side i joins vertex i and vertex i + 1,
  * so sides are [AB, BC, CA] and angles are [at A, at B, at C], as the PDF labels them.
  */
-export const PX_PER_CM = 84;
+export const PX_PER_CM = 92;
 export const MIN_VERTEX_GAP_CM = 1.6;      // two corners never come closer than this
 export const MIN_ALTITUDE_CM = 1.1;        // a dragged corner never comes closer than this to the opposite side
 export const MIN_ANGLE_DEG = 10;           // no needle-thin triangles
