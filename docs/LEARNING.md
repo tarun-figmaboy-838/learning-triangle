@@ -120,6 +120,8 @@ every label is live text. Transparent PNG unless noted.
 | `beaver-protractor.png` | 356 × 596 | reading a corner |
 | `beaver-walk-1/2/3/4.png` | ~332–374 × 520–534 | side-view walk cycle with the tape (walking along a side) |
 | `sort-crate.png` | 339 × 277 | the sorting crates |
+| `card-frame.png` | 1495 × 799 | the lesson card itself: flat cream panel, navy edge, gold line, corner screws (stretched to 1600 × 820, shown at 110%) |
+| `summary-card.png` | 816 × 848 | the square summary card with its ribbon tab; the name and sentence are live text |
 | `btn-pill.png` | 707 × 270 | the yellow answer buttons (9-sliced, text live) |
 | `name-tag.png` | 681 × 210 | the navy name tags for the shape names and the crates (9-sliced, text live) |
 
@@ -161,3 +163,18 @@ python3 tools/qa/learning.py            # the whole lesson in headless Chrome: w
 
 URL options: `?lesson=L07` starts the lesson at that screen; `?qa=1` exposes `window.__learning` (state,
 drag targets, sorting targets) for the play-through; `?vo=0` turns narration off; `?vorate=2` speeds it.
+
+## Borrowed from the Polygon recap and Fishing Frenzy lessons
+
+- Summary (Polygon recap): a card enters on the recap's curve (0.82 → 1.03 → 1 over 420 ms), flies to its
+  slot on a small upward arc, the spoken name warms the name plate and the first word of the sentence pulses
+  the figure, and once all six are home the row hops together towards the middle (70 ms apart).
+- Sorting checkpoint (CFU01): one triangle at a time sits on the bench with its lengths and tick marks in
+  view, the rest wait in a pile on the left, the three crates stand below. A right drop lights the equal
+  sides (none on a scalene, all three on an equilateral) before the card flies into its crate; a wrong drop
+  shakes the card back and pulses the three lengths so the learner reads them again.
+- Measuring (Fishing Frenzy): the tape is a thin ticked strip (long tick per cm, short per half) running
+  just beside the side as the beaver walks it; the length slides out of the side it was measured on; a
+  filled wedge sweeps open with the arc under the protractor, and the degree value counts
+  up to its reading before it stamps in, the sides / angles that are not being named step back to 42%, and a
+  bright spark runs along each named side.

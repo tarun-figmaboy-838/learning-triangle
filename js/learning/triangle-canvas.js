@@ -5,20 +5,21 @@
  * while a goal is set, a corner near a position that makes the goal true snaps onto it.
  */
 import { measure, formatCm, formatDeg, constrainVertex, snapVertex, goalMet, solutionFor, vec, PX_PER_CM } from './triangle-model.js';
-import { svgEl, fmt, sideLabelPoint, angleLabelPoint, arcPath, squarePoints, tickSegment, cornerFrame, outwardNormal, sideMidpoint, centroid } from './triangle-draw.js';
+import { svgEl, fmt, sideLabelPoint, angleLabelPoint, arcPath, squarePoints, tickSegment, cornerFrame, outwardNormal, sideMidpoint, centroid, ARC_RADIUS } from './triangle-draw.js';
 import { tween, easings, wait, prefersReducedMotion, playClassAnimation } from '../core/motion.js';
 
 const VERTEX_HIT_RADIUS = 46;
 const DEFAULT_VISIBLE = Object.freeze({ sides: true, vertices: true, sideLabels: false, angleArcs: false, angleLabels: false, ticks: false, square: false });
 
+const WEDGE_RADIUS = 56;           // the filled slice reaches past the arc so it reads between the thick sides
 const normaliseSet = (value) => (value === true ? [0, 1, 2] : Array.isArray(value) ? value : []);
 
 export function createTriangleCanvas({ host, width, height, audio }) {
   const svg = svgEl('svg', { class: 'ws-canvas', viewBox: `0 0 ${width} ${height}`, 'aria-hidden': 'true' });
   host.appendChild(svg);
   const defs = svgEl('defs');
-  const pattern = svgEl('pattern', { id: 'ws-tape-ticks', patternUnits: 'userSpaceOnUse', width: 14, height: 26 });
-  pattern.append(svgEl('rect', { x: 0, y: 0, width: 2, height: 9, fill: '#1d3a5f' }), svgEl('rect', { x: 7, y: 0, width: 2, height: 5, fill: '#1d3a5f' }));
+  const pattern = svgEl('pattern', { id: 'ws-tape-ticks', patternUnits: 'userSpaceOnUse', width: PX_PER_CM, height: 16 });
+  pattern.append(svgEl('rect', { x: 0, y: 0, width: 2, height: 9, fill: '#5a4310' }), svgEl('rect', { x: PX_PER_CM / 2 - 1, y: 0, width: 2, height: 5, fill: '#5a4310' }));
   defs.appendChild(pattern);
   svg.appendChild(defs);
   const toolLayer = svgEl('g', { class: 'ws-tools' });
@@ -36,11 +37,12 @@ export function createTriangleCanvas({ host, width, height, audio }) {
   });
   const angles = [0, 1, 2].map((i) => {
     const group = svgEl('g', { class: 'ws-angle', 'data-index': i });
+    const wedge = svgEl('path', { class: 'ws-angle__wedge' });    // the filled slice of the corner (Fishing Frenzy / Polygon style)
     const arc = svgEl('path', { class: 'ws-angle__arc' });
     const square = svgEl('polyline', { class: 'ws-angle__square' });
     const label = svgEl('text', { class: 'ws-angle__label' });
-    group.append(arc, square, label);
-    return { group, arc, square, label };
+    group.append(wedge, arc, square, label);
+    return { group, wedge, arc, square, label };
   });
   const sideLabels = [0, 1, 2].map((i) => {
     const group = svgEl('g', { class: 'ws-side-label', 'data-index': i });
@@ -98,13 +100,17 @@ export function createTriangleCanvas({ host, width, height, audio }) {
       const a = angles[i];
       const isRight = measured.rightAt === i;
       a.arc.setAttribute('d', arcPath(points, i));
+      a.wedge.setAttribute('d', wedgePath(points, i, WEDGE_RADIUS));
       a.square.setAttribute('points', squarePoints(points, i));
       const showArc = inSet(visible.angleArcs, i);
       const showSquare = visible.square && isRight;
       setHidden(a.arc, !showArc || showSquare);
+      setHidden(a.wedge, !showArc && !showSquare);
       setHidden(a.square, !showSquare);
       const [lx, ly] = angleLabelPoint(points, i);
       a.label.setAttribute('x', fmt(lx)); a.label.setAttribute('y', fmt(ly));
+      a.label.style.setProperty('--ox', `${fmt((points[i][0] - lx) * 0.75)}px`);   // the value slides out of its corner
+      a.label.style.setProperty('--oy', `${fmt((points[i][1] - ly) * 0.75)}px`);
       a.label.textContent = formatDeg(measured.deg[i]);
       setHidden(a.label, !inSet(visible.angleLabels, i));
       a.group.classList.toggle('is-right', isRight);
@@ -117,6 +123,8 @@ export function createTriangleCanvas({ host, width, height, audio }) {
       const normal = outwardNormal(points, i);
       const gap = 22 + Math.abs(normal[0]) * (l.text.textContent.length * 8.5) + Math.abs(normal[1]) * 15;
       const [sx, sy] = sideLabelPoint(points, i, gap);
+      l.group.style.setProperty('--ox', `${fmt(-normal[0] * gap * 0.75)}px`);
+      l.group.style.setProperty('--oy', `${fmt(-normal[1] * gap * 0.75)}px`);
       l.text.setAttribute('x', fmt(sx)); l.text.setAttribute('y', fmt(sy));
       setHidden(l.group, !inSet(visible.sideLabels, i));
     }
@@ -188,6 +196,12 @@ export function createTriangleCanvas({ host, width, height, audio }) {
   });
   svg.addEventListener('contextmenu', (event) => event.preventDefault());
 
+  /** The filled slice of corner i: from the vertex out to the arc and back (the arc may be partly swept). */
+  function wedgePath(pts, i, radius = ARC_RADIUS, fraction = 1) {
+    const v = pts[i];
+    return `M ${fmt(v[0])} ${fmt(v[1])} L ${arcPath(pts, i, radius, fraction).slice(2)} Z`;
+  }
+
   /* ---------- Tools and hints ---------- */
   function clearHint() {
     hint?.remove();
@@ -244,6 +258,31 @@ export function createTriangleCanvas({ host, width, height, audio }) {
   const reduced = () => prefersReducedMotion();
 
   /** A little burst of sparks at a point (a snap, a success): eight dots thrown outward. */
+  /** A glowing light runs along side i from one corner to the other, then fades (a gold trace). */
+  function traceSide(index, { delay = 0, duration = 900 } = {}) {
+    if (reduced()) return;
+    const a = points[index];
+    const b = points[(index + 1) % 3];
+    const line = svgEl('line', { class: 'ws-trace-glow', x1: fmt(a[0]), y1: fmt(a[1]), x2: fmt(b[0]), y2: fmt(b[1]), pathLength: 1 });
+    runTrace(line, delay, duration);
+  }
+  /** The same light sweeps round the arc of corner i. */
+  function traceAngle(index, { delay = 0, duration = 700 } = {}) {
+    if (reduced()) return;
+    const path = svgEl('path', { class: 'ws-trace-glow', d: arcPath(points, index, measured.rightAt === index ? 30 : undefined), pathLength: 1 });
+    runTrace(path, delay, duration);
+  }
+  function runTrace(el, delay, duration) {
+    el.style.strokeDasharray = '1 1';
+    el.style.strokeDashoffset = '1';
+    setTimeout(() => {
+      fxLayer.appendChild(el);
+      const anim = el.animate?.([{ strokeDashoffset: 1, opacity: 1 }, { strokeDashoffset: 0, opacity: 1, offset: 0.6 }, { strokeDashoffset: 0, opacity: 0 }],
+        { duration, easing: 'ease-out', fill: 'both' });
+      (anim?.finished ?? Promise.resolve()).catch(() => {}).finally(() => el.remove());
+    }, delay);
+  }
+
   function sparkleAt([x, y], { count = 8 } = {}) {
     if (reduced()) return;
     const group = svgEl('g', { class: 'ws-sparks', transform: `translate(${fmt(x)} ${fmt(y)})` });
@@ -326,10 +365,11 @@ export function createTriangleCanvas({ host, width, height, audio }) {
     if (tool) toolLayer.appendChild(tape);
     // The tape itself, spread along the side as far as it has been pulled: a yellow band with tick marks.
     const stripAngle = (Math.atan2(direction[1], direction[0]) * 180) / Math.PI;
-    const strip = svgEl('g', { class: 'ws-tape-strip', transform: `translate(${fmt(a[0])} ${fmt(a[1])}) rotate(${fmt(stripAngle)})` });
-    const band = svgEl('rect', { class: 'ws-tape-strip__band', x: 0, y: -13, width: 0, height: 26, rx: 4 });
-    const ticks = svgEl('rect', { class: 'ws-tape-strip__ticks', x: 0, y: -13, width: 0, height: 26, fill: 'url(#ws-tape-ticks)' });
-    const hook = svgEl('rect', { class: 'ws-tape-strip__hook', x: -3, y: -17, width: 7, height: 34, rx: 2 });
+    const beside = vec.add(a, vec.mul(n, 20));     // the tape runs alongside the side, so the side itself stays in view
+    const strip = svgEl('g', { class: 'ws-tape-strip', transform: `translate(${fmt(beside[0])} ${fmt(beside[1])}) rotate(${fmt(stripAngle)})` });
+    const band = svgEl('rect', { class: 'ws-tape-strip__band', x: 0, y: -8, width: 0, height: 16, rx: 3 });
+    const ticks = svgEl('rect', { class: 'ws-tape-strip__ticks', x: 0, y: -8, width: 0, height: 16, fill: 'url(#ws-tape-ticks)' });
+    const hook = svgEl('rect', { class: 'ws-tape-strip__hook', x: -3, y: -12, width: 7, height: 24, rx: 2 });
     strip.append(band, ticks, hook);
     toolLayer.appendChild(strip);
     s.group.classList.add('is-measuring');
@@ -349,11 +389,7 @@ export function createTriangleCanvas({ host, width, height, audio }) {
       s.trace.style.strokeDashoffset = fmt(length * (1 - t));
       onProgress?.(t, along);
     } });
-    visible.sideLabels = [...new Set([...normaliseSet(visible.sideLabels), index])];
-    render();
-    audio?.play('measure');
-    playClassAnimation(sideLabels[index].group, 'is-pop', 520);
-    await wait(reduced() ? 0 : 700, signal);
+    await wait(reduced() ? 0 : 450, signal);          // the reading settles on the tape
     tape.classList.add('is-leaving');
     strip.classList.add('is-leaving');
     s.group.classList.remove('is-measuring');
@@ -361,6 +397,11 @@ export function createTriangleCanvas({ host, width, height, audio }) {
     await wait(reduced() ? 0 : 400, signal);
     tape.remove();
     strip.remove();
+    visible.sideLabels = [...new Set([...normaliseSet(visible.sideLabels), index])];
+    render();
+    audio?.play('measure');
+    playClassAnimation(sideLabels[index].group, 'is-pop', 600);   // the length slides out of the side
+    await wait(reduced() ? 0 : 450, signal);
   }
 
   /** A protractor sits on corner i, its arc sweeps open to the angle, the value appears (PDF L11). */
@@ -384,9 +425,11 @@ export function createTriangleCanvas({ host, width, height, audio }) {
     playClassAnimation(protractor, 'is-pop', 400);
     a.group.classList.add('is-measuring');
     setHidden(a.arc, false);
+    setHidden(a.wedge, false);
     audio?.play('drawLine');
     await tween({ duration: reduced() ? 0 : 1400, ease: easings.mechanical, signal, onUpdate: (t) => {
       a.arc.setAttribute('d', arcPath(points, index, undefined, Math.max(0.02, t)));
+      a.wedge.setAttribute('d', wedgePath(points, index, WEDGE_RADIUS, Math.max(0.02, t)));
     } });
     a.arc.setAttribute('d', arcPath(points, index));
     visible.angleArcs = [...new Set([...normaliseSet(visible.angleArcs), index])];
@@ -396,6 +439,9 @@ export function createTriangleCanvas({ host, width, height, audio }) {
     protractor.remove();
     visible.angleLabels = [...new Set([...normaliseSet(visible.angleLabels), index])];
     render();
+    const reading = measured.deg[index];
+    await tween({ duration: reduced() ? 0 : 450, ease: easings.outQuad, signal, onUpdate: (t) => { a.label.textContent = `${Math.round(reading * t)}°`; } });
+    a.label.textContent = formatDeg(reading);
     audio?.play('measure');
     playClassAnimation(a.label, 'is-pop', 520);
     a.group.classList.remove('is-measuring');
@@ -430,19 +476,25 @@ export function createTriangleCanvas({ host, width, height, audio }) {
     clearTones() {
       for (const el of [...sides, ...sideLabels]) delete el.group.dataset.tone;
     },
+    /** Names some sides: they glow, the others step back, and a spark runs along each named one. */
     emphasiseSides(indices) {
       sides.forEach((s, i) => s.group.classList.toggle('is-emphasis', indices.includes(i)));
+      tri.classList.toggle('is-focusing', indices.length > 0);
+      indices.forEach((i, n) => traceSide(i, { delay: n * 120 }));
     },
     emphasiseAngles(indices) {
       angles.forEach((a, i) => a.group.classList.toggle('is-emphasis', indices.includes(i)));
+      tri.classList.toggle('is-focusing', indices.length > 0);
+      indices.forEach((i, n) => traceAngle(i, { delay: n * 120 }));
     },
     clearEmphasis() {
       for (const s of sides) s.group.classList.remove('is-emphasis');
       for (const a of angles) a.group.classList.remove('is-emphasis');
+      tri.classList.remove('is-focusing');
     },
-    pulseSide: (i) => playClassAnimation(sides[i].group, 'is-pulse', 620),
+    pulseSide: (i) => { traceSide(i); return playClassAnimation(sides[i].group, 'is-pulse', 620); },
     pulseSideLabel: (i) => playClassAnimation(sideLabels[i].group, 'is-pulse', 620),
-    pulseAngle: (i) => playClassAnimation(angles[i].group, 'is-pulse', 700),
+    pulseAngle: (i) => { traceAngle(i); return playClassAnimation(angles[i].group, 'is-pulse', 700); },
     pulseVertex: (i) => playClassAnimation(vertices[i].group, 'is-pop', 420),
     pulseAll: () => playClassAnimation(tri, 'is-closed', 620),
     drawIn,

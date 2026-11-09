@@ -5,4 +5,3 @@ export function debugLog(category, ...details) {
   if (!DEBUG_MODE) return;
   console.debug(`[${category}]`, ...details);
 }
-

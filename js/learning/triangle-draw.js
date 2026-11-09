@@ -53,7 +53,7 @@ export function cornerFrame(vertices, i) {
 /** Where the angle's value sits: inside the corner, further in for narrow angles so it clears the sides. */
 export function angleLabelPoint(vertices, i, scale = 1) {
   const { bisector, theta } = cornerFrame(vertices, i);
-  const distance = Math.min(118, Math.max(70, 24 / Math.sin(theta / 2) + 30)) * scale;
+  const distance = Math.min(126, Math.max(84, 24 / Math.sin(theta / 2) + 42)) * scale;
   return vec.add(vertices[i], vec.mul(bisector, distance));
 }
 

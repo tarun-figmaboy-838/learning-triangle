@@ -14,4 +14,3 @@ export function bridgeSeatTarget(carried, spotX, scale) {
   const baseBelowClawTop = (CRANE_LAYOUT.gripOffsetY - carried.grabY + 2 + carried.baseOffset) * scale;
   return { x: spotX - centroidFromGrab, y: BRIDGE_GEOMETRY.deckY - baseBelowClawTop };
 }
-

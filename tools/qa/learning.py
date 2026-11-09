@@ -65,14 +65,28 @@ OVERLAP_JS = """
   add('.ws-coin', 'count');
   add('.ws-tape', 'tape');
   add('.ws-protractor', 'protractor');
-  add('.ws-overlay > *', 'widget');
+  // A screen's root wrapper spans the whole overlay: check its children instead of the wrapper itself.
+  const overlay = card.querySelector('.ws-overlay');
+  const ob = overlay ? overlay.getBoundingClientRect() : null;
+  const isWrapper = (el) => { const r = el.getBoundingClientRect(); return ob && r.width > ob.width * 0.85 && r.height > ob.height * 0.85; };
+  const leaves = (el) => (isWrapper(el) ? [...el.children].flatMap(leaves) : [el]);
+  card.querySelectorAll('.ws-overlay > *').forEach((el) => {
+    leaves(el).forEach((x) => {
+      if (!visible(x)) return;
+      const b = x.getBoundingClientRect();
+      items.push({ el: x, kind: 'widget', tag: `widget${items.length}`, text: (x.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 24), l: b.left, t: b.top, r: b.right, b: b.bottom });
+    });
+  });
   add('.ws-option--pill', 'option');
+  add('.ws-bin__label', 'tag');
   add('.guide__body', 'beaver');
   const together = new Set(['beaver|tape', 'beaver|protractor', 'beaver|corner', 'beaver|widget', 'tape|corner', 'protractor|corner', 'widget|option']);
   const hits = [];
   for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
     const a = items[i], b = items[j];
     if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+    const inCrate = (x, y) => x.el.matches('.ws-sort-card.is-placed') && y.el.matches('.ws-bin');   // a sorted card sits in its crate by design
+    if (inCrate(a, b) || inCrate(b, a)) continue;
     if (together.has(`${a.kind}|${b.kind}`) || together.has(`${b.kind}|${a.kind}`)) continue;
     const w = Math.min(a.r, b.r) - Math.max(a.l, b.l), h = Math.min(a.b, b.b) - Math.max(a.t, b.t);
     if (w > 4 && h > 4) hits.push(`${a.tag}"${a.text}" x ${b.tag}"${b.text}" ${Math.round(w)}x${Math.round(h)}px`);
@@ -250,14 +264,17 @@ def play(lesson):
             page.pump(1.0)
             lesson.shot("CFU01-ready")
             targets = page.evaluate("window.__learning.sortTargets()", await_promise=False)
-            lesson.drag(targets["cards"]["A"], targets["bins"]["isosceles"], steps=12)
+            current = targets["current"]
+            wrong = next(b for b in targets["bins"] if b != SORT_ANSWERS[current])
+            lesson.drag(targets["cards"][current], targets["bins"][wrong], steps=12)
             page.pump(0.9)
             check(page.evaluate("!document.querySelector('.ws-sort-card.is-placed')", await_promise=False), "CFU01: a wrong crate does not take the card")
             lesson.shot("CFU01-wrong-drop")
-            targets = page.evaluate("window.__learning.sortTargets()", await_promise=False)
-            for card, bin_id in SORT_ANSWERS.items():
-                lesson.drag(targets["cards"][card], targets["bins"][bin_id], steps=12)
-                page.pump(0.7)
+            for _ in SORT_ANSWERS:                     # the triangle on the bench goes to its crate, then the next one comes
+                targets = page.evaluate("window.__learning.sortTargets()", await_promise=False)
+                current = targets["current"]
+                lesson.drag(targets["cards"][current], targets["bins"][SORT_ANSWERS[current]], steps=12)
+                page.pump(1.9)
             lesson.shot("CFU01-sorted")
             lesson.wait_continue(state)
         elif kind == "multi":

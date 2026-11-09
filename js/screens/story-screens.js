@@ -12,4 +12,3 @@ export async function zoomToCab({ camera, builder, signal, duration = 1300 }) {
   // Where the bubble's tail tip goes: just outside the cab glass, level with the operator's mouth.
   return { x: anchor.x + 16, y: anchor.y };
 }
-

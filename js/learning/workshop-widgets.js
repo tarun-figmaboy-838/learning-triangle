@@ -200,30 +200,35 @@ export function createMultiGrid({ overlayEl, cards, audio, onChange }) {
 
 export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
   const root = element('div', 'ws-sort');
-  const CARD = { width: 360, height: 210, xs: [120, 600, 1080], top: 8 };
-  const BIN = { width: 360, xs: [120, 600, 1080], top: 282 };
+  // One triangle at a time sits on the bench with its lengths in view; the rest wait in a small pile on
+  // the left; the crates stand along the bottom. Reading the lengths (and the tick marks) is the task.
+  const BENCH = Object.freeze({ left: 520, top: 6, width: 520, height: 290 });
+  const DECK = Object.freeze({ left: 150, top: 110, step: 12 });
+  const BIN = Object.freeze({ width: 280, xs: [180, 640, 1100], top: 350 });
+  const PLACED = Object.freeze({ width: 180, height: 105 });
   const cardEls = new Map();
   const binEls = new Map();
   let enabled = true;
   let selected = null;
   let placedCount = 0;
+  let current = null;
 
   cards.forEach((card, index) => {
-    const node = element('div', 'ws-sort-card ws-interactive');
+    const node = element('div', 'ws-sort-card ws-interactive is-waiting');
     node.dataset.card = card.id;
     node.setAttribute('role', 'button');
     node.setAttribute('tabindex', '0');
     node.setAttribute('aria-label', `Triangle ${card.id}`);
-    const figure = buildTriangleFigure(card.spec, { width: 340, height: 192, labels: 'sides', ticks: true, pad: 32 });
+    const figure = buildTriangleFigure(card.spec, { width: 480, height: 252, labels: 'sides', ticks: true, pad: 32 });
     node.append(element('span', 'ws-letter', escapeHtml(card.id)), figure.svg);
     node.style.setProperty('--i', String(index));
-    const home = { left: CARD.xs[index], top: CARD.top };
-    place(node, home);
+    node.style.zIndex = String(3 - index);
+    place(node, { left: DECK.left + index * DECK.step, top: DECK.top + index * DECK.step });
     root.appendChild(node);
-    cardEls.set(card.id, { node, home, card, placed: false });
+    cardEls.set(card.id, { node, card, figure, placed: false });
   });
   const chip = element('div', 'ws-chip ws-chip--sort', escapeHtml(LEARNING_COPY.dragToSort));
-  place(chip, { top: 232 });
+  place(chip, { top: 306 });
   root.appendChild(chip);
   bins.forEach((bin, index) => {
     const node = element('div', 'ws-bin ws-interactive');
@@ -253,30 +258,56 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     selected = id;
     for (const entry of cardEls.values()) entry.node.classList.toggle('is-selected', entry.card.id === id);
   }
+  /** The next waiting triangle grows out of the pile onto the bench. */
+  function advance() {
+    const next = [...cardEls.values()].find((e) => !e.placed && e !== current);
+    current = next ?? null;
+    if (!next) return;
+    next.node.classList.remove('is-waiting');
+    next.node.classList.add('is-current');
+    next.node.style.zIndex = '4';
+    place(next.node, BENCH);
+    audio?.play('badge');
+  }
 
   async function settleInto(entry, binId) {
     const bin = binEls.get(binId);
+    const k = bins.findIndex((b) => b.id === binId);
     entry.placed = true;
-    entry.node.classList.remove('is-dragging', 'is-selected');
-    entry.node.classList.add('is-placed');
+    entry.node.classList.remove('is-dragging', 'is-selected', 'is-current');
     entry.node.style.transform = '';
-    const slotLeft = BIN.xs[bins.findIndex((b) => b.id === binId)] + (BIN.width - 200) / 2;
-    place(entry.node, { left: slotLeft, top: BIN.top + 44 });
+    // The lesson's cue first: the equal sides light up (none on a scalene, all three on an equilateral).
+    const equal = entry.figure.measured.equalSides;
+    const bodies = entry.node.querySelectorAll('.ws-figure__body');
+    bodies.forEach((line, i) => { if (equal[i]) line.classList.add('is-lit'); });
+    audio?.play('snapEqual');
+    await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 520));
+    // Then it flies into its crate on a small arc and shrinks to fit.
+    entry.node.classList.add('is-placed');
+    entry.node.style.zIndex = '2';
+    place(entry.node, { left: BIN.xs[k] + (BIN.width - PLACED.width) / 2, top: BIN.top + 62 + 34, width: PLACED.width, height: PLACED.height });
+    await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 520));
+    bodies.forEach((line) => line.classList.remove('is-lit'));
     bin.node.classList.add('is-filled');
     bin.node.querySelector('.ws-bin__slot').textContent = '';
     audio?.play('snapRight');
     playClassAnimation(bin.node, 'is-receiving', 520);
+    playClassAnimation(bin.node.querySelector('.ws-bin__label'), 'is-pulse', 480);
     placedCount += 1;
+    await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 260));
+    advance();
   }
   async function bounceBack(entry) {
     entry.node.classList.remove('is-dragging');
     entry.node.style.transform = '';
     audio?.play('softNo');
+    // Look again: the three lengths pulse one after another.
+    entry.node.querySelectorAll('.ws-figure__label--side').forEach((el, i) => setTimeout(() => playClassAnimation(el, 'is-pulse', 560), 260 + i * 140));
     await playClassAnimation(entry.node, 'is-shaking', 520);
   }
   async function attempt(cardId, binId) {
     const entry = cardEls.get(cardId);
-    if (!entry || entry.placed || !enabled) return;
+    if (!entry || entry.placed || entry !== current || !enabled) return;
     const ok = onDrop?.(cardId, binId);
     select(null);
     highlightBin(null);
@@ -288,7 +319,7 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     const { node } = entry;
     let drag = null;
     node.addEventListener('pointerdown', (event) => {
-      if (!enabled || entry.placed) return;
+      if (!enabled || entry.placed || entry !== current) return;
       event.preventDefault();
       try { node.setPointerCapture(event.pointerId); } catch { /* older browsers */ }
       drag = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
@@ -301,7 +332,7 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
       const dx = (event.clientX - drag.x) / k;
       const dy = (event.clientY - drag.y) / k;
       if (Math.hypot(dx, dy) > 4) drag.moved = true;
-      node.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) scale(1.04)`;
+      node.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) scale(0.72)`;
       highlightBin(binAt(event.clientX, event.clientY));
     });
     const finish = async (event) => {
@@ -325,7 +356,7 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     node.addEventListener('pointerup', finish);
     node.addEventListener('pointercancel', finish);
     node.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select(selected === entry.card.id ? null : entry.card.id); }
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (entry === current) select(selected === entry.card.id ? null : entry.card.id); }
     });
   }
   for (const { node, bin } of binEls.values()) {
@@ -338,14 +369,15 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
 
   overlayEl.appendChild(root);
   enter(root, 'is-entering', 560);
+  setTimeout(advance, prefersReducedMotion() ? 0 : 620);
   return {
     element: root,
     get placedCount() { return placedCount; },
     setEnabled(value) { enabled = Boolean(value); root.classList.toggle('is-locked', !enabled); },
-    /** Client-space centres (for the automated play-through). */
+    /** Client-space centres and which triangle is on the bench (for the automated play-through). */
     targets() {
       const centre = (node) => { const r = node.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
-      return { cards: Object.fromEntries([...cardEls].map(([id, e]) => [id, centre(e.node)])), bins: Object.fromEntries([...binEls].map(([id, e]) => [id, centre(e.node)])) };
+      return { current: current?.card.id ?? null, cards: Object.fromEntries([...cardEls].map(([id, e]) => [id, centre(e.node)])), bins: Object.fromEntries([...binEls].map(([id, e]) => [id, centre(e.node)])) };
     },
     remove: () => leave(root),
   };
@@ -371,7 +403,7 @@ export function createSortResult({ overlayEl, cards, bins }) {
 
 /* ---------- Two-way classifier (CFU: by sides and by angles): two rows under the triangle ---------- */
 
-export function createDualCard({ overlayEl, prompt, groups, audio, onChange, at = { top: 446 } }) {
+export function createDualCard({ overlayEl, prompt, groups, audio, onChange, at = { top: 388 } }) {
   const card = element('section', 'ws-dual');
   card.setAttribute('aria-label', prompt);
   place(card, at);
@@ -500,6 +532,18 @@ export function createSummaryView({ overlayEl, screen }) {
       root.appendChild(big);
       enter(big, 'is-entering', 620);
       return big;
+    },
+    /** Spoken-word cues on the open card: its name warms up, its figure pulses (Polygon recap style). */
+    pulseName() { const el = big?.querySelector('.ws-summary__name'); if (el) playClassAnimation(el, 'is-pulse', 480); },
+    pulseFigure() { const el = big?.querySelector('svg'); if (el) playClassAnimation(el, 'is-pulse', 480); },
+    /** Once every card is home, the row hops together towards the middle, one after another. */
+    gather() {
+      slots.forEach((slot, i) => {
+        const dx = 80 + i * 235 + 100 < 780 ? 16 : -16;
+        slot.animate?.([{ translate: '0 0' }, { translate: `${dx / 2}px -12px`, offset: 0.45 }, { translate: `${dx}px 0` }],
+          { duration: prefersReducedMotion() ? 0 : 440, delay: prefersReducedMotion() ? 0 : i * 70, easing: 'cubic-bezier(0.3, 1.2, 0.5, 1)', fill: 'forwards' });
+      });
+      return new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 440 + slots.length * 70));
     },
     get bigCard() { return big; },
     remove: () => leave(root),

@@ -1231,6 +1231,78 @@ function createVoiceManager({ audio }) {
   return { createVoiceManager };
 });
 __define('js/core/motion.js', function () {
+/** Promise-based motion helpers: easing, tweens, waits and cancellable sequence scopes. */
+
+/** CSS-style cubic-bezier(x1, y1, x2, y2) as an easing function (Newton steps on x, then y). */
+function cubicBezier(x1, y1, x2, y2) {
+  const bez = (t, a, b) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
+  const slope = (t, a, b) => 3 * a * (1 - t) * (1 - t) + 6 * (b - a) * t * (1 - t) + 3 * (1 - b) * t * t;
+  return (x) => {
+    if (x <= 0 || x >= 1) return Math.min(1, Math.max(0, x));
+    let t = x;
+    for (let i = 0; i < 6; i += 1) {
+      const d = slope(t, x1, x2);
+      if (Math.abs(d) < 1e-6) break;
+      t -= (bez(t, x1, x2) - x) / d;
+    }
+    return bez(Math.min(1, Math.max(0, t)), y1, y2);
+  };
+}
+
+const easings = Object.freeze({
+  linear: (t) => t,
+  outQuad: (t) => 1 - (1 - t) * (1 - t),
+  inQuad: (t) => t * t,
+  outCubic: (t) => 1 - Math.pow(1 - t, 3),
+  inOutCubic: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+  mechanical: (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2),
+  outBack: (t) => {
+    const overshoot = 1.70158;
+    return 1 + (overshoot + 1) * Math.pow(t - 1, 3) + overshoot * Math.pow(t - 1, 2);
+  },
+  outSoftBack: (t) => {
+    const overshoot = 0.9;
+    return 1 + (overshoot + 1) * Math.pow(t - 1, 3) + overshoot * Math.pow(t - 1, 2);
+  },
+  /** A heavy load: a slow start, a steady middle, a long gentle approach (never an abrupt stop). */
+  travel: cubicBezier(0.45, 0, 0.18, 1),
+});
+
+let reducedMotionQuery = null;
+function prefersReducedMotion() {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  reducedMotionQuery ??= window.matchMedia('(prefers-reduced-motion: reduce)');
+  return reducedMotionQuery.matches;
+}
+
+function abortError() {
+  const error = new Error('Sequence cancelled');
+  error.name = 'AbortError';
+  return error;
+}
+
+function isAbortError(error) {
+  return error?.name === 'AbortError';
+}
+
+function wait(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(abortError());
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(abortError());
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, Math.max(0, ms));
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 /**
  * Tween a number from `from` to `to`, calling onUpdate(value, progress) each frame.
  * Resolves on completion; rejects with AbortError when the signal fires.
@@ -1297,7 +1369,7 @@ function playClassAnimation(element, className, fallbackMs = 1200) {
     setTimeout(finish, fallbackMs);
   });
 }
-  return { tween, createSequenceScope, playClassAnimation };
+  return { cubicBezier, easings, prefersReducedMotion, isAbortError, wait, tween, createSequenceScope, playClassAnimation };
 });
 __define('js/core/camera-controller.js', function () {
 const { STAGE } = __require('js/data/layout.js');
@@ -4160,6 +4232,16 @@ async function zoomToCab({ camera, builder, signal, duration = 1300 }) {
   return { zoomToCab };
 });
 __define('js/learning/learning-content.js', function () {
+/**
+ * The Triangle Workshop, screen by screen. Only data lives here: the maths, wording, questions and
+ * answers come from the source deck ("Triangles.pdf", learning and checkpoint pages); one flow
+ * (js/learning/learning-flow.js) renders and runs every screen from it.
+ *
+ * Triangle specs (see triangle-model.js): sides [AB, BC, CA] in cm are the deck's left / bottom /
+ * right labels; angles [A, B, C] are its top / left / right labels; pts are explicit cm coordinates.
+ * `keep: true` keeps the learner's own triangle from the previous screen when it already has the
+ * `requires` classification (so a discovery names the shape the learner actually made).
+ */
 /** Every learner-facing string is the deck's own wording (the spaceship framing is not used). */
 const LEARNING_COPY = Object.freeze({
   workshopTitle: 'Triangles',
@@ -5679,7 +5761,7 @@ function cornerFrame(vertices, i) {
 /** Where the angle's value sits: inside the corner, further in for narrow angles so it clears the sides. */
 function angleLabelPoint(vertices, i, scale = 1) {
   const { bisector, theta } = cornerFrame(vertices, i);
-  const distance = Math.min(118, Math.max(70, 24 / Math.sin(theta / 2) + 30)) * scale;
+  const distance = Math.min(126, Math.max(84, 24 / Math.sin(theta / 2) + 42)) * scale;
   return vec.add(vertices[i], vec.mul(bisector, distance));
 }
 
@@ -5727,19 +5809,20 @@ __define('js/learning/triangle-canvas.js', function () {
  * while a goal is set, a corner near a position that makes the goal true snaps onto it.
  */
 const { measure, formatCm, formatDeg, constrainVertex, snapVertex, goalMet, solutionFor, vec, PX_PER_CM } = __require('js/learning/triangle-model.js');
-const { svgEl, fmt, sideLabelPoint, angleLabelPoint, arcPath, squarePoints, tickSegment, cornerFrame, outwardNormal, sideMidpoint, centroid } = __require('js/learning/triangle-draw.js');
+const { svgEl, fmt, sideLabelPoint, angleLabelPoint, arcPath, squarePoints, tickSegment, cornerFrame, outwardNormal, sideMidpoint, centroid, ARC_RADIUS } = __require('js/learning/triangle-draw.js');
 const { tween, easings, wait, prefersReducedMotion, playClassAnimation } = __require('js/core/motion.js');
 const VERTEX_HIT_RADIUS = 46;
 const DEFAULT_VISIBLE = Object.freeze({ sides: true, vertices: true, sideLabels: false, angleArcs: false, angleLabels: false, ticks: false, square: false });
 
+const WEDGE_RADIUS = 56;           // the filled slice reaches past the arc so it reads between the thick sides
 const normaliseSet = (value) => (value === true ? [0, 1, 2] : Array.isArray(value) ? value : []);
 
 function createTriangleCanvas({ host, width, height, audio }) {
   const svg = svgEl('svg', { class: 'ws-canvas', viewBox: `0 0 ${width} ${height}`, 'aria-hidden': 'true' });
   host.appendChild(svg);
   const defs = svgEl('defs');
-  const pattern = svgEl('pattern', { id: 'ws-tape-ticks', patternUnits: 'userSpaceOnUse', width: 14, height: 26 });
-  pattern.append(svgEl('rect', { x: 0, y: 0, width: 2, height: 9, fill: '#1d3a5f' }), svgEl('rect', { x: 7, y: 0, width: 2, height: 5, fill: '#1d3a5f' }));
+  const pattern = svgEl('pattern', { id: 'ws-tape-ticks', patternUnits: 'userSpaceOnUse', width: PX_PER_CM, height: 16 });
+  pattern.append(svgEl('rect', { x: 0, y: 0, width: 2, height: 9, fill: '#5a4310' }), svgEl('rect', { x: PX_PER_CM / 2 - 1, y: 0, width: 2, height: 5, fill: '#5a4310' }));
   defs.appendChild(pattern);
   svg.appendChild(defs);
   const toolLayer = svgEl('g', { class: 'ws-tools' });
@@ -5757,11 +5840,12 @@ function createTriangleCanvas({ host, width, height, audio }) {
   });
   const angles = [0, 1, 2].map((i) => {
     const group = svgEl('g', { class: 'ws-angle', 'data-index': i });
+    const wedge = svgEl('path', { class: 'ws-angle__wedge' });    // the filled slice of the corner (Fishing Frenzy / Polygon style)
     const arc = svgEl('path', { class: 'ws-angle__arc' });
     const square = svgEl('polyline', { class: 'ws-angle__square' });
     const label = svgEl('text', { class: 'ws-angle__label' });
-    group.append(arc, square, label);
-    return { group, arc, square, label };
+    group.append(wedge, arc, square, label);
+    return { group, wedge, arc, square, label };
   });
   const sideLabels = [0, 1, 2].map((i) => {
     const group = svgEl('g', { class: 'ws-side-label', 'data-index': i });
@@ -5819,13 +5903,17 @@ function createTriangleCanvas({ host, width, height, audio }) {
       const a = angles[i];
       const isRight = measured.rightAt === i;
       a.arc.setAttribute('d', arcPath(points, i));
+      a.wedge.setAttribute('d', wedgePath(points, i, WEDGE_RADIUS));
       a.square.setAttribute('points', squarePoints(points, i));
       const showArc = inSet(visible.angleArcs, i);
       const showSquare = visible.square && isRight;
       setHidden(a.arc, !showArc || showSquare);
+      setHidden(a.wedge, !showArc && !showSquare);
       setHidden(a.square, !showSquare);
       const [lx, ly] = angleLabelPoint(points, i);
       a.label.setAttribute('x', fmt(lx)); a.label.setAttribute('y', fmt(ly));
+      a.label.style.setProperty('--ox', `${fmt((points[i][0] - lx) * 0.75)}px`);   // the value slides out of its corner
+      a.label.style.setProperty('--oy', `${fmt((points[i][1] - ly) * 0.75)}px`);
       a.label.textContent = formatDeg(measured.deg[i]);
       setHidden(a.label, !inSet(visible.angleLabels, i));
       a.group.classList.toggle('is-right', isRight);
@@ -5838,6 +5926,8 @@ function createTriangleCanvas({ host, width, height, audio }) {
       const normal = outwardNormal(points, i);
       const gap = 22 + Math.abs(normal[0]) * (l.text.textContent.length * 8.5) + Math.abs(normal[1]) * 15;
       const [sx, sy] = sideLabelPoint(points, i, gap);
+      l.group.style.setProperty('--ox', `${fmt(-normal[0] * gap * 0.75)}px`);
+      l.group.style.setProperty('--oy', `${fmt(-normal[1] * gap * 0.75)}px`);
       l.text.setAttribute('x', fmt(sx)); l.text.setAttribute('y', fmt(sy));
       setHidden(l.group, !inSet(visible.sideLabels, i));
     }
@@ -5909,6 +5999,12 @@ function createTriangleCanvas({ host, width, height, audio }) {
   });
   svg.addEventListener('contextmenu', (event) => event.preventDefault());
 
+  /** The filled slice of corner i: from the vertex out to the arc and back (the arc may be partly swept). */
+  function wedgePath(pts, i, radius = ARC_RADIUS, fraction = 1) {
+    const v = pts[i];
+    return `M ${fmt(v[0])} ${fmt(v[1])} L ${arcPath(pts, i, radius, fraction).slice(2)} Z`;
+  }
+
   /* ---------- Tools and hints ---------- */
   function clearHint() {
     hint?.remove();
@@ -5965,6 +6061,31 @@ function createTriangleCanvas({ host, width, height, audio }) {
   const reduced = () => prefersReducedMotion();
 
   /** A little burst of sparks at a point (a snap, a success): eight dots thrown outward. */
+  /** A glowing light runs along side i from one corner to the other, then fades (a gold trace). */
+  function traceSide(index, { delay = 0, duration = 900 } = {}) {
+    if (reduced()) return;
+    const a = points[index];
+    const b = points[(index + 1) % 3];
+    const line = svgEl('line', { class: 'ws-trace-glow', x1: fmt(a[0]), y1: fmt(a[1]), x2: fmt(b[0]), y2: fmt(b[1]), pathLength: 1 });
+    runTrace(line, delay, duration);
+  }
+  /** The same light sweeps round the arc of corner i. */
+  function traceAngle(index, { delay = 0, duration = 700 } = {}) {
+    if (reduced()) return;
+    const path = svgEl('path', { class: 'ws-trace-glow', d: arcPath(points, index, measured.rightAt === index ? 30 : undefined), pathLength: 1 });
+    runTrace(path, delay, duration);
+  }
+  function runTrace(el, delay, duration) {
+    el.style.strokeDasharray = '1 1';
+    el.style.strokeDashoffset = '1';
+    setTimeout(() => {
+      fxLayer.appendChild(el);
+      const anim = el.animate?.([{ strokeDashoffset: 1, opacity: 1 }, { strokeDashoffset: 0, opacity: 1, offset: 0.6 }, { strokeDashoffset: 0, opacity: 0 }],
+        { duration, easing: 'ease-out', fill: 'both' });
+      (anim?.finished ?? Promise.resolve()).catch(() => {}).finally(() => el.remove());
+    }, delay);
+  }
+
   function sparkleAt([x, y], { count = 8 } = {}) {
     if (reduced()) return;
     const group = svgEl('g', { class: 'ws-sparks', transform: `translate(${fmt(x)} ${fmt(y)})` });
@@ -6047,10 +6168,11 @@ function createTriangleCanvas({ host, width, height, audio }) {
     if (tool) toolLayer.appendChild(tape);
     // The tape itself, spread along the side as far as it has been pulled: a yellow band with tick marks.
     const stripAngle = (Math.atan2(direction[1], direction[0]) * 180) / Math.PI;
-    const strip = svgEl('g', { class: 'ws-tape-strip', transform: `translate(${fmt(a[0])} ${fmt(a[1])}) rotate(${fmt(stripAngle)})` });
-    const band = svgEl('rect', { class: 'ws-tape-strip__band', x: 0, y: -13, width: 0, height: 26, rx: 4 });
-    const ticks = svgEl('rect', { class: 'ws-tape-strip__ticks', x: 0, y: -13, width: 0, height: 26, fill: 'url(#ws-tape-ticks)' });
-    const hook = svgEl('rect', { class: 'ws-tape-strip__hook', x: -3, y: -17, width: 7, height: 34, rx: 2 });
+    const beside = vec.add(a, vec.mul(n, 20));     // the tape runs alongside the side, so the side itself stays in view
+    const strip = svgEl('g', { class: 'ws-tape-strip', transform: `translate(${fmt(beside[0])} ${fmt(beside[1])}) rotate(${fmt(stripAngle)})` });
+    const band = svgEl('rect', { class: 'ws-tape-strip__band', x: 0, y: -8, width: 0, height: 16, rx: 3 });
+    const ticks = svgEl('rect', { class: 'ws-tape-strip__ticks', x: 0, y: -8, width: 0, height: 16, fill: 'url(#ws-tape-ticks)' });
+    const hook = svgEl('rect', { class: 'ws-tape-strip__hook', x: -3, y: -12, width: 7, height: 24, rx: 2 });
     strip.append(band, ticks, hook);
     toolLayer.appendChild(strip);
     s.group.classList.add('is-measuring');
@@ -6070,11 +6192,7 @@ function createTriangleCanvas({ host, width, height, audio }) {
       s.trace.style.strokeDashoffset = fmt(length * (1 - t));
       onProgress?.(t, along);
     } });
-    visible.sideLabels = [...new Set([...normaliseSet(visible.sideLabels), index])];
-    render();
-    audio?.play('measure');
-    playClassAnimation(sideLabels[index].group, 'is-pop', 520);
-    await wait(reduced() ? 0 : 700, signal);
+    await wait(reduced() ? 0 : 450, signal);          // the reading settles on the tape
     tape.classList.add('is-leaving');
     strip.classList.add('is-leaving');
     s.group.classList.remove('is-measuring');
@@ -6082,6 +6200,11 @@ function createTriangleCanvas({ host, width, height, audio }) {
     await wait(reduced() ? 0 : 400, signal);
     tape.remove();
     strip.remove();
+    visible.sideLabels = [...new Set([...normaliseSet(visible.sideLabels), index])];
+    render();
+    audio?.play('measure');
+    playClassAnimation(sideLabels[index].group, 'is-pop', 600);   // the length slides out of the side
+    await wait(reduced() ? 0 : 450, signal);
   }
 
   /** A protractor sits on corner i, its arc sweeps open to the angle, the value appears (PDF L11). */
@@ -6105,9 +6228,11 @@ function createTriangleCanvas({ host, width, height, audio }) {
     playClassAnimation(protractor, 'is-pop', 400);
     a.group.classList.add('is-measuring');
     setHidden(a.arc, false);
+    setHidden(a.wedge, false);
     audio?.play('drawLine');
     await tween({ duration: reduced() ? 0 : 1400, ease: easings.mechanical, signal, onUpdate: (t) => {
       a.arc.setAttribute('d', arcPath(points, index, undefined, Math.max(0.02, t)));
+      a.wedge.setAttribute('d', wedgePath(points, index, WEDGE_RADIUS, Math.max(0.02, t)));
     } });
     a.arc.setAttribute('d', arcPath(points, index));
     visible.angleArcs = [...new Set([...normaliseSet(visible.angleArcs), index])];
@@ -6117,6 +6242,9 @@ function createTriangleCanvas({ host, width, height, audio }) {
     protractor.remove();
     visible.angleLabels = [...new Set([...normaliseSet(visible.angleLabels), index])];
     render();
+    const reading = measured.deg[index];
+    await tween({ duration: reduced() ? 0 : 450, ease: easings.outQuad, signal, onUpdate: (t) => { a.label.textContent = `${Math.round(reading * t)}°`; } });
+    a.label.textContent = formatDeg(reading);
     audio?.play('measure');
     playClassAnimation(a.label, 'is-pop', 520);
     a.group.classList.remove('is-measuring');
@@ -6151,19 +6279,25 @@ function createTriangleCanvas({ host, width, height, audio }) {
     clearTones() {
       for (const el of [...sides, ...sideLabels]) delete el.group.dataset.tone;
     },
+    /** Names some sides: they glow, the others step back, and a spark runs along each named one. */
     emphasiseSides(indices) {
       sides.forEach((s, i) => s.group.classList.toggle('is-emphasis', indices.includes(i)));
+      tri.classList.toggle('is-focusing', indices.length > 0);
+      indices.forEach((i, n) => traceSide(i, { delay: n * 120 }));
     },
     emphasiseAngles(indices) {
       angles.forEach((a, i) => a.group.classList.toggle('is-emphasis', indices.includes(i)));
+      tri.classList.toggle('is-focusing', indices.length > 0);
+      indices.forEach((i, n) => traceAngle(i, { delay: n * 120 }));
     },
     clearEmphasis() {
       for (const s of sides) s.group.classList.remove('is-emphasis');
       for (const a of angles) a.group.classList.remove('is-emphasis');
+      tri.classList.remove('is-focusing');
     },
-    pulseSide: (i) => playClassAnimation(sides[i].group, 'is-pulse', 620),
+    pulseSide: (i) => { traceSide(i); return playClassAnimation(sides[i].group, 'is-pulse', 620); },
     pulseSideLabel: (i) => playClassAnimation(sideLabels[i].group, 'is-pulse', 620),
-    pulseAngle: (i) => playClassAnimation(angles[i].group, 'is-pulse', 700),
+    pulseAngle: (i) => { traceAngle(i); return playClassAnimation(angles[i].group, 'is-pulse', 700); },
     pulseVertex: (i) => playClassAnimation(vertices[i].group, 'is-pop', 420),
     pulseAll: () => playClassAnimation(tri, 'is-closed', 620),
     drawIn,
@@ -6458,7 +6592,11 @@ function buildTriangleFigure(spec, { width = 260, height = 200, labels = null, t
   for (let i = 0; i < 3; i += 1) {
     const isRight = m.rightAt === i;
     if (square && isRight) marks.appendChild(svgEl('polyline', { points: squarePoints(vertices, i, 16), class: 'ws-figure__square' }));
-    else if (arcs) marks.appendChild(svgEl('path', { d: arcPath(vertices, i, 24), class: 'ws-figure__arc' }));
+    else if (arcs) {
+      const arc = arcPath(vertices, i, 24);
+      marks.appendChild(svgEl('path', { d: `M ${fmt(vertices[i][0])} ${fmt(vertices[i][1])} L ${arc.slice(2)} Z`, class: 'ws-figure__wedge' }));
+      marks.appendChild(svgEl('path', { d: arc, class: 'ws-figure__arc' }));
+    }
   }
   svg.appendChild(marks);
   for (let i = 0; i < 3; i += 1) {
@@ -6683,30 +6821,35 @@ function createMultiGrid({ overlayEl, cards, audio, onChange }) {
 
 function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
   const root = element('div', 'ws-sort');
-  const CARD = { width: 360, height: 210, xs: [120, 600, 1080], top: 8 };
-  const BIN = { width: 360, xs: [120, 600, 1080], top: 282 };
+  // One triangle at a time sits on the bench with its lengths in view; the rest wait in a small pile on
+  // the left; the crates stand along the bottom. Reading the lengths (and the tick marks) is the task.
+  const BENCH = Object.freeze({ left: 520, top: 6, width: 520, height: 290 });
+  const DECK = Object.freeze({ left: 150, top: 110, step: 12 });
+  const BIN = Object.freeze({ width: 280, xs: [180, 640, 1100], top: 350 });
+  const PLACED = Object.freeze({ width: 180, height: 105 });
   const cardEls = new Map();
   const binEls = new Map();
   let enabled = true;
   let selected = null;
   let placedCount = 0;
+  let current = null;
 
   cards.forEach((card, index) => {
-    const node = element('div', 'ws-sort-card ws-interactive');
+    const node = element('div', 'ws-sort-card ws-interactive is-waiting');
     node.dataset.card = card.id;
     node.setAttribute('role', 'button');
     node.setAttribute('tabindex', '0');
     node.setAttribute('aria-label', `Triangle ${card.id}`);
-    const figure = buildTriangleFigure(card.spec, { width: 340, height: 192, labels: 'sides', ticks: true, pad: 32 });
+    const figure = buildTriangleFigure(card.spec, { width: 480, height: 252, labels: 'sides', ticks: true, pad: 32 });
     node.append(element('span', 'ws-letter', escapeHtml(card.id)), figure.svg);
     node.style.setProperty('--i', String(index));
-    const home = { left: CARD.xs[index], top: CARD.top };
-    place(node, home);
+    node.style.zIndex = String(3 - index);
+    place(node, { left: DECK.left + index * DECK.step, top: DECK.top + index * DECK.step });
     root.appendChild(node);
-    cardEls.set(card.id, { node, home, card, placed: false });
+    cardEls.set(card.id, { node, card, figure, placed: false });
   });
   const chip = element('div', 'ws-chip ws-chip--sort', escapeHtml(LEARNING_COPY.dragToSort));
-  place(chip, { top: 232 });
+  place(chip, { top: 306 });
   root.appendChild(chip);
   bins.forEach((bin, index) => {
     const node = element('div', 'ws-bin ws-interactive');
@@ -6736,30 +6879,56 @@ function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     selected = id;
     for (const entry of cardEls.values()) entry.node.classList.toggle('is-selected', entry.card.id === id);
   }
+  /** The next waiting triangle grows out of the pile onto the bench. */
+  function advance() {
+    const next = [...cardEls.values()].find((e) => !e.placed && e !== current);
+    current = next ?? null;
+    if (!next) return;
+    next.node.classList.remove('is-waiting');
+    next.node.classList.add('is-current');
+    next.node.style.zIndex = '4';
+    place(next.node, BENCH);
+    audio?.play('badge');
+  }
 
   async function settleInto(entry, binId) {
     const bin = binEls.get(binId);
+    const k = bins.findIndex((b) => b.id === binId);
     entry.placed = true;
-    entry.node.classList.remove('is-dragging', 'is-selected');
-    entry.node.classList.add('is-placed');
+    entry.node.classList.remove('is-dragging', 'is-selected', 'is-current');
     entry.node.style.transform = '';
-    const slotLeft = BIN.xs[bins.findIndex((b) => b.id === binId)] + (BIN.width - 200) / 2;
-    place(entry.node, { left: slotLeft, top: BIN.top + 44 });
+    // The lesson's cue first: the equal sides light up (none on a scalene, all three on an equilateral).
+    const equal = entry.figure.measured.equalSides;
+    const bodies = entry.node.querySelectorAll('.ws-figure__body');
+    bodies.forEach((line, i) => { if (equal[i]) line.classList.add('is-lit'); });
+    audio?.play('snapEqual');
+    await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 520));
+    // Then it flies into its crate on a small arc and shrinks to fit.
+    entry.node.classList.add('is-placed');
+    entry.node.style.zIndex = '2';
+    place(entry.node, { left: BIN.xs[k] + (BIN.width - PLACED.width) / 2, top: BIN.top + 62 + 34, width: PLACED.width, height: PLACED.height });
+    await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 520));
+    bodies.forEach((line) => line.classList.remove('is-lit'));
     bin.node.classList.add('is-filled');
     bin.node.querySelector('.ws-bin__slot').textContent = '';
     audio?.play('snapRight');
     playClassAnimation(bin.node, 'is-receiving', 520);
+    playClassAnimation(bin.node.querySelector('.ws-bin__label'), 'is-pulse', 480);
     placedCount += 1;
+    await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 260));
+    advance();
   }
   async function bounceBack(entry) {
     entry.node.classList.remove('is-dragging');
     entry.node.style.transform = '';
     audio?.play('softNo');
+    // Look again: the three lengths pulse one after another.
+    entry.node.querySelectorAll('.ws-figure__label--side').forEach((el, i) => setTimeout(() => playClassAnimation(el, 'is-pulse', 560), 260 + i * 140));
     await playClassAnimation(entry.node, 'is-shaking', 520);
   }
   async function attempt(cardId, binId) {
     const entry = cardEls.get(cardId);
-    if (!entry || entry.placed || !enabled) return;
+    if (!entry || entry.placed || entry !== current || !enabled) return;
     const ok = onDrop?.(cardId, binId);
     select(null);
     highlightBin(null);
@@ -6771,7 +6940,7 @@ function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     const { node } = entry;
     let drag = null;
     node.addEventListener('pointerdown', (event) => {
-      if (!enabled || entry.placed) return;
+      if (!enabled || entry.placed || entry !== current) return;
       event.preventDefault();
       try { node.setPointerCapture(event.pointerId); } catch { /* older browsers */ }
       drag = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
@@ -6784,7 +6953,7 @@ function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
       const dx = (event.clientX - drag.x) / k;
       const dy = (event.clientY - drag.y) / k;
       if (Math.hypot(dx, dy) > 4) drag.moved = true;
-      node.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) scale(1.04)`;
+      node.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) scale(0.72)`;
       highlightBin(binAt(event.clientX, event.clientY));
     });
     const finish = async (event) => {
@@ -6808,7 +6977,7 @@ function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     node.addEventListener('pointerup', finish);
     node.addEventListener('pointercancel', finish);
     node.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select(selected === entry.card.id ? null : entry.card.id); }
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (entry === current) select(selected === entry.card.id ? null : entry.card.id); }
     });
   }
   for (const { node, bin } of binEls.values()) {
@@ -6821,14 +6990,15 @@ function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
 
   overlayEl.appendChild(root);
   enter(root, 'is-entering', 560);
+  setTimeout(advance, prefersReducedMotion() ? 0 : 620);
   return {
     element: root,
     get placedCount() { return placedCount; },
     setEnabled(value) { enabled = Boolean(value); root.classList.toggle('is-locked', !enabled); },
-    /** Client-space centres (for the automated play-through). */
+    /** Client-space centres and which triangle is on the bench (for the automated play-through). */
     targets() {
       const centre = (node) => { const r = node.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
-      return { cards: Object.fromEntries([...cardEls].map(([id, e]) => [id, centre(e.node)])), bins: Object.fromEntries([...binEls].map(([id, e]) => [id, centre(e.node)])) };
+      return { current: current?.card.id ?? null, cards: Object.fromEntries([...cardEls].map(([id, e]) => [id, centre(e.node)])), bins: Object.fromEntries([...binEls].map(([id, e]) => [id, centre(e.node)])) };
     },
     remove: () => leave(root),
   };
@@ -6854,7 +7024,7 @@ function createSortResult({ overlayEl, cards, bins }) {
 
 /* ---------- Two-way classifier (CFU: by sides and by angles): two rows under the triangle ---------- */
 
-function createDualCard({ overlayEl, prompt, groups, audio, onChange, at = { top: 446 } }) {
+function createDualCard({ overlayEl, prompt, groups, audio, onChange, at = { top: 388 } }) {
   const card = element('section', 'ws-dual');
   card.setAttribute('aria-label', prompt);
   place(card, at);
@@ -6983,6 +7153,18 @@ function createSummaryView({ overlayEl, screen }) {
       root.appendChild(big);
       enter(big, 'is-entering', 620);
       return big;
+    },
+    /** Spoken-word cues on the open card: its name warms up, its figure pulses (Polygon recap style). */
+    pulseName() { const el = big?.querySelector('.ws-summary__name'); if (el) playClassAnimation(el, 'is-pulse', 480); },
+    pulseFigure() { const el = big?.querySelector('svg'); if (el) playClassAnimation(el, 'is-pulse', 480); },
+    /** Once every card is home, the row hops together towards the middle, one after another. */
+    gather() {
+      slots.forEach((slot, i) => {
+        const dx = 80 + i * 235 + 100 < 780 ? 16 : -16;
+        slot.animate?.([{ translate: '0 0' }, { translate: `${dx / 2}px -12px`, offset: 0.45 }, { translate: `${dx}px 0` }],
+          { duration: prefersReducedMotion() ? 0 : 440, delay: prefersReducedMotion() ? 0 : i * 70, easing: 'cubic-bezier(0.3, 1.2, 0.5, 1)', fill: 'forwards' });
+      });
+      return new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 440 + slots.length * 70));
     },
     get bigCard() { return big; },
     remove: () => leave(root),
@@ -7533,7 +7715,7 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       let checked = new Promise((resolve) => { resolveChecked = resolve; });
       const bothChosen = (s) => screen.groups.every((g) => s[g.id]);
       const card = createDualCard({ overlayEl: board.overlayEl, prompt: screen.prompt, groups: screen.groups, audio, onChange: (s) => check.setEnabled(bothChosen(s)) });
-      const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: 574 }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
+      const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: 566 }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
       live.card = card;
       live.check = check;
       for (;;) {
@@ -7631,13 +7813,18 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
         await pause(260);
         guide.setPose('idle');
         await guide.moveTo(peek(SUMMARY_BIG));
-        await narrate(`${items[i].name}. ${items[i].text}`, { visible: false });   // the card carries the words
+        await narrate(`${items[i].name}. ${items[i].text}`, { visible: false, cues: [   // the card carries the words
+          { phrase: items[i].name.split(' ')[0], run: () => view.pulseName() },
+          { phrase: items[i].text.split(' ')[0], run: () => view.pulseFigure() },
+        ] });
         await pause(1100);
         await guide.moveTo(duck(SUMMARY_BIG));
         audio.play('snapEqual');
         await view.collectCard(i);
         await pause(220);
       }
+      await view.gather();
+      audio.play('correct');
       view.popBothCard();
       audio.play('badge');
       await pause(260);

@@ -69,4 +69,3 @@ export const LEVELS = Object.freeze([
     bridgeStage: 'upper-diagonals',
   }),
 ]);
-

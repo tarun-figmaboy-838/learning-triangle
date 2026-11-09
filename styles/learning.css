@@ -161,30 +161,37 @@
 .ws-pick.is-shaking { animation: ws-shake 520ms ease-in-out; }
 .ws-grid.is-entering .ws-pick { animation: ws-pop-in 560ms var(--ease-back) both; animation-delay: calc(var(--i) * 110ms); }
 
-/* ----- Sorting into crates ----- */
+/* ----- Sorting into crates: one triangle on the bench, a pile waiting, three crates below ----- */
 .ws-sort { position: absolute; inset: 0; }
 .ws-sort-card {
-  position: absolute; width: 360px; height: 210px; border-radius: 18px; cursor: grab; touch-action: none;
+  position: absolute; width: 520px; height: 290px; border-radius: 22px; cursor: grab; touch-action: none; overflow: hidden;
   background: #fff; border: 4px solid #ffb300; box-shadow: 0 6px 0 #d99a06, 0 12px 18px rgba(60, 40, 0, 0.2);
-  transition: transform 320ms var(--ease-out), left 420ms var(--ease-out), top 420ms var(--ease-out), width 420ms var(--ease-out), height 420ms var(--ease-out), box-shadow 200ms;
+  transition: transform 320ms var(--ease-out), left 520ms var(--ease-out), top 520ms var(--ease-out), width 520ms var(--ease-out), height 520ms var(--ease-out), box-shadow 200ms, border-width 300ms;
 }
-.ws-sort-card svg { position: absolute; left: 8px; top: 8px; width: 340px; height: 192px; transition: width 420ms var(--ease-out), height 420ms var(--ease-out); }
-.ws-sort-card.is-dragging { transition: none; cursor: grabbing; z-index: 5; box-shadow: 0 18px 28px rgba(6, 24, 48, 0.35); }
+.ws-sort-card svg { position: absolute; left: 20px; top: 17px; width: 480px; height: 252px; transition: width 520ms var(--ease-out), height 520ms var(--ease-out), left 520ms var(--ease-out), top 520ms var(--ease-out), opacity 300ms; }
+.ws-sort-card .ws-letter { transition: left 400ms var(--ease-out), top 400ms var(--ease-out), width 400ms var(--ease-out), height 400ms var(--ease-out), font-size 400ms var(--ease-out); }
+.ws-sort-card.is-waiting { width: 150px; height: 90px; cursor: default; border-width: 3px; }                           /* in the pile: just its letter */
+.ws-sort-card.is-waiting svg { opacity: 0; width: 140px; height: 76px; left: 5px; top: 7px; }
+.ws-sort-card.is-waiting .ws-letter { left: 50%; top: 50%; translate: -50% -50%; width: 52px; height: 52px; font-size: 30px; }
+.ws-sort-card.is-dragging { transition: none; cursor: grabbing; z-index: 6 !important; box-shadow: 0 18px 28px rgba(6, 24, 48, 0.35); }
 .ws-sort-card.is-selected { border-color: #ff8f1f; box-shadow: 0 0 0 5px rgba(255, 179, 0, 0.45), 0 12px 18px rgba(60, 40, 0, 0.2); }
-.ws-sort-card.is-placed { width: 200px; height: 117px; cursor: default; border-width: 3px; z-index: 2; }
-.ws-sort-card.is-placed svg { width: 186px; height: 105px; left: 5px; top: 4px; }
-.ws-sort-card.is-placed .ws-letter { width: 26px; height: 26px; font-size: 15px; left: 4px; top: 4px; }
+.ws-sort-card.is-placed { width: 180px; height: 105px; cursor: default; border-width: 3px; animation: ws-collect-arc 520ms ease-in-out both; }
+.ws-sort-card.is-placed svg { width: 168px; height: 92px; left: 5px; top: 5px; }
+.ws-sort-card.is-placed .ws-letter { width: 24px; height: 24px; font-size: 14px; left: 4px; top: 4px; }
 .ws-sort-card.is-shaking { animation: ws-shake 520ms ease-in-out; }
+.ws-sort-card .ws-figure__body.is-lit { stroke: #ffd000; filter: drop-shadow(0 0 4px #ffb020) drop-shadow(0 0 10px rgba(255, 176, 32, 0.9)); }   /* the equal sides light up on a right drop */
+.ws-figure__label.is-pulse { animation: ws-label-pulse 560ms var(--ease-back); transform-box: fill-box; transform-origin: center; }
 .ws-sort.is-entering .ws-sort-card, .ws-sort.is-entering .ws-bin { animation: ws-pop-in 560ms var(--ease-back) both; animation-delay: calc(var(--i) * 110ms); }
-.ws-bin { position: absolute; height: 270px; text-align: center; font-family: var(--font-display); cursor: pointer; }
+.ws-bin { position: absolute; height: 262px; text-align: center; font-family: var(--font-display); cursor: pointer; }
 .ws-bin__label { position: relative; display: inline-flex; margin-bottom: 4px; height: 58px; padding: 0 36px 3px; align-items: center; justify-content: center; border: 0; border-image: url("../assets/images/workshop/name-tag.png") 0 120 fill / 0 34px stretch; font-size: 23px; letter-spacing: 2px; color: var(--badge, #ffd23f); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45); }
 .ws-tag--scalene { --badge: #e9a3ff; } .ws-tag--isosceles { --badge: #8fd0ff; } .ws-tag--equilateral { --badge: #9df09a; }
-.ws-bin__crate { position: relative; height: 236px; }
-.ws-bin__crate img { position: absolute; left: 50%; top: 0; width: 300px; height: auto; translate: -50% 0; filter: drop-shadow(0 6px 8px rgba(6, 24, 48, 0.3)); transition: transform 200ms var(--ease-out), filter 200ms; }
-.ws-bin__slot { position: absolute; left: 50%; top: 66px; translate: -50% 0; width: 216px; height: 54px; display: grid; place-items: center; border-radius: 12px; border: 3px dashed rgba(255, 179, 0, 0.9); background: rgba(255, 255, 255, 0.55); font-size: 14px; letter-spacing: 1px; color: #1d3a5f; white-space: nowrap; }
+.ws-bin__crate { position: relative; height: 200px; }
+.ws-bin__crate img { position: absolute; left: 50%; top: 0; width: 250px; height: auto; translate: -50% 0; filter: drop-shadow(0 6px 8px rgba(6, 24, 48, 0.3)); transition: transform 200ms var(--ease-out), filter 200ms; }
+.ws-bin__slot { position: absolute; left: 50%; top: 52px; translate: -50% 0; width: 180px; height: 46px; display: grid; place-items: center; border-radius: 12px; border: 3px dashed rgba(255, 179, 0, 0.9); background: rgba(255, 255, 255, 0.55); font-size: 14px; letter-spacing: 1px; color: #1d3a5f; white-space: nowrap; }
 .ws-bin.is-filled .ws-bin__slot { border-color: transparent; background: none; }
 .ws-bin.is-over img { transform: scale(1.05); filter: brightness(1.08) drop-shadow(0 0 10px rgba(255, 214, 60, 0.9)) drop-shadow(0 6px 8px rgba(6, 24, 48, 0.3)); }
 .ws-bin.is-receiving img { animation: ws-receive 520ms var(--ease-out); }
+.ws-bin__label.is-pulse { animation: ws-warm-pulse 480ms cubic-bezier(0.3, 1.25, 0.45, 1); }
 .ws-sort-result { position: absolute; inset: 0; }
 .ws-result-card { position: absolute; width: 360px; height: 320px; padding: 8px 10px; border-radius: 20px; text-align: center; background: #fff; border: 4px solid #ffb300; box-shadow: 0 6px 0 #d99a06; font-family: var(--font-display); color: var(--color-navy); }
 .ws-result-card svg { display: block; margin: 0 auto; width: 340px; height: 200px; }
@@ -202,8 +209,9 @@
   text-align: center; overflow: hidden; z-index: 2;
   transition: left 560ms var(--ease-in), top 560ms var(--ease-in), width 560ms var(--ease-in), height 560ms var(--ease-in), opacity 300ms ease 300ms;
 }
-.ws-summary__big.is-entering { animation: ws-pop-in 620ms var(--ease-back) both; }
-.ws-summary__big.is-collecting { opacity: 0; }
+.ws-summary__big.is-entering { animation: ws-card-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ws-summary__big.is-collecting { opacity: 0; animation: ws-collect-arc 560ms ease-in-out both; }   /* flies to its slot on a small upward arc */
+.ws-summary__big .ws-summary__name.is-pulse, .ws-summary__big svg.is-pulse { animation: ws-warm-pulse 480ms cubic-bezier(0.3, 1.25, 0.45, 1); transform-origin: center; }
 .ws-summary__big.is-collecting > * { opacity: 0; transition: opacity 200ms; }
 .ws-summary__big .ws-summary__name { font-size: 40px; letter-spacing: 1px; color: var(--badge); }
 .ws-summary__big .ws-summary__text { font-size: 27px; color: #40546b; font-family: var(--font-body); }
@@ -238,6 +246,14 @@
 .ws-side.is-measuring .ws-side__trace { opacity: 1; }
 .ws-tri.is-drawing .ws-side__trace { display: none; }
 .ws-tick { stroke: #10243a; stroke-width: 6; stroke-linecap: round; }
+/* While some sides / angles are named, the others step back (Fishing Frenzy's focusing rule). */
+.ws-tri.is-focusing .ws-side:not(.is-emphasis) .ws-side__body, .ws-tri.is-focusing .ws-angle:not(.is-emphasis) .ws-angle__arc,
+.ws-tri.is-focusing .ws-angle:not(.is-emphasis) .ws-angle__square, .ws-tri.is-focusing .ws-angle:not(.is-emphasis) .ws-angle__label { opacity: 0.42; }
+.ws-tri.is-focusing .ws-angle:not(.is-emphasis) .ws-angle__wedge { opacity: 0.08; }
+.ws-side__body, .ws-angle__arc, .ws-angle__square, .ws-angle__label { transition: opacity 300ms var(--ease-out); }
+.ws-trace-glow { fill: none; stroke: #ffd000; stroke-width: 10; stroke-linecap: round; pointer-events: none; filter: drop-shadow(0 0 4px #ffb020) drop-shadow(0 0 12px rgba(255, 176, 32, 0.9)); }   /* the gold light that runs along a named line */
+.ws-tri.is-drawing .ws-side__body { filter: drop-shadow(0 0 3px var(--tone-deep)) drop-shadow(0 0 8px #ffd000) drop-shadow(0 0 16px rgba(255, 176, 32, 0.8)); }   /* the pen glows while a side is drawn */
+.ws-side.is-measuring .ws-side__trace { stroke: #ffd000; filter: drop-shadow(0 0 4px #ffb020) drop-shadow(0 0 10px rgba(255, 176, 32, 0.9)); }                   /* and the measured part lights up */
 .ws-side.is-emphasis .ws-side__body { stroke-width: 24; filter: drop-shadow(0 0 3px var(--tone-deep)) drop-shadow(0 0 12px var(--tone)) drop-shadow(0 0 24px var(--tone)) brightness(1.08); }
 .ws-side.is-pulse .ws-side__body { animation: ws-stroke-pulse 640ms var(--ease-out); }
 .ws-angle.is-pulse .ws-angle__arc, .ws-angle.is-pulse .ws-angle__square { animation: ws-arc-pulse 640ms var(--ease-out); }
@@ -259,16 +275,20 @@
 /* Angles: theme blue; an obtuse one turns red. */
 .ws-angle { --angle: #1565c0; }
 .ws-angle.is-obtuse { --angle: #d8463b; }
+.ws-angle__wedge { fill: var(--angle); opacity: 0.22; mix-blend-mode: multiply; transition: opacity 260ms, fill 300ms; }
+.ws-angle.is-emphasis .ws-angle__wedge { opacity: 0.34; }
 .ws-angle__arc { fill: none; stroke: var(--angle); stroke-width: 7; stroke-linecap: round; transition: stroke 300ms; }
 .ws-angle__square { fill: none; stroke: var(--angle); stroke-width: 7; stroke-linejoin: round; transition: stroke 300ms; }
 .ws-angle__label { font-family: var(--font-display); font-size: 30px; font-weight: 700; fill: var(--angle); paint-order: stroke; stroke: #fff; stroke-width: 7px; stroke-linejoin: round; text-anchor: middle; dominant-baseline: central; transition: fill 300ms; }
 .ws-angle.is-emphasis .ws-angle__arc, .ws-angle.is-emphasis .ws-angle__square { stroke-width: 10; filter: drop-shadow(0 0 4px var(--angle)) drop-shadow(0 0 14px var(--angle)); }
 .ws-angle.is-emphasis .ws-angle__label { font-size: 34px; }
-.ws-angle.is-pulse .ws-angle__label, .ws-angle__label.is-pop { animation: ws-label-pulse 620ms var(--ease-back); transform-box: fill-box; transform-origin: center; }
+.ws-angle.is-pulse .ws-angle__label { animation: ws-label-pulse 620ms var(--ease-back); transform-box: fill-box; transform-origin: center; }
+.ws-angle__label.is-pop { animation: ws-label-out 600ms cubic-bezier(0.22, 1, 0.36, 1) both; transform-box: fill-box; transform-origin: center; }   /* the value slides out of the corner */
 /* Side lengths: just the number, outlined in white; it takes the side's colour when the sides are coloured. */
 .ws-side-label__text { font-family: var(--font-display); font-size: 31px; font-weight: 700; fill: #10243a; paint-order: stroke; stroke: #fff; stroke-width: 8px; stroke-linejoin: round; text-anchor: middle; dominant-baseline: central; transition: fill 300ms; }
 .ws-side-label[data-tone] .ws-side-label__text { fill: var(--tone-deep); }
-.ws-side-label.is-pop, .ws-side-label.is-pulse { animation: ws-label-pulse 560ms var(--ease-back); transform-box: fill-box; transform-origin: center; }
+.ws-side-label.is-pulse { animation: ws-label-pulse 560ms var(--ease-back); transform-box: fill-box; transform-origin: center; }
+.ws-side-label.is-pop { animation: ws-label-out 600ms cubic-bezier(0.22, 1, 0.36, 1) both; transform-box: fill-box; transform-origin: center; }   /* the value slides out of the side */
 .ws-tape { filter: drop-shadow(0 3px 3px rgba(6, 24, 48, 0.3)); transition: opacity 260ms; }
 .ws-tape__body { fill: #f7b400; stroke: #5a4310; stroke-width: 3; }
 .ws-tape__tick { stroke: #5a4310; stroke-width: 2; }
@@ -279,7 +299,7 @@
 .ws-protractor__tick { stroke: #1565c0; stroke-width: 2.5; }
 .ws-protractor__pin { fill: #1565c0; }
 .ws-tape-strip { transition: opacity 400ms; filter: drop-shadow(0 3px 4px rgba(60, 40, 0, 0.3)); }
-.ws-tape-strip__band { fill: #ffd23f; stroke: #5a4310; stroke-width: 2; }
+.ws-tape-strip__band { fill: #f7c531; stroke: #5a4310; stroke-width: 1.5; }
 .ws-tape-strip__hook { fill: #5a4310; }
 .ws-tape-strip.is-leaving { opacity: 0; }
 .ws-tape.is-leaving, .ws-protractor.is-leaving { opacity: 0; }
@@ -297,6 +317,7 @@
 .ws-figure__body { fill: none; stroke: #ff8f1f; stroke-linecap: round; }
 .ws-figure__node { fill: #fff; stroke: #c45f00; stroke-width: 3; }
 .ws-figure__tick { stroke: #10243a; stroke-width: 4; stroke-linecap: round; }
+.ws-figure__wedge { fill: #1565c0; opacity: 0.2; }
 .ws-figure__arc { fill: none; stroke: #1565c0; stroke-width: 4; stroke-linecap: round; }
 .ws-figure__square { fill: none; stroke: #1565c0; stroke-width: 4; }
 .ws-figure__label { font-family: var(--font-display); font-weight: 700; text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
@@ -339,6 +360,10 @@
 @keyframes ws-point-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.14); } }
 @keyframes ws-vertex-pop { 0% { transform: scale(0.2); } 60% { transform: scale(1.3); } 100% { transform: scale(1); } }
 @keyframes ws-label-pulse { 0% { transform: scale(0.7); } 55% { transform: scale(1.18); } 100% { transform: scale(1); } }
+@keyframes ws-label-out { 0% { opacity: 0; transform: translate(var(--ox, 0px), var(--oy, 0px)) scale(0.85); } 100% { opacity: 1; transform: translate(0, 0) scale(1); } }
+@keyframes ws-card-enter { 0% { opacity: 0; transform: scale(0.82) translateY(14px); } 62% { opacity: 1; transform: scale(1.03) translateY(0); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+@keyframes ws-collect-arc { 0% { translate: 0 0; } 50% { translate: 0 -40px; } 100% { translate: 0 0; } }
+@keyframes ws-warm-pulse { 0% { transform: scale(1); filter: brightness(1); } 40% { transform: scale(1.3); filter: brightness(1.12) drop-shadow(0 0 7px rgba(255, 150, 40, 0.85)); } 100% { transform: scale(1); filter: brightness(1); } }
 @keyframes ws-stroke-pulse { 0% { stroke-width: 18; } 45% { stroke-width: 27; filter: drop-shadow(0 0 3px var(--tone-deep)) drop-shadow(0 0 14px var(--tone)) brightness(1.15); } 100% { stroke-width: 18; } }
 @keyframes ws-arc-pulse { 0% { stroke-width: 7; } 45% { stroke-width: 12; filter: drop-shadow(0 0 10px var(--angle)); } 100% { stroke-width: 7; } }
 @keyframes ws-flash { 0% { filter: brightness(1); } 30% { filter: brightness(1.45) drop-shadow(0 0 4px var(--tone-deep)) drop-shadow(0 0 16px var(--tone)); } 100% { filter: brightness(1); } }

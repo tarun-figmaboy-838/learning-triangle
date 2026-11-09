@@ -47,7 +47,11 @@ export function buildTriangleFigure(spec, { width = 260, height = 200, labels = 
   for (let i = 0; i < 3; i += 1) {
     const isRight = m.rightAt === i;
     if (square && isRight) marks.appendChild(svgEl('polyline', { points: squarePoints(vertices, i, 16), class: 'ws-figure__square' }));
-    else if (arcs) marks.appendChild(svgEl('path', { d: arcPath(vertices, i, 24), class: 'ws-figure__arc' }));
+    else if (arcs) {
+      const arc = arcPath(vertices, i, 24);
+      marks.appendChild(svgEl('path', { d: `M ${fmt(vertices[i][0])} ${fmt(vertices[i][1])} L ${arc.slice(2)} Z`, class: 'ws-figure__wedge' }));
+      marks.appendChild(svgEl('path', { d: arc, class: 'ws-figure__arc' }));
+    }
   }
   svg.appendChild(marks);
   for (let i = 0; i < 3; i += 1) {

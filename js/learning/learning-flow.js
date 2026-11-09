@@ -544,7 +544,7 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       let checked = new Promise((resolve) => { resolveChecked = resolve; });
       const bothChosen = (s) => screen.groups.every((g) => s[g.id]);
       const card = createDualCard({ overlayEl: board.overlayEl, prompt: screen.prompt, groups: screen.groups, audio, onChange: (s) => check.setEnabled(bothChosen(s)) });
-      const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: 574 }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
+      const check = createPillButton({ overlayEl: board.overlayEl, text: LEARNING_COPY.check, tone: 'yellow', at: { center: true, top: 566 }, enabled: false, onPress: () => { audio.play('uiTap'); resolveChecked(); } });
       live.card = card;
       live.check = check;
       for (;;) {
@@ -642,13 +642,18 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
         await pause(260);
         guide.setPose('idle');
         await guide.moveTo(peek(SUMMARY_BIG));
-        await narrate(`${items[i].name}. ${items[i].text}`, { visible: false });   // the card carries the words
+        await narrate(`${items[i].name}. ${items[i].text}`, { visible: false, cues: [   // the card carries the words
+          { phrase: items[i].name.split(' ')[0], run: () => view.pulseName() },
+          { phrase: items[i].text.split(' ')[0], run: () => view.pulseFigure() },
+        ] });
         await pause(1100);
         await guide.moveTo(duck(SUMMARY_BIG));
         audio.play('snapEqual');
         await view.collectCard(i);
         await pause(220);
       }
+      await view.gather();
+      audio.play('correct');
       view.popBothCard();
       audio.play('badge');
       await pause(260);

@@ -1,3 +1,13 @@
+/**
+ * The Triangle Workshop, screen by screen. Only data lives here: the maths, wording, questions and
+ * answers come from the source deck ("Triangles.pdf", learning and checkpoint pages); one flow
+ * (js/learning/learning-flow.js) renders and runs every screen from it.
+ *
+ * Triangle specs (see triangle-model.js): sides [AB, BC, CA] in cm are the deck's left / bottom /
+ * right labels; angles [A, B, C] are its top / left / right labels; pts are explicit cm coordinates.
+ * `keep: true` keeps the learner's own triangle from the previous screen when it already has the
+ * `requires` classification (so a discovery names the shape the learner actually made).
+ */
 /** Every learner-facing string is the deck's own wording (the spaceship framing is not used). */
 export const LEARNING_COPY = Object.freeze({
   workshopTitle: 'Triangles',
