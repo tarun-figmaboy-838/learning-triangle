@@ -24,8 +24,8 @@ const CORNER_ORDER = [0, 2, 1];            // top, right, left: clockwise
 const GUIDE_SCREENS = new Set(['measureSides', 'measureAngles', 'summary']);
 /** The summary's big card (surface px) and how far his head rises above it. */
 const SUMMARY_BIG = Object.freeze({ left: 545, top: 110, width: 470 });
-const SUMMARY_BOTH = Object.freeze({ left: 380, top: 150, width: 800 });
-const PEEK_HEAD = 206;                     // the peek sprite: hat top this far above the card's edge, hands on the edge
+const SUMMARY_BOTH = Object.freeze({ left: 560, top: 92, width: 440 });
+const PEEK_HEAD = 184;                     // the peek sprite: hat top this far above the card's edge; his hands and the cut-off vest tuck behind the edge
 
 function abortError() {
   const error = new Error('Sequence cancelled');
@@ -158,6 +158,19 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       canvas.setPoints(target);
     }
     canvas.setVisible({ sides: true, vertices: true, ...(screen.show ?? {}) }, { merge: false });
+  }
+
+  /** What lights up on the summary card as each word of its rule is said. */
+  function summaryCues(item, view) {
+    const words = item.text.toLowerCase();
+    const cues = [{ phrase: item.name.split(' ')[0], run: () => view.pulseName() }];
+    if (/\bsides\b/.test(words)) cues.push({ phrase: 'sides', run: () => view.lightSides() });
+    if (/\bdifferent\b/.test(words)) cues.push({ phrase: 'different', run: () => view.pulseLengths() });
+    if (/\bequal\b/.test(words)) cues.push({ phrase: 'equal', run: () => view.pulseEqual() });
+    if (/\bangles\b/.test(words)) cues.push({ phrase: 'angles', run: () => view.pulseCorners() });
+    else if (/\bangle\b/.test(words)) cues.push({ phrase: 'angle', run: () => view.pulseCorners() });
+    if (words.includes('90°')) cues.push({ phrase: '90°', run: () => view.pulseSpecial() });
+    return cues;
   }
 
   /* ---------- Shared beats ---------- */
@@ -713,6 +726,8 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       const headX = (card) => BOARD.surface.left + card.left + Math.round(card.width * 0.3);
       const peek = (card) => ({ x: headX(card), y: BOARD.surface.top + card.top - PEEK_HEAD, scale: 0.9, flip: false, rotate: 0 });
       const duck = (card) => ({ x: headX(card), y: BOARD.surface.top + card.top + 60, scale: 0.9, flip: false, rotate: 0 });
+      const rise = async (card) => { guide.element.classList.remove('is-ducked'); guide.setPose('peek'); await guide.moveTo(peek(card)); };
+      const sink = async (card) => { await guide.moveTo(duck(card)); guide.element.classList.add('is-ducked'); };
       // His bubble opens to the right of his head, its tail at his mouth.
       const say = (card, text, cues = null) => {
         setState('NARRATING');
@@ -726,20 +741,17 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       guide.setPose('peek');
       guide.placeAt(duck(SUMMARY_BIG));
       guide.setInstant(false);
+      guide.element.classList.add('is-ducked');
       guide.element.hidden = false;
       for (let i = 0; i < items.length; i += 1) {
         view.popCard(i);
         audio.play('badge');
         await pause(300);
-        guide.setPose('peek');
-        await guide.moveTo(peek(SUMMARY_BIG));
+        await rise(SUMMARY_BIG);
         // He names it (the name glows) and gives its rule (the figure lights up on the rule's first word).
-        await say(SUMMARY_BIG, `${items[i].name}. ${items[i].text}`, [
-          { phrase: items[i].name.split(' ')[0], run: () => view.pulseName() },
-          { phrase: items[i].text.split(' ')[0], run: () => view.pulseFigure() },
-        ]);
+        await say(SUMMARY_BIG, `${items[i].name}. ${items[i].text}`, summaryCues(items[i], view));
         await pause(500);
-        await guide.moveTo(duck(SUMMARY_BIG));
+        await sink(SUMMARY_BIG);
         audio.play('snapEqual');
         await view.collectCard(i);            // the card flies to its column: sides on the left, angles on the right
         await pause(240);
@@ -749,8 +761,7 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       view.popBothCard();
       audio.play('badge');
       await pause(300);
-      guide.setPose('peek');
-      await guide.moveTo(peek(SUMMARY_BOTH));
+      await rise(SUMMARY_BOTH);
       await say(SUMMARY_BOTH, LEARNING_COPY.summary.both);
       await pause(400);
       setState('WAITING_FOR_INPUT');
@@ -761,9 +772,10 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       await withSignal(pressed, signal());
       button.pressOnce();
       setState('TRANSITIONING');
-      await guide.moveTo(duck(SUMMARY_BOTH));
+      await sink(SUMMARY_BOTH);
       await Promise.all([button.remove(), view.remove()]);
       board.setGuidePeeking(false);
+      guide.element.classList.remove('is-ducked');
       await guide.leave();
     },
   };

@@ -7202,13 +7202,17 @@ function createDualCard({ overlayEl, prompt, groups, audio, onChange, at = { top
  * The summary (PDF p48), told as a recap: each category pops up as one big card the beaver explains from
  * behind, then shrinks into the collection row below; last comes the "both" card with its example.
  */
+/** Adds `cls` to each element one after another (160 ms apart), each for `ms`. */
+function inTurn(list, cls, ms) {
+  [...(list ?? [])].forEach((el, i) => setTimeout(() => playClassAnimation(el, cls, ms), prefersReducedMotion() ? 0 : i * 160));
+}
 function createSummaryView({ overlayEl, screen }) {
   const root = element('div', 'ws-summary');
   root.innerHTML = `<div class="ws-summary__row" aria-label="${escapeHtml(LEARNING_COPY.summary.sidesTitle)}, ${escapeHtml(LEARNING_COPY.summary.anglesTitle)}"></div>`;
   const row = root.querySelector('.ws-summary__row');
   const items = [...screen.bySides, ...screen.byAngles];
   // Collected cards gather in two columns: by sides on the left, by angles on the right (nothing shown until a card lands).
-  const SLOT = Object.freeze({ width: 236, height: 150, top: 70, step: 180, xs: [40, 1284] });
+  const SLOT = Object.freeze({ width: 168, height: 168, top: 58, step: 196, xs: [90, 1302] });   // square, flat cards
   const sideCount = screen.bySides.length;
   const slotAt = (index) => {
     const col = index < sideCount ? 0 : 1;
@@ -7230,6 +7234,7 @@ function createSummaryView({ overlayEl, screen }) {
   });
   overlayEl.appendChild(root);
   const BIG = { left: 545, top: 110, width: 470, height: 470 };
+  const BOTH = { left: 560, top: 92, width: 440, height: 430 };
   let big = null;
 
   function figureFor(item, size) {
@@ -7243,7 +7248,10 @@ function createSummaryView({ overlayEl, screen }) {
     popCard(index) {
       const item = items[index];
       big = element('div', `ws-summary__big ws-summary__big--${item.tone}`);
-      big.append(figureFor(item, [320, 220]), element('span', 'ws-summary__name', escapeHtml(item.name)), element('span', 'ws-summary__text', escapeHtml(item.text)));
+      // The figure fills the card with its lengths or angles; the name is a tag on the card's bottom edge.
+      // The rule itself is said by the beaver (his bubble) while the figure shows it.
+      const figure = buildTriangleFigure(item.spec, { width: 430, height: 370, labels: item.labels, ticks: item.labels === 'sides', arcs: item.labels === 'angles', square: true, pad: 8, strokeScale: 1.7, labelSize: 27 }).svg;
+      big.append(figure, element('span', `ws-summary__tag ws-badge ws-badge--small ws-badge--${item.tone}`, escapeHtml(item.name)));
       place(big, BIG);
       root.appendChild(big);
       enter(big, 'is-entering', 620);
@@ -7266,31 +7274,46 @@ function createSummaryView({ overlayEl, screen }) {
       await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 560));
       card.remove();
       slot.classList.add('is-filled');
-      slot.append(figureFor(item, [150, 96]), element('span', 'ws-summary__slot-name', escapeHtml(item.name)));
+      slot.append(figureFor(item, [150, 122]), element('span', `ws-summary__slot-tag ws-badge ws-badge--small ws-badge--${item.tone}`, escapeHtml(item.name)));   // the same name tag, on the card's bottom edge
       playClassAnimation(slot, 'is-receiving', 480);
     },
     /** The closing card: the example classified both ways, and the sentence that says so. */
     popBothCard() {
       big = element('div', 'ws-summary__big ws-summary__big--both');
-      const example = buildTriangleFigure(screen.example.spec, { width: 220, height: 160, labels: null, ticks: true, square: true, pad: 18, strokeScale: 1.2 }).svg;
+      const example = buildTriangleFigure(screen.example.spec, { width: 250, height: 170, labels: null, ticks: true, square: true, pad: 16, strokeScale: 1.3 }).svg;
       const badges = element('div', 'ws-summary__badges', screen.example.badges.map((b) => `<span class="ws-badge ws-badge--${b.tone} ws-badge--small">${escapeHtml(b.text)}</span>`).join(''));
-      const side = element('div', 'ws-summary__both-figure');
-      side.append(example, badges);
-      big.append(side, element('p', 'ws-summary__both', escapeHtml(LEARNING_COPY.summary.both)));
-      place(big, { left: 380, top: 150, width: 800 });
+      big.append(example, badges, element('p', 'ws-summary__both', escapeHtml(LEARNING_COPY.summary.both)));
+      place(big, BOTH);
       root.appendChild(big);
       enter(big, 'is-entering', 620);
       return big;
     },
     /** Spoken-word cues on the open card: its name warms up, its figure pulses (Polygon recap style). */
-    pulseName() { const el = big?.querySelector('.ws-summary__name'); if (el) playClassAnimation(el, 'is-pulse', 480); },
-    pulseFigure() { const el = big?.querySelector('svg'); if (el) playClassAnimation(el, 'is-pulse', 480); },
+    pulseName() { const el = big?.querySelector('.ws-summary__tag'); if (el) playClassAnimation(el, 'is-pulse', 700); },
+    pulseFigure() { const el = big?.querySelector('svg'); if (el) playClassAnimation(el, 'is-pulse', 700); },
+    /** Word cues on the open card (dual coding): what he says lights up in the figure as he says it. */
+    lightSides() { inTurn(big?.querySelectorAll('.ws-figure__body'), 'is-lit', 900); },
+    pulseLengths() { inTurn(big?.querySelectorAll('.ws-figure__label--side'), 'is-pulse', 700); },
+    pulseEqual() {
+      if (!big) return;
+      const labels = [...big.querySelectorAll('.ws-figure__label--side')];
+      const count = (el) => labels.filter((x) => x.textContent === el.textContent).length;
+      inTurn(labels.filter((el) => count(el) > 1), 'is-pulse', 700);
+      inTurn(big.querySelectorAll('.ws-figure__tick'), 'is-pulse', 700);
+    },
+    pulseCorners() { inTurn(big?.querySelectorAll('.ws-figure__wedge'), 'is-pulse', 700); },
+    pulseSpecial() {
+      if (!big) return;
+      const special = big.querySelectorAll('.ws-figure__square, .ws-figure__wedge.ws-corner--obtuse');
+      inTurn(special.length ? special : big.querySelectorAll('.ws-figure__wedge'), 'is-pulse', 900);
+      inTurn(big.querySelectorAll('.ws-figure__label--angle'), 'is-pulse', 700);
+    },
     /** Once every card is home, the row hops together towards the middle, one after another. */
     gather() {
       slots.forEach((slot, i) => {
         const dx = slotAt(i).col === 0 ? 16 : -16;      // each column hops towards the middle
-        slot.animate?.([{ translate: '0 0' }, { translate: `${dx / 2}px -12px`, offset: 0.45 }, { translate: `${dx}px 0` }],
-          { duration: prefersReducedMotion() ? 0 : 440, delay: prefersReducedMotion() ? 0 : i * 70, easing: 'cubic-bezier(0.3, 1.2, 0.5, 1)', fill: 'forwards' });
+        slot.animate?.([{ translate: '0 0' }, { translate: `${dx}px -14px`, offset: 0.45 }, { translate: '0 0' }],   // a hop towards the middle and back: the columns stay under their titles
+          { duration: prefersReducedMotion() ? 0 : 520, delay: prefersReducedMotion() ? 0 : i * 70, easing: 'cubic-bezier(0.3, 1.2, 0.5, 1)' });
       });
       return new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 440 + slots.length * 70));
     },
@@ -7365,8 +7388,8 @@ const CORNER_ORDER = [0, 2, 1];            // top, right, left: clockwise
 const GUIDE_SCREENS = new Set(['measureSides', 'measureAngles', 'summary']);
 /** The summary's big card (surface px) and how far his head rises above it. */
 const SUMMARY_BIG = Object.freeze({ left: 545, top: 110, width: 470 });
-const SUMMARY_BOTH = Object.freeze({ left: 380, top: 150, width: 800 });
-const PEEK_HEAD = 206;                     // the peek sprite: hat top this far above the card's edge, hands on the edge
+const SUMMARY_BOTH = Object.freeze({ left: 560, top: 92, width: 440 });
+const PEEK_HEAD = 184;                     // the peek sprite: hat top this far above the card's edge; his hands and the cut-off vest tuck behind the edge
 
 function abortError() {
   const error = new Error('Sequence cancelled');
@@ -7499,6 +7522,19 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       canvas.setPoints(target);
     }
     canvas.setVisible({ sides: true, vertices: true, ...(screen.show ?? {}) }, { merge: false });
+  }
+
+  /** What lights up on the summary card as each word of its rule is said. */
+  function summaryCues(item, view) {
+    const words = item.text.toLowerCase();
+    const cues = [{ phrase: item.name.split(' ')[0], run: () => view.pulseName() }];
+    if (/\bsides\b/.test(words)) cues.push({ phrase: 'sides', run: () => view.lightSides() });
+    if (/\bdifferent\b/.test(words)) cues.push({ phrase: 'different', run: () => view.pulseLengths() });
+    if (/\bequal\b/.test(words)) cues.push({ phrase: 'equal', run: () => view.pulseEqual() });
+    if (/\bangles\b/.test(words)) cues.push({ phrase: 'angles', run: () => view.pulseCorners() });
+    else if (/\bangle\b/.test(words)) cues.push({ phrase: 'angle', run: () => view.pulseCorners() });
+    if (words.includes('90°')) cues.push({ phrase: '90°', run: () => view.pulseSpecial() });
+    return cues;
   }
 
   /* ---------- Shared beats ---------- */
@@ -8054,6 +8090,8 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       const headX = (card) => BOARD.surface.left + card.left + Math.round(card.width * 0.3);
       const peek = (card) => ({ x: headX(card), y: BOARD.surface.top + card.top - PEEK_HEAD, scale: 0.9, flip: false, rotate: 0 });
       const duck = (card) => ({ x: headX(card), y: BOARD.surface.top + card.top + 60, scale: 0.9, flip: false, rotate: 0 });
+      const rise = async (card) => { guide.element.classList.remove('is-ducked'); guide.setPose('peek'); await guide.moveTo(peek(card)); };
+      const sink = async (card) => { await guide.moveTo(duck(card)); guide.element.classList.add('is-ducked'); };
       // His bubble opens to the right of his head, its tail at his mouth.
       const say = (card, text, cues = null) => {
         setState('NARRATING');
@@ -8067,20 +8105,17 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       guide.setPose('peek');
       guide.placeAt(duck(SUMMARY_BIG));
       guide.setInstant(false);
+      guide.element.classList.add('is-ducked');
       guide.element.hidden = false;
       for (let i = 0; i < items.length; i += 1) {
         view.popCard(i);
         audio.play('badge');
         await pause(300);
-        guide.setPose('peek');
-        await guide.moveTo(peek(SUMMARY_BIG));
+        await rise(SUMMARY_BIG);
         // He names it (the name glows) and gives its rule (the figure lights up on the rule's first word).
-        await say(SUMMARY_BIG, `${items[i].name}. ${items[i].text}`, [
-          { phrase: items[i].name.split(' ')[0], run: () => view.pulseName() },
-          { phrase: items[i].text.split(' ')[0], run: () => view.pulseFigure() },
-        ]);
+        await say(SUMMARY_BIG, `${items[i].name}. ${items[i].text}`, summaryCues(items[i], view));
         await pause(500);
-        await guide.moveTo(duck(SUMMARY_BIG));
+        await sink(SUMMARY_BIG);
         audio.play('snapEqual');
         await view.collectCard(i);            // the card flies to its column: sides on the left, angles on the right
         await pause(240);
@@ -8090,8 +8125,7 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       view.popBothCard();
       audio.play('badge');
       await pause(300);
-      guide.setPose('peek');
-      await guide.moveTo(peek(SUMMARY_BOTH));
+      await rise(SUMMARY_BOTH);
       await say(SUMMARY_BOTH, LEARNING_COPY.summary.both);
       await pause(400);
       setState('WAITING_FOR_INPUT');
@@ -8102,9 +8136,10 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
       await withSignal(pressed, signal());
       button.pressOnce();
       setState('TRANSITIONING');
-      await guide.moveTo(duck(SUMMARY_BOTH));
+      await sink(SUMMARY_BOTH);
       await Promise.all([button.remove(), view.remove()]);
       board.setGuidePeeking(false);
+      guide.element.classList.remove('is-ducked');
       await guide.leave();
     },
   };

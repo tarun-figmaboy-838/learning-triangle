@@ -142,7 +142,7 @@
 .ws-sort-card.is-placed { width: 130px; height: 130px; cursor: default; border-width: 3px; animation: ws-collect-arc 520ms ease-in-out both; }
 .ws-sort-card.is-placed svg { width: 118px; height: 118px; left: 2px; top: 2px; }
 .ws-sort-card.is-shaking { animation: ws-shake 520ms ease-in-out; }
-.ws-sort-card .ws-figure__body.is-lit { stroke: #ffd000; filter: drop-shadow(0 0 4px #ffb020) drop-shadow(0 0 10px rgba(255, 176, 32, 0.9)); }   /* the equal sides light up on a right drop */
+.ws-figure__body.is-lit, .ws-sort-card .ws-figure__body.is-lit { stroke: #ffd000; filter: drop-shadow(0 0 4px #ffb020) drop-shadow(0 0 10px rgba(255, 176, 32, 0.9)); }   /* the equal sides light up on a right drop */
 .ws-figure__label.is-pulse { animation: ws-glow-pulse 700ms ease-out; }
 .ws-sort.is-entering .ws-sort-card, .ws-sort.is-entering .ws-bin, .ws-sort.is-entering .ws-bin-front { animation: ws-pop-in 560ms var(--ease-back) both; animation-delay: calc(var(--i) * 110ms); }
 .ws-bin, .ws-bin-front { position: absolute; height: 196px; text-align: center; font-family: var(--font-display); }
@@ -180,19 +180,17 @@
 .ws-summary__big.is-collecting > * { opacity: 0; transition: opacity 200ms; }
 .ws-summary__big .ws-summary__name { font-size: 40px; letter-spacing: 1px; color: var(--badge); }
 .ws-summary__big .ws-summary__text { font-size: 27px; color: #40546b; font-family: var(--font-body); }
-.ws-summary__big--both { --badge: #1d3a5f; flex-direction: row; gap: 30px; padding: 24px 36px; background: #fff; border: 3px solid #1d3a5f; border-radius: 22px; }
-.ws-summary__both-figure { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.ws-summary__badges { display: flex; gap: 10px; }
-.ws-summary__both { margin: 0; flex: 1; font-size: 34px; line-height: 1.25; text-align: left; }
+.ws-summary__badges { display: flex; gap: 10px; justify-content: center; }
+.ws-summary__both { margin: 4px 0 0; font-family: var(--font-display); font-size: 25px; font-weight: 700; line-height: 1.25; text-align: center; color: #123b63; text-wrap: balance; }
 .ws-summary__row { position: absolute; inset: 0; pointer-events: none; }
 .ws-summary__slot {
   position: absolute; border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   opacity: 0; transform: scale(0.8); transition: opacity 300ms, transform 360ms var(--ease-back);
 }
 .ws-summary__slot svg { display: block; margin-top: -4px; }
-.ws-summary__slot.is-filled { opacity: 1; transform: none; background: linear-gradient(180deg, #ffffff 0%, #eef6ff 100%); border: 4px solid #fff; box-shadow: 0 0 0 3px var(--badge, #8db9ee), 0 6px 0 3px #5b8fd6, 0 12px 18px rgba(18, 59, 99, 0.16); }
+.ws-summary__slot.is-filled { opacity: 1; transform: none; background: #fff; border: 4px solid var(--badge, #8db9ee); box-shadow: 0 6px 14px rgba(18, 59, 99, 0.14); }   /* flat: a collected card is not a button */
 .ws-summary__slot.is-receiving { animation: ws-receive 480ms var(--ease-out); }
-.ws-summary__slot-name { font-family: var(--font-display); font-size: 21px; font-weight: 800; color: var(--badge); }
+.ws-summary__slot-name { font-family: var(--font-display); font-size: 19px; font-weight: 800; color: var(--badge); text-align: center; line-height: 1.1; }
 
 /* ----- The live triangle (SVG) ----- */
 .ws-hidden { opacity: 0 !important; pointer-events: none !important; }
@@ -412,9 +410,6 @@
 .ws-option.ws-option--pill, .ws-pill--yellow { color: #5a2a00; text-shadow: 0 1px 0 var(--shade); }
 .ws-pill { position: absolute; }
 .ws-pill--green { --pill: url("../assets/images/workshop/btn-uiNav.webp"); --cap: 83; --shade: rgba(12, 70, 140, 0.55); --drop: rgba(10, 60, 120, 0.35); color: #fff; }
-.ws-pill--green::after { content: ''; flex: none; width: 0.62em; height: 0.62em; margin-left: 0.15em;
-  background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 1 L9 5 L2 9 Z' fill='%23fff'/%3E%3C/svg%3E");
-  filter: drop-shadow(0 2px 0 rgba(12, 70, 140, 0.55)); }
 .ws-option.ws-option--pill.is-correct { --pill: url("../assets/images/workshop/btn-uiSuccess.webp"); --cap: 83; --shade: rgba(20, 90, 30, 0.5); --drop: rgba(20, 90, 30, 0.35); color: #fff; text-shadow: 0 2px 0 var(--shade); animation: ws-opt-good 600ms ease-out both; }
 .ws-option.ws-option--pill.is-incorrect { --pill: url("../assets/images/workshop/btn-uiDanger.webp"); --cap: 83; --shade: rgba(130, 20, 20, 0.5); --drop: rgba(130, 20, 20, 0.35); color: #fff; text-shadow: 0 2px 0 var(--shade); }
 .ws-option.ws-option--pill.is-selected { filter: drop-shadow(0 0 3px #fff) drop-shadow(0 0 10px rgba(255, 196, 0, 0.95)) drop-shadow(0 4px 0 var(--drop)); transform: translateY(2px); }
@@ -449,5 +444,21 @@
   opacity: 0; transform: translateY(8px); transition: opacity 300ms, transform 360ms var(--ease-back); }
 .ws-summary__title.is-shown { opacity: 1; transform: none; }
 /* The closing "both ways" card wears the same shape-card look as the collected cards. */
-.ws-summary__big.ws-summary__big--both { background: linear-gradient(180deg, #ffffff 0%, #eef6ff 100%); border: 4px solid #fff; border-radius: 22px;
-  box-shadow: 0 0 0 3px #8db9ee, 0 8px 0 3px #5b8fd6, 0 14px 20px rgba(18, 59, 99, 0.16); }
+.ws-summary__big.ws-summary__big--both { --badge: #1d3a5f; gap: 10px; padding: 60px 30px 30px; }
+
+/* Ducked behind a summary card he is hidden, so he never hangs in the air once the card has flown away. */
+.guide { transition: left 520ms var(--ease-out), top 520ms var(--ease-out), opacity 180ms; }
+.guide.is-ducked { opacity: 0; }
+
+/* The summary's big card: the figure fills it; the name tag sits on the middle of its bottom edge. */
+.ws-summary__big:not(.ws-summary__big--both) { overflow: visible; justify-content: center; padding: 50px 18px 34px; }
+.ws-summary__big svg.ws-figure { overflow: visible; }
+.ws-summary__tag { position: absolute !important; left: 50%; bottom: -24px; translate: -50% 0; font-size: 27px; padding: 7px 28px 6px; }
+.ws-summary__tag.is-pulse { animation: ws-glow-pulse 700ms ease-out; }
+.ws-summary__big.is-collecting .ws-summary__tag { opacity: 0; }
+.ws-figure__wedge.is-pulse, .ws-figure__square.is-pulse, .ws-figure__tick.is-pulse { animation: ws-glow-pulse 700ms ease-out; }
+.ws-figure__wedge.is-pulse { fill-opacity: 0.75 !important; }
+
+/* A collected card keeps its name tag, on the middle of its bottom edge. */
+.ws-summary__slot { overflow: visible; justify-content: flex-start; padding-top: 10px; }
+.ws-summary__slot-tag { position: absolute !important; left: 50%; bottom: -17px; translate: -50% 0; font-size: 17px; padding: 4px 14px 3px; border-width: 2px; }
