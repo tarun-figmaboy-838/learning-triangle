@@ -5815,7 +5815,7 @@ function createTriangleCanvas({ host, width, height, audio }) {
   for (const v of vertices) tri.appendChild(v.group);
 
   let points = [[width / 2, 120], [width / 2 - 180, 420], [width / 2 + 180, 420]];
-  let visible = { ...DEFAULT_VISIBLE };
+  let visible = { ...DEFAULT_VISIBLE, sides: false, vertices: false };     // nothing until a screen places its triangle
   let pxPerCm = PX_PER_CM;              // bigger on the measuring screens (setZoom), 1 cm stays 1 cm
   let measured = measure(points, pxPerCm);
   let drag = { enabled: false, goal: null, bounds: null, silentSnaps: false, onChange: null, onRelease: null };
@@ -6238,9 +6238,11 @@ function createTriangleCanvas({ host, width, height, audio }) {
       render();
     },
     /** Which parts show: sides, vertices, sideLabels, angleArcs, angleLabels (true | [indices]), ticks, square. */
-    setVisible(next, { merge = true } = {}) {
+    setVisible(next, { merge = true, instant = false } = {}) {
       visible = merge ? { ...visible, ...next } : { ...DEFAULT_VISIBLE, ...next };
+      if (instant) tri.classList.add('is-instant');      // no fade: nothing of the old shape lingers
       render();
+      if (instant) requestAnimationFrame(() => requestAnimationFrame(() => tri.classList.remove('is-instant')));
     },
     get visible() { return { ...visible }; },
     setTone(index, tone) {
@@ -7510,6 +7512,12 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
     const keepable = screen.keep && shown && (!screen.requires || classificationOf(screen.requires) === screen.requires);
     if (!keepable) canvas.setZoom(screen.zoom ?? fitZoom(screen));        // a kept shape keeps its scale, so its lengths stay true
     const target = layoutFromSpec(screen.triangle, { ...frame, pxPerCm: canvas.pxPerCm });
+    if (screen.kind === 'draw') {
+      // A screen that draws the triangle starts from an empty card: nothing is shown before the pen moves.
+      canvas.setVisible({ sides: false, vertices: false }, { merge: false, instant: true });
+      canvas.setPoints(target);
+      return;
+    }
     if (keepable) {
       // The learner's own shape stays; it only slides over if this screen frames it differently.
       const points = canvas.points;
@@ -8149,7 +8157,8 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
     gameState.update({ learningScreen: screen.id });
     board.cancelCues();
     await clearOverlay();
-    board.narrationEl.hidden = false;
+    board.clearNarration();
+    board.narrationEl.hidden = true;               // it opens with the screen's first line, never empty
     await Promise.all([prepareTriangle(screen), screen.kind === 'summary' ? Promise.resolve() : placeGuide(screen)]);
     const runner = runners[screen.kind];
     if (!runner) throw new Error(`Unknown learning screen kind: ${screen.kind}`);

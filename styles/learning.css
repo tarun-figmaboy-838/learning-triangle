@@ -462,3 +462,5 @@
 /* A collected card keeps its name tag, on the middle of its bottom edge. */
 .ws-summary__slot { overflow: visible; justify-content: flex-start; padding-top: 10px; }
 .ws-summary__slot-tag { position: absolute !important; left: 50%; bottom: -17px; translate: -50% 0; font-size: 17px; padding: 4px 14px 3px; border-width: 2px; }
+
+.ws-tri.is-instant, .ws-tri.is-instant * { transition: none !important; }

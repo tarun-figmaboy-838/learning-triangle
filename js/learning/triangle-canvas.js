@@ -74,7 +74,7 @@ export function createTriangleCanvas({ host, width, height, audio }) {
   for (const v of vertices) tri.appendChild(v.group);
 
   let points = [[width / 2, 120], [width / 2 - 180, 420], [width / 2 + 180, 420]];
-  let visible = { ...DEFAULT_VISIBLE };
+  let visible = { ...DEFAULT_VISIBLE, sides: false, vertices: false };     // nothing until a screen places its triangle
   let pxPerCm = PX_PER_CM;              // bigger on the measuring screens (setZoom), 1 cm stays 1 cm
   let measured = measure(points, pxPerCm);
   let drag = { enabled: false, goal: null, bounds: null, silentSnaps: false, onChange: null, onRelease: null };
@@ -497,9 +497,11 @@ export function createTriangleCanvas({ host, width, height, audio }) {
       render();
     },
     /** Which parts show: sides, vertices, sideLabels, angleArcs, angleLabels (true | [indices]), ticks, square. */
-    setVisible(next, { merge = true } = {}) {
+    setVisible(next, { merge = true, instant = false } = {}) {
       visible = merge ? { ...visible, ...next } : { ...DEFAULT_VISIBLE, ...next };
+      if (instant) tri.classList.add('is-instant');      // no fade: nothing of the old shape lingers
       render();
+      if (instant) requestAnimationFrame(() => requestAnimationFrame(() => tri.classList.remove('is-instant')));
     },
     get visible() { return { ...visible }; },
     setTone(index, tone) {

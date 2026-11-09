@@ -146,6 +146,12 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
     const keepable = screen.keep && shown && (!screen.requires || classificationOf(screen.requires) === screen.requires);
     if (!keepable) canvas.setZoom(screen.zoom ?? fitZoom(screen));        // a kept shape keeps its scale, so its lengths stay true
     const target = layoutFromSpec(screen.triangle, { ...frame, pxPerCm: canvas.pxPerCm });
+    if (screen.kind === 'draw') {
+      // A screen that draws the triangle starts from an empty card: nothing is shown before the pen moves.
+      canvas.setVisible({ sides: false, vertices: false }, { merge: false, instant: true });
+      canvas.setPoints(target);
+      return;
+    }
     if (keepable) {
       // The learner's own shape stays; it only slides over if this screen frames it differently.
       const points = canvas.points;
@@ -785,7 +791,8 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
     gameState.update({ learningScreen: screen.id });
     board.cancelCues();
     await clearOverlay();
-    board.narrationEl.hidden = false;
+    board.clearNarration();
+    board.narrationEl.hidden = true;               // it opens with the screen's first line, never empty
     await Promise.all([prepareTriangle(screen), screen.kind === 'summary' ? Promise.resolve() : placeGuide(screen)]);
     const runner = runners[screen.kind];
     if (!runner) throw new Error(`Unknown learning screen kind: ${screen.kind}`);
