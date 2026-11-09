@@ -184,101 +184,101 @@
   "id": "vo021",
   "speaker": "builder",
   "line": "We must identify them! But to do that we need to learn about triangles first.",
-  "spoken": "We must identify them! But to do that we need to learn about triangles first.",
+  "spoken": "वी मस्ट आइडेंटिफाई देम! बट टू डू दैट वी नीड टू लर्न अबाउट ट्राएंगल्स फर्स्ट।",
   "where": [
    "Triangle Workshop Hook"
   ],
-  "seconds": 5.74
+  "seconds": 6.08
  },
  {
   "id": "vo022",
   "speaker": "builder",
   "line": "This is a triangle.",
-  "spoken": "This is a triangle.",
+  "spoken": "दिस इज ए ट्रायंगल।",
   "where": [
    "Triangle Workshop L01"
   ],
-  "seconds": 1.52
+  "seconds": 2.24
  },
  {
   "id": "vo023",
   "speaker": "builder",
   "line": "A closed shape with 3 straight sides is called a triangle.",
-  "spoken": "A closed shape with three straight sides is called a triangle.",
+  "spoken": "ए क्लोज्ड शेप विद थ्री स्ट्रेट साइड्स इज कॉल्ड ए ट्रायंगल।",
   "where": [
    "Triangle Workshop L02"
   ],
-  "seconds": 3.98
+  "seconds": 4.96
  },
  {
   "id": "vo024",
   "speaker": "builder",
   "line": "Triangles can be of different types. Let's explore them!",
-  "spoken": "Triangles can be of different types. Let's explore them!",
+  "spoken": "ट्राइऐंगल्स कैन बी ऑफ डिफरेंट टाइप्स। लेट्स एक्सप्लोर देम!",
   "where": [
    "Triangle Workshop L03"
   ],
-  "seconds": 4.15
+  "seconds": 3.92
  },
  {
   "id": "vo025",
   "speaker": "builder",
   "line": "Let's measure the sides of this triangle.",
-  "spoken": "Let's measure the sides of this triangle.",
+  "spoken": "लेट्स मेजर द साइड्स ऑफ दिस ट्रायंगल।",
   "where": [
    "Triangle Workshop L04"
   ],
-  "seconds": 2.61
+  "seconds": 3.08
  },
  {
   "id": "vo026",
   "speaker": "builder",
   "line": "What do you notice about the sides?",
-  "spoken": "What do you notice about the sides?",
+  "spoken": "वॉट डू यू नोटिस अबाउट द साइड्स?",
   "where": [
    "Triangle Workshop L05"
   ],
-  "seconds": 2.48
+  "seconds": 2.56
  },
  {
   "id": "vo027",
   "speaker": "builder",
   "line": "A triangle with all three sides different is called a scalene triangle.",
-  "spoken": "A triangle with all three sides different is called a scalene triangle.",
+  "spoken": "ए ट्राएंगल विद ऑल थ्री साइड्स डिफरेंट इज कॉल्ड ए स्केलीन ट्राएंगल।",
   "where": [
    "Triangle Workshop L06"
   ],
-  "seconds": 4.66
+  "seconds": 5.12
  },
  {
   "id": "vo028",
   "speaker": "builder",
   "line": "What if two sides were equal?",
-  "spoken": "What if two sides were equal?",
+  "spoken": "वॉट इफ टू साइड्स वर इक्वल?",
   "where": [
    "Triangle Workshop L07"
   ],
-  "seconds": 2.09
+  "seconds": 2.4
  },
  {
   "id": "vo029",
   "speaker": "builder",
   "line": "A triangle with two equal sides is called an isosceles triangle.",
-  "spoken": "A triangle with two equal sides is called an isosceles triangle.",
+  "spoken": "ए ट्रायंगल विद टू इक्वल साइड्स इज कॉल्ड एन आइसोसिलीज़ ट्रायंगल।",
   "where": [
    "Triangle Workshop L08"
   ],
-  "seconds": 4.73
+  "seconds": 4.84
  },
  {
   "id": "vo030",
   "speaker": "builder",
   "line": "Can you make all three sides equal?",
-  "spoken": "Can you make all three sides equal?",
+  "spoken": "कैन यू मेक ऑल थ्री साइड्स इक्वल?",
   "where": [
    "Triangle Workshop L09"
   ],
-  "seconds": 2.52
+  "seconds": 2.88
  },
  {
   "id": "vo031",
@@ -294,21 +294,21 @@
   "id": "vo032",
   "speaker": "builder",
   "line": "Sort the triangles.",
-  "spoken": "Sort the triangles.",
+  "spoken": "सॉर्ट द ट्रायंगल्स.",
   "where": [
    "Triangle Workshop CFU01"
   ],
-  "seconds": 1.56
+  "seconds": 1.77
  },
  {
   "id": "vo033",
   "speaker": "builder",
   "line": "Great job! You sorted all the triangles.",
-  "spoken": "Great job! You sorted all the triangles.",
+  "spoken": "ग्रेट जॉब! यू सॉर्टेड ऑल द ट्राएंगल्स।",
   "where": [
    "Triangle Workshop CFU01"
   ],
-  "seconds": 3.26
+  "seconds": 2.93
  },
  {
   "id": "vo034",
@@ -624,21 +624,21 @@
   "id": "vo065",
   "speaker": "builder",
   "line": "Drag any vertex to make two sides equal.",
-  "spoken": "Drag any vertex to make two sides equal.",
+  "spoken": "ड्रैग एनी वर्टेक्स टू मेक टू साइड्स इक्वल।",
   "where": [
    "Triangle workshop"
   ],
-  "seconds": 3.11
+  "seconds": 3.76
  },
  {
   "id": "vo066",
   "speaker": "builder",
   "line": "Drag a vertex until the three lengths match.",
-  "spoken": "Drag a vertex until the three lengths match.",
+  "spoken": "ड्रैग ए वर्टेक्स अंटिल द थ्री लेंथ्स मैच।",
   "where": [
    "Triangle workshop"
   ],
-  "seconds": 2.93
+  "seconds": 3.13
  },
  {
   "id": "vo067",

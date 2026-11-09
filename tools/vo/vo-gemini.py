@@ -91,14 +91,24 @@ class Unavailable(Exception):
     """This model is not open to this key (try the next one)."""
 
 
+class NoAudio(Exception):
+    """The model answered without audio (it happens now and then): try the line again."""
+
+
+SKIP_MODELS = set()          # models found unavailable today: not asked again
+
+
 def call_first(models, body, key):
     """The first model in `models` that this key may use."""
     last = None
     for model in models:
+        if model in SKIP_MODELS:
+            continue
         try:
             return call(model, body, key)
         except Unavailable as error:
             last = error
+            SKIP_MODELS.add(model)
             print(f"   {model} not available with this key ({error}); trying the next model")
     raise SystemExit(f"no model available with this key: {last}")
 
@@ -112,12 +122,17 @@ def call(model, body, key):
             with urllib.request.urlopen(request, timeout=120) as response:
                 return json.loads(response.read())
         except urllib.error.HTTPError as error:
-            detail = error.read().decode(errors="replace")[:300]
+            detail_full = error.read().decode(errors="replace")
+            detail = detail_full[:300]
             if error.code in (400, 403, 404) or (error.code == 429 and "limit: 0" in detail):
                 raise Unavailable(f"HTTP {error.code}")          # not on this key's plan: the caller tries the next model
             if error.code in (429, 500, 503) and attempt < 5:
-                wait = 20 * (attempt + 1)
-                print(f"   {model}: HTTP {error.code}, retrying in {wait}s")
+                # Wait exactly as long as the API asks (retryDelay), not a growing guess.
+                asked = re.search(r'"retryDelay":\s*"([\d.]+)s"', detail_full)
+                wait = float(asked.group(1)) + 1 if asked else 8 * (attempt + 1)
+                if "PerDay" in detail_full or "per_day" in detail_full.lower():
+                    raise Unavailable("daily limit used up")
+                print(f"   {model}: HTTP {error.code}, retrying in {wait:.0f}s")
                 time.sleep(wait)
                 continue
             raise SystemExit(f"{model}: HTTP {error.code}: {detail}")
@@ -134,7 +149,11 @@ def speak(text, key):
     body = {"contents": [{"parts": [{"text": text}]}],
             "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": VOICE}}}}}
     reply = call_first(TTS_MODELS, body, key)
-    part = reply["candidates"][0]["content"]["parts"][0]["inlineData"]
+    candidate = (reply.get("candidates") or [{}])[0]
+    parts = candidate.get("content", {}).get("parts", [])
+    if not parts or "inlineData" not in parts[0]:
+        raise NoAudio(candidate.get("finishReason", "no audio"))
+    part = parts[0]["inlineData"]
     rate = int(re.search(r"rate=(\d+)", part.get("mimeType", "")).group(1)) if "rate=" in part.get("mimeType", "") else 24000
     return base64.b64decode(part["data"]), rate
 
@@ -175,20 +194,41 @@ def main():
     if not key:
         raise SystemExit("Set GEMINI_API_KEY (a key from https://aistudio.google.com/apikey), then run again.")
     redo = "--all" in sys.argv
+    try:
+        record_all(rows, script, key, redo)
+    finally:
+        write_map(rows)
+
+
+def record_all(rows, script, key, redo):
     for row in rows:
         studio = os.path.join(VO_DIR, f"{row['id']}.mp3")
         clip = os.path.join(VO_DIR, f"{row['id']}.m4a")
         if os.path.exists(studio) or (os.path.exists(clip) and not redo):
             continue
         spoken = prepare(row["line"], key)
-        pcm, rate = speak(spoken, key)
+        audio = None
+        # A bare line now and then comes back without audio ("OTHER"); a short speaking instruction in front
+        # (not read aloud by the speech model) fixes it.
+        for attempt, text in enumerate([spoken, spoken, f"Say clearly: {spoken}", f"Read this aloud for students: {spoken}"]):
+            try:
+                audio = speak(text, key)
+                break
+            except NoAudio as error:
+                print(f"   {row['id']}: no audio ({error}), trying again")
+        if not audio:
+            print(f"   {row['id']}: skipped for now (run again to retry): {row['line']}")
+            continue
+        pcm, rate = audio
         write_clip(pcm, rate, clip)
         row["spoken"] = spoken
         row["seconds"] = seconds_of(clip)
         print(f"recorded {row['id']} ({row['seconds']} s): {row['line']}")
         json.dump(script, open(SCRIPT, "w", encoding="utf-8"), indent=1, ensure_ascii=False)   # progress survives a stop
-        time.sleep(1.5)
-    # The clip map: every existing entry stays, each lesson line points at its clip (studio .mp3 first).
+
+
+def write_map(rows):
+    """The clip map: every existing entry stays, each lesson line points at its clip (studio .mp3 first)."""
     entries = {}
     if os.path.exists(LINES_JS):
         for m in re.finditer(r'^  ("(?:[^"\\]|\\.)*"): \{ id: "([^"]+)", file: "([^"]+)", seconds: ([\d.]+), speaker: "([^"]+)" \},$', open(LINES_JS, encoding="utf-8").read(), re.M):
