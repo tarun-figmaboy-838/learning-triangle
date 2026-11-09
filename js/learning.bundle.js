@@ -4292,14 +4292,14 @@ const LEARNING_SCREENS = Object.freeze([
     narration: 'A triangle with all three sides different is called a scalene triangle.', focus: 'scalene' },
   { id: 'L07', kind: 'drag', section: 'sides', triangle: SCALENE_546, goal: 'isosceles', hintVertex: 0,
     show: { sideLabels: true, ticks: true },
-    narration: 'What if two sides were equal?', sub: 'Drag any vertex to make two sides equal.' },
+    narration: 'What if two sides were equal?', instruction: 'Drag any vertex to make two sides equal.' },
   { id: 'L08', kind: 'discover', section: 'sides', triangle: { sides: [5, 6, 5] }, keep: true, requires: 'isosceles',
     show: { sideLabels: true, ticks: true }, highlightEqual: true,
     badge: 'ISOSCELES', tone: 'isosceles', cues: { highlight: 'two equal sides', name: 'isosceles' },
     narration: 'A triangle with two equal sides is called an isosceles triangle.', focus: 'isosceles' },
   { id: 'L09', kind: 'drag', section: 'sides', triangle: { pts: [[2.65, 4.24], [0, 0], [5.3, 0]] }, goal: 'equilateral', hintVertex: 2,
     show: { sideLabels: true, ticks: true },
-    narration: 'Can you make all three sides equal?', sub: 'Drag a vertex until the three lengths match.' },
+    narration: 'Can you make all three sides equal?', instruction: 'Drag a vertex until the three lengths match.' },
   { id: 'L10', kind: 'discover', section: 'sides', triangle: { sides: [5, 5, 5] }, keep: true, requires: 'equilateral',
     show: { sideLabels: true, ticks: true }, highlightEqual: true,
     badge: 'EQUILATERAL', tone: 'equilateral', cues: { highlight: 'all three sides equal', name: 'equilateral' },
@@ -4340,14 +4340,14 @@ const LEARNING_SCREENS = Object.freeze([
     narration: 'A triangle which has 3 acute angles is called an acute angled triangle.', focus: 'acute angled' },
   { id: 'L15', kind: 'drag', section: 'angles', triangle: { angles: [65, 62, 53], base: 5.6 }, goal: 'right', hintVertex: 0,
     show: { angleArcs: true, angleLabels: true, square: true },
-    narration: 'Can you make one angle exactly 90°?', sub: 'Drag a vertex; angles change live.' },
+    narration: 'Can you make one angle exactly 90°?', instruction: 'Drag a vertex; angles change live.' },
   { id: 'L16', kind: 'discover', section: 'angles', triangle: { angles: [55, 90, 35], base: 5 }, keep: true, requires: 'right',
     show: { angleArcs: true, angleLabels: true, square: true }, highlightAngles: 'right',
     badge: 'RIGHT-ANGLED', tone: 'right', cues: { highlight: 'one angle equal to 90°', name: 'right angled' },
     narration: 'A triangle with one angle equal to 90° is called a right angled triangle.', focus: 'right angled' },
   { id: 'L17', kind: 'drag', section: 'angles', triangle: { angles: [78, 54, 48], base: 6 }, goal: 'obtuse', hintVertex: 0,
     show: { angleArcs: true, angleLabels: true, square: true },
-    narration: 'What if one of the angles was obtuse?', sub: 'Drag any vertex to make any angle obtuse.' },
+    narration: 'What if one of the angles was obtuse?', instruction: 'Drag any vertex to make any angle obtuse.' },
   { id: 'L18', kind: 'discover', section: 'angles', triangle: { angles: [110, 40, 30], base: 7 }, keep: true, requires: 'obtuse',
     show: { angleArcs: true, angleLabels: true }, highlightAngles: 'obtuse',
     badge: 'OBTUSE-ANGLED', tone: 'obtuse', cues: { highlight: 'greater than 90°', name: 'obtuse-angled' },
@@ -4366,7 +4366,7 @@ const LEARNING_SCREENS = Object.freeze([
     success: 'Correct! Both A and D have only acute angles.' },
   { id: 'CFU04', kind: 'drag', section: 'checkpoint', triangle: { angles: [70, 60, 50], base: 5.6 }, goal: 'right', hintVertex: 0, hintAfterMs: 20000,
     show: { angleArcs: true, angleLabels: true, square: true },
-    narration: 'Make this triangle right-angled.', sub: 'Drag any vertex to create one 90° angle.',
+    narration: 'Make this triangle right-angled.', instruction: 'Drag any vertex to create one 90° angle.',
     success: { badge: 'RIGHT-ANGLED', tone: 'right', narration: 'A triangle with one 90° angle is right-angled.', highlightAngles: 'right', name: 'right-angled' } },
 
   /* ---- Both ---- */
@@ -4408,7 +4408,7 @@ const LEARNING_SCREENS = Object.freeze([
       narration: 'Correct! This triangle is scalene and obtuse-angled.' } },
   { id: 'CFU06', kind: 'drag', section: 'checkpoint', triangle: SCALENE_546, goal: 'rightIsosceles', hintVertex: 0, hintAfterMs: 30000, silentSnaps: true,
     show: { sideLabels: true, ticks: true, angleLabels: true, square: true },
-    narration: 'Make a right-angled isosceles triangle.', sub: 'Satisfy both conditions in one shape.',
+    narration: 'Make a right-angled isosceles triangle.', instruction: 'Satisfy both conditions in one shape.',
     success: { final: true, badges: [{ text: 'ISOSCELES', tone: 'isosceles', about: 'sides' }, { text: 'RIGHT-ANGLED', tone: 'right', about: 'angle' }],
       narration: 'You can classify triangles by sides and angles!' } },
 
@@ -5227,6 +5227,40 @@ function wordDelays(text, spoken, typingMs) {
   const step = words.length > 1 ? Math.max(40, Math.min(220, (typingMs - 300) / (words.length - 1))) : 0;
   return words.map((_, i) => Math.round(synced ? times[i] / (spoken.rate ?? 1) : i * step));
 }
+/**
+ * A line longer than one comfortable box is shown in parts, one after another (the voice reads it whole):
+ * first at sentence ends, then at a natural join nearest the middle. Returns word-index boundaries.
+ */
+const LINE_MAX = 58;
+const JOINS = [' is called ', ', ', ' and ', ' but ', ' so ', ' by ', ' when ', ' to ', ' with '];
+function splitLine(text) {
+  const words = text.split(' ');
+  if (text.length <= LINE_MAX) return [[0, words.length]];
+  const pieces = [];                                 // [startWord, endWord) ranges
+  let start = 0;
+  words.forEach((w, i) => { if (/[.!?]$/.test(w) && i < words.length - 1) { pieces.push([start, i + 1]); start = i + 1; } });
+  pieces.push([start, words.length]);
+  const out = [];
+  for (const [a, b] of pieces) {
+    const piece = words.slice(a, b).join(' ');
+    if (piece.length <= LINE_MAX || b - a < 4) { out.push([a, b]); continue; }
+    let bestAt = -1; let bestDist = Infinity;
+    for (const join of JOINS) {
+      let from = 0;
+      for (;;) {
+        const at = piece.indexOf(join, from);
+        if (at < 0) break;
+        const cut = join === ', ' ? at + 1 : at;    // the comma stays with the first part
+        const dist = Math.abs(cut - piece.length / 2);
+        const wordsBefore = piece.slice(0, cut).trim().split(' ').length;
+        if (dist < bestDist && wordsBefore >= 2 && b - a - wordsBefore >= 2) { bestDist = dist; bestAt = a + wordsBefore; }
+        from = at + 1;
+      }
+    }
+    if (bestAt > a && bestAt < b) { out.push([a, bestAt]); out.push([bestAt, b]); } else out.push([a, b]);
+  }
+  return out;
+}
 /** The index of the word where `phrase` begins in `text` (case and trailing punctuation ignored), or -1. */
 function phraseIndex(text, phrase) {
   const clean = (w) => w.toLowerCase().replace(/[.,!?;:]+$/, '');
@@ -5247,7 +5281,6 @@ function createWorkshopBoard({ hostEl, voice, audio, talker = null }) {
     <div class="workshop__card">
       <div class="ws-narration" role="status" aria-live="polite">
         <p class="ws-narration__text"></p>
-        <p class="ws-narration__sub" hidden></p>
       </div>
       <div class="workshop__surface">
         <div class="ws-stage"></div>
@@ -5264,11 +5297,13 @@ function createWorkshopBoard({ hostEl, voice, audio, talker = null }) {
   const guideHostEl = root.querySelector('.workshop__guide');
   const narrationEl = root.querySelector('.ws-narration');
   const textEl = root.querySelector('.ws-narration__text');
-  const subEl = root.querySelector('.ws-narration__sub');
 
   const reduced = () => prefersReducedMotion();
   let cueTimers = [];
-  const cancelCues = () => { cueTimers.forEach(clearTimeout); cueTimers = []; };
+  let partTimers = [];
+  let currentLine = '';
+  const cancelParts = () => { partTimers.forEach(clearTimeout); partTimers = []; };
+  const cancelCues = () => { cueTimers.forEach(clearTimeout); cueTimers = []; cancelParts(); };
   /** Runs each cue when its phrase is spoken (the words appear at the same moment). */
   function scheduleCues(text, spoken, typingMs, cues) {
     cancelCues();
@@ -5319,7 +5354,7 @@ function createWorkshopBoard({ hostEl, voice, audio, talker = null }) {
      * The teaching line: the words appear at the voice's pace (recorded clip, device voice, or a
      * reading pace); the beaver talks meanwhile when he is there. `focus` words take the key-word style.
      */
-    narrate(text, { sub = null, focus = null, speaker = 'builder', mode = 'swap', visible = true, cues = null } = {}) {
+    narrate(text, { focus = null, speaker = 'builder', mode = 'swap', visible = true, cues = null } = {}) {
       narrationEl.hidden = !visible;
       if (!visible) {
         const spoken = voice.say(text, { speaker });
@@ -5330,46 +5365,42 @@ function createWorkshopBoard({ hostEl, voice, audio, talker = null }) {
       if (mode === 'swap') playClassAnimation(narrationEl, 'is-swapping', 420);
       const spoken = voice.say(text, { speaker });
       const typingMs = spoken.spoke ? Math.max(300, (spoken.seconds - 0.35) * 1000) : Math.min(4200, text.length * READING_MS_PER_CHARACTER);
-      const typed = revealWords(textEl, text, typingMs, focus, { times: spoken.clipId ? VO_WORD_TIMES[spoken.clipId] : null, rate: spoken.rate ?? 1, started: spoken.started });
+      currentLine = text;
+      cancelParts();
+      const parts = splitLine(text);
+      let typed;
+      if (parts.length === 1) {
+        typed = revealWords(textEl, text, typingMs, focus, { times: spoken.clipId ? VO_WORD_TIMES[spoken.clipId] : null, rate: spoken.rate ?? 1, started: spoken.started });
+      } else {
+        // Each part takes the box in turn, when its first word is due; the words keep the whole line's timing.
+        const words = text.split(' ');
+        const delays = wordDelays(text, spoken, typingMs);
+        const showPart = ([a, b], started) => revealWords(textEl, words.slice(a, b).join(' '), 0, focus, { times: delays.slice(a, b).map((d) => d - delays[a]), rate: 1, started });
+        showPart(parts[0], spoken.started);
+        (spoken.started ?? Promise.resolve()).then(() => {
+          for (const part of parts.slice(1)) {
+            partTimers.push(setTimeout(() => { playClassAnimation(narrationEl, 'is-swapping', 420); showPart(part, null); }, reduced() ? 0 : delays[part[0]]));
+          }
+        });
+        const last = parts[parts.length - 1];
+        typed = wait(reduced() ? 0 : delays[last[1] - 1] + 460);
+      }
       scheduleCues(text, spoken, typingMs, cues);
-      this.setSub(sub);
       this.talker?.talkUntil?.(spoken.finished);
       return { finished: Promise.all([spoken.finished, typed]).then(() => undefined), seconds: spoken.seconds };
-    },
-    /** The instruction line, spoken after the question: it appears under the line, word by word. */
-    narrateSub(text, { speaker = 'builder' } = {}) {
-      narrationEl.hidden = false;
-      subEl.hidden = false;
-      subEl.classList.remove('is-hint');
-      const spoken = voice.say(text, { speaker });
-      const typingMs = spoken.spoke ? Math.max(300, (spoken.seconds - 0.35) * 1000) : Math.min(4200, text.length * READING_MS_PER_CHARACTER);
-      const typed = revealWords(subEl, text, typingMs, null, { times: spoken.clipId ? VO_WORD_TIMES[spoken.clipId] : null, rate: spoken.rate ?? 1, started: spoken.started });
-      this.talker?.talkUntil?.(spoken.finished);
-      return { finished: Promise.all([spoken.finished, typed]).then(() => undefined), seconds: spoken.seconds };
-    },
-    /** A quieter second line under the narration (an instruction or, after a wrong try, a hint). */
-    setSub(text, { hint = false } = {}) {
-      subEl.hidden = !text;
-      subEl.textContent = text ?? '';
-      subEl.classList.toggle('is-hint', hint);
-      if (text) playClassAnimation(subEl, 'is-entering', 420);
-    },
-    /** The instruction line on screen, as plain text (for the QA hooks). */
-    get subText() {
-      if (subEl.hidden) return '';
-      return subEl.querySelector('.visually-hidden')?.textContent ?? subEl.textContent;
     },
     /** The line on screen, as plain text (for the QA hooks). */
     get narrationText() {
-      return textEl.querySelector('.visually-hidden')?.textContent ?? textEl.textContent;
+      return currentLine || (textEl.querySelector('.visually-hidden')?.textContent ?? textEl.textContent);
     },
     /** Stops the voice mid-line (a debug jump). */
     stopVoice() {
       voice.stop();
     },
     clearNarration() {
+      cancelParts();
+      currentLine = '';
       textEl.textContent = '';
-      this.setSub(null);
     },
     hideNarration() {
       narrationEl.hidden = true;
@@ -5379,7 +5410,7 @@ function createWorkshopBoard({ hostEl, voice, audio, talker = null }) {
     },
   };
 }
-  return { BOARD, createWorkshopBoard };
+  return { BOARD, splitLine, createWorkshopBoard };
 });
 __define('js/learning/triangle-model.js', function () {
 /**
@@ -5808,12 +5839,13 @@ __define('js/learning/triangle-canvas.js', function () {
  * while a goal is set, a corner near a position that makes the goal true snaps onto it.
  */
 const { measure, formatCm, formatDeg, constrainVertex, snapVertex, goalMet, solutionFor, vec, PX_PER_CM } = __require('js/learning/triangle-model.js');
-const { svgEl, fmt, sideLabelPoint, angleLabelPoint, arcPath, squarePoints, tickSegment, cornerFrame, outwardNormal, sideMidpoint, centroid, ARC_RADIUS } = __require('js/learning/triangle-draw.js');
+const { svgEl, fmt, sideLabelPoint, angleLabelPoint, arcPath, squarePoints, tickSegment, outwardNormal, sideMidpoint, centroid, ARC_RADIUS } = __require('js/learning/triangle-draw.js');
 const { tween, easings, wait, prefersReducedMotion, playClassAnimation } = __require('js/core/motion.js');
 const VERTEX_HIT_RADIUS = 46;
 const DEFAULT_VISIBLE = Object.freeze({ sides: true, vertices: true, sideLabels: false, angleArcs: false, angleLabels: false, ticks: false, square: false });
 
-const WEDGE_RADIUS = 56;           // the filled slice reaches past the arc so it reads between the thick sides
+/** The corner mark's radius: a little bigger for narrow angles so the slice still reads (Fishing Frenzy's rule). */
+const angleRadius = (deg) => ARC_RADIUS * Math.min(1.25, Math.max(0.85, Math.sqrt(90 / Math.max(1, deg))));
 const normaliseSet = (value) => (value === true ? [0, 1, 2] : Array.isArray(value) ? value : []);
 
 function createTriangleCanvas({ host, width, height, audio }) {
@@ -5826,8 +5858,10 @@ function createTriangleCanvas({ host, width, height, audio }) {
   svg.appendChild(defs);
   const toolLayer = svgEl('g', { class: 'ws-tools' });
   const tri = svgEl('g', { class: 'ws-tri' });
+  const markLayer = svgEl('g', { class: 'ws-marks' });     // corner fills and arcs sit UNDER the sides, so nothing crosses a line
   const fxLayer = svgEl('g', { class: 'ws-fx' });
   svg.append(toolLayer, tri, fxLayer);
+  tri.appendChild(markLayer);
 
   const sides = [0, 1, 2].map((i) => {
     const group = svgEl('g', { class: 'ws-side', 'data-index': i });
@@ -5839,12 +5873,14 @@ function createTriangleCanvas({ host, width, height, audio }) {
   });
   const angles = [0, 1, 2].map((i) => {
     const group = svgEl('g', { class: 'ws-angle', 'data-index': i });
+    const mark = svgEl('g', { class: 'ws-angle ws-angle--mark', 'data-index': i });   // same classes as the group, drawn under the sides
     const wedge = svgEl('path', { class: 'ws-angle__wedge' });    // the filled slice of the corner (Fishing Frenzy / Polygon style)
     const arc = svgEl('path', { class: 'ws-angle__arc' });
     const square = svgEl('polyline', { class: 'ws-angle__square' });
     const label = svgEl('text', { class: 'ws-angle__label' });
-    group.append(wedge, arc, square, label);
-    return { group, wedge, arc, square, label };
+    mark.append(wedge, arc);
+    group.append(square, label);
+    return { group, mark, wedge, arc, square, label };
   });
   const sideLabels = [0, 1, 2].map((i) => {
     const group = svgEl('g', { class: 'ws-side-label', 'data-index': i });
@@ -5862,6 +5898,7 @@ function createTriangleCanvas({ host, width, height, audio }) {
     group.append(hit, point);
     return { group, hit, point, plate, bolt };
   });
+  for (const a of angles) markLayer.appendChild(a.mark);
   for (const s of sides) tri.appendChild(s.group);
   for (const a of angles) tri.appendChild(a.group);
   for (const l of sideLabels) tri.appendChild(l.group);
@@ -5901,8 +5938,9 @@ function createTriangleCanvas({ host, width, height, audio }) {
 
       const a = angles[i];
       const isRight = measured.rightAt === i;
-      a.arc.setAttribute('d', arcPath(points, i));
-      a.wedge.setAttribute('d', wedgePath(points, i, WEDGE_RADIUS));
+      const radius = angleRadius(measured.deg[i]);
+      a.arc.setAttribute('d', arcPath(points, i, radius));
+      a.wedge.setAttribute('d', wedgePath(points, i, radius));
       a.square.setAttribute('points', squarePoints(points, i));
       const showArc = inSet(visible.angleArcs, i);
       const showSquare = visible.square && isRight;
@@ -5915,8 +5953,8 @@ function createTriangleCanvas({ host, width, height, audio }) {
       a.label.style.setProperty('--oy', `${fmt((points[i][1] - ly) * 0.75)}px`);
       a.label.textContent = formatDeg(measured.deg[i]);
       setHidden(a.label, !inSet(visible.angleLabels, i));
-      a.group.classList.toggle('is-right', isRight);
-      a.group.classList.toggle('is-obtuse', measured.obtuseAt === i);
+      angleClass(a, 'is-right', isRight);
+      angleClass(a, 'is-obtuse', measured.obtuseAt === i);
 
       const l = sideLabels[i];
       l.text.textContent = formatCm(measured.cm[i]);
@@ -5998,6 +6036,8 @@ function createTriangleCanvas({ host, width, height, audio }) {
   });
   svg.addEventListener('contextmenu', (event) => event.preventDefault());
 
+  const angleClass = (a, cls, on) => { a.group.classList.toggle(cls, on); a.mark.classList.toggle(cls, on); };
+
   /** The filled slice of corner i: from the vertex out to the arc and back (the arc may be partly swept). */
   function wedgePath(pts, i, radius = ARC_RADIUS, fraction = 1) {
     const v = pts[i];
@@ -6071,7 +6111,7 @@ function createTriangleCanvas({ host, width, height, audio }) {
   /** The same light sweeps round the arc of corner i. */
   function traceAngle(index, { delay = 0, duration = 700 } = {}) {
     if (reduced()) return;
-    const path = svgEl('path', { class: 'ws-trace-glow', d: arcPath(points, index, measured.rightAt === index ? 30 : undefined), pathLength: 1 });
+    const path = svgEl('path', { class: 'ws-trace-glow', d: arcPath(points, index, angleRadius(measured.deg[index])), pathLength: 1 });
     runTrace(path, delay, duration);
   }
   function runTrace(el, delay, duration) {
@@ -6150,7 +6190,7 @@ function createTriangleCanvas({ host, width, height, audio }) {
   }
 
   /** A construction tape runs along side i and leaves its length on a tag (PDF L04). */
-  async function measureSide(index, { signal, fromEnd = 0, tool = true, onProgress = null } = {}) {
+  async function measureSide(index, { signal, fromEnd = 0, tool = true, onProgress = null, hand = null } = {}) {
     const s = sides[index];
     const a = fromEnd ? points[(index + 1) % 3] : points[index];
     const b = fromEnd ? points[index] : points[(index + 1) % 3];
@@ -6174,6 +6214,16 @@ function createTriangleCanvas({ host, width, height, audio }) {
     const hook = svgEl('rect', { class: 'ws-tape-strip__hook', x: -3, y: -12, width: 7, height: 24, rx: 2 });
     strip.append(band, ticks, hook);
     toolLayer.appendChild(strip);
+    // The tape's lead: from the tip of the strip up to the hand that holds the case.
+    const lead = hand ? svgEl('line', { class: 'ws-tape-strip__lead' }) : null;
+    const held = hand ? svgEl('rect', { class: 'ws-tape-strip__case', width: 26, height: 18, rx: 4 }) : null;
+    if (hand) toolLayer.append(lead, held);
+    const leadTo = (tip) => {
+      const h = hand?.();
+      if (!h) return;
+      lead.setAttribute('x1', fmt(tip[0])); lead.setAttribute('y1', fmt(tip[1])); lead.setAttribute('x2', fmt(h[0])); lead.setAttribute('y2', fmt(h[1]));
+      held.setAttribute('x', fmt(h[0] - 13)); held.setAttribute('y', fmt(h[1] - 9));
+    };
     s.group.classList.add('is-measuring');
     // The trace line is drawn A→B in the DOM; measuring from the other end runs its dash the other way.
     for (const line of [s.trace]) { line.setAttribute('x1', fmt(a[0])); line.setAttribute('y1', fmt(a[1])); line.setAttribute('x2', fmt(b[0])); line.setAttribute('y2', fmt(b[1])); }
@@ -6190,15 +6240,20 @@ function createTriangleCanvas({ host, width, height, audio }) {
       hook.setAttribute('x', fmt(length * t - 3));
       s.trace.style.strokeDashoffset = fmt(length * (1 - t));
       onProgress?.(t, along);
+      leadTo(vec.add(along, vec.mul(n, 20)));
     } });
     await wait(reduced() ? 0 : 450, signal);          // the reading settles on the tape
     tape.classList.add('is-leaving');
     strip.classList.add('is-leaving');
+    lead?.classList.add('is-leaving');
+    held?.classList.add('is-leaving');
     s.group.classList.remove('is-measuring');
     setHidden(s.trace, true);
     await wait(reduced() ? 0 : 400, signal);
     tape.remove();
     strip.remove();
+    lead?.remove();
+    held?.remove();
     visible.sideLabels = [...new Set([...normaliseSet(visible.sideLabels), index])];
     render();
     audio?.play('measure');
@@ -6206,49 +6261,29 @@ function createTriangleCanvas({ host, width, height, audio }) {
     await wait(reduced() ? 0 : 450, signal);
   }
 
-  /** A protractor sits on corner i, its arc sweeps open to the angle, the value appears (PDF L11). */
+  /** The arc of corner i sweeps open while the value counts up beside it (the beaver holds the protractor on it, PDF L11). */
   async function measureAngle(index, { signal } = {}) {
     const a = angles[index];
-    const v = points[index];
-    const { u, theta } = cornerFrame(points, index);
-    const sign = vec.cross(u, cornerFrame(points, index).w) > 0 ? 1 : -1;
-    const baseAngle = (Math.atan2(u[1], u[0]) * 180) / Math.PI;
-    const protractor = svgEl('g', { class: 'ws-protractor', transform: `translate(${fmt(v[0])} ${fmt(v[1])}) rotate(${fmt(baseAngle)}) scale(1 ${sign})` });
-    const R = 96;
-    protractor.appendChild(svgEl('path', { class: 'ws-protractor__disc', d: `M ${R} 0 A ${R} ${R} 0 0 1 ${-R} 0 Z` }));
-    protractor.appendChild(svgEl('path', { class: 'ws-protractor__inner', d: `M ${R * 0.5} 0 A ${R * 0.5} ${R * 0.5} 0 0 1 ${-R * 0.5} 0` }));
-    for (let deg = 0; deg <= 180; deg += 10) {
-      const r = (deg * Math.PI) / 180;
-      const inner = deg % 30 === 0 ? R - 22 : R - 12;
-      protractor.appendChild(svgEl('line', { class: 'ws-protractor__tick', x1: fmt(inner * Math.cos(r)), y1: fmt(inner * Math.sin(r)), x2: fmt((R - 3) * Math.cos(r)), y2: fmt((R - 3) * Math.sin(r)) }));
-    }
-    protractor.appendChild(svgEl('circle', { class: 'ws-protractor__pin', cx: 0, cy: 0, r: 5 }));
-    toolLayer.appendChild(protractor);
-    playClassAnimation(protractor, 'is-pop', 400);
-    a.group.classList.add('is-measuring');
+    const reading = measured.deg[index];
+    const radius = angleRadius(reading);
+    angleClass(a, 'is-measuring', true);
     setHidden(a.arc, false);
     setHidden(a.wedge, false);
-    audio?.play('drawLine');
-    await tween({ duration: reduced() ? 0 : 1400, ease: easings.mechanical, signal, onUpdate: (t) => {
-      a.arc.setAttribute('d', arcPath(points, index, undefined, Math.max(0.02, t)));
-      a.wedge.setAttribute('d', wedgePath(points, index, WEDGE_RADIUS, Math.max(0.02, t)));
-    } });
-    a.arc.setAttribute('d', arcPath(points, index));
-    visible.angleArcs = [...new Set([...normaliseSet(visible.angleArcs), index])];
-    await wait(reduced() ? 0 : 500, signal);          // the reading settles on the protractor
-    protractor.classList.add('is-leaving');           // the tool lifts away first, so the value never sits on top of it
-    await wait(reduced() ? 0 : 400, signal);
-    protractor.remove();
     visible.angleLabels = [...new Set([...normaliseSet(visible.angleLabels), index])];
     render();
-    const reading = measured.deg[index];
-    await tween({ duration: reduced() ? 0 : 450, ease: easings.outQuad, signal, onUpdate: (t) => { a.label.textContent = `${Math.round(reading * t)}°`; } });
+    audio?.play('drawLine');
+    await tween({ duration: reduced() ? 0 : 1400, ease: easings.mechanical, signal, onUpdate: (t) => {
+      a.arc.setAttribute('d', arcPath(points, index, radius, Math.max(0.02, t)));
+      a.wedge.setAttribute('d', wedgePath(points, index, radius, Math.max(0.02, t)));
+      a.label.textContent = `${Math.round(reading * t)}°`;
+    } });
+    a.arc.setAttribute('d', arcPath(points, index, radius));
     a.label.textContent = formatDeg(reading);
+    visible.angleArcs = [...new Set([...normaliseSet(visible.angleArcs), index])];
     audio?.play('measure');
     playClassAnimation(a.label, 'is-pop', 520);
-    a.group.classList.remove('is-measuring');
+    angleClass(a, 'is-measuring', false);
     await wait(reduced() ? 0 : 500, signal);
-    void theta;
   }
 
   render();
@@ -6285,18 +6320,18 @@ function createTriangleCanvas({ host, width, height, audio }) {
       indices.forEach((i, n) => traceSide(i, { delay: n * 120 }));
     },
     emphasiseAngles(indices) {
-      angles.forEach((a, i) => a.group.classList.toggle('is-emphasis', indices.includes(i)));
+      angles.forEach((a, i) => angleClass(a, 'is-emphasis', indices.includes(i)));
       tri.classList.toggle('is-focusing', indices.length > 0);
       indices.forEach((i, n) => traceAngle(i, { delay: n * 120 }));
     },
     clearEmphasis() {
       for (const s of sides) s.group.classList.remove('is-emphasis');
-      for (const a of angles) a.group.classList.remove('is-emphasis');
+      for (const a of angles) angleClass(a, 'is-emphasis', false);
       tri.classList.remove('is-focusing');
     },
     pulseSide: (i) => { traceSide(i); return playClassAnimation(sides[i].group, 'is-pulse', 620); },
     pulseSideLabel: (i) => playClassAnimation(sideLabels[i].group, 'is-pulse', 620),
-    pulseAngle: (i) => { traceAngle(i); return playClassAnimation(angles[i].group, 'is-pulse', 700); },
+    pulseAngle: (i) => { traceAngle(i); playClassAnimation(angles[i].mark, 'is-pulse', 700); return playClassAnimation(angles[i].group, 'is-pulse', 700); },
     pulseVertex: (i) => playClassAnimation(vertices[i].group, 'is-pop', 420),
     pulseAll: () => playClassAnimation(tri, 'is-closed', 620),
     drawIn,
@@ -6352,14 +6387,18 @@ const GUIDE_FRAMES = Object.freeze({
   think: { src: `${DIR}beaver-think.png`, width: 311, height: 616, centre: 175, ground: 609, body: 603 , hat: [166, 6] },
   cheer: { src: `${DIR}beaver-cheer.png`, width: 392, height: 617, centre: 185, ground: 610, body: 604 , hat: [188, 6] },
   cheerMid: { src: `${DIR}beaver-cheer-mid.png`, width: 368, height: 610, centre: 184, ground: 603, body: 596 , hat: [180, 7] },
-  tape1: { src: `${DIR}beaver-tape-1.png`, width: 333, height: 597, centre: 191, ground: 590, body: 584 , hat: [176, 6] },
-  tape2: { src: `${DIR}beaver-tape-2.png`, width: 375, height: 591, centre: 187, ground: 584, body: 578 , hat: [163, 6] },
-  tape3: { src: `${DIR}beaver-tape-3.png`, width: 409, height: 591, centre: 180, ground: 584, body: 578 , hat: [157, 6] },
-  protractor: { src: `${DIR}beaver-protractor.png`, width: 356, height: 596, centre: 186, ground: 589, body: 583 , hat: [147, 6] },
-  walk1: { src: `${DIR}beaver-walk-1.png`, width: 374, height: 521, centre: 203, ground: 514, body: 508 , hat: [200, 6] },
-  walk2: { src: `${DIR}beaver-walk-2.png`, width: 332, height: 534, centre: 167, ground: 527, body: 521 , hat: [164, 6] },
-  walk3: { src: `${DIR}beaver-walk-3.png`, width: 360, height: 520, centre: 188, ground: 513, body: 507 , hat: [186, 6] },
-  walk4: { src: `${DIR}beaver-walk-4.png`, width: 335, height: 533, centre: 169, ground: 526, body: 520 , hat: [166, 6] },
+  tape1: { src: `${DIR}beaver-tape-1.png`, width: 333, height: 597, centre: 191, ground: 590, body: 584 , hat: [176, 6], hand: [180, 290] },
+  tape2: { src: `${DIR}beaver-tape-2.png`, width: 375, height: 591, centre: 187, ground: 584, body: 578 , hat: [163, 6], hand: [175, 290] },
+  tape3: { src: `${DIR}beaver-tape-3.png`, width: 409, height: 591, centre: 180, ground: 584, body: 578 , hat: [157, 6], hand: [170, 290] },
+  // Holding the protractor: `tool` is the centre of its flat edge (set on the corner), `disc` the way its
+  // round side faces, `bodyDir` where his body is relative to the tool (so he can be kept outside the shape).
+  protLow: { src: `${DIR}beaver-protractor-low.png`, width: 943, height: 978, centre: 300, ground: 970, body: 963, hat: [400, 7], tool: [678, 890], disc: [0, -1], bodyDir: [-1, 0] },
+  protSide: { src: `${DIR}beaver-protractor-side.png`, width: 787, height: 990, centre: 300, ground: 982, body: 976, hat: [240, 6], tool: [560, 340], disc: [1, 0], bodyDir: [-1, 0] },
+  protHigh: { src: `${DIR}beaver-protractor-high.png`, width: 631, height: 995, centre: 300, ground: 988, body: 763, hat: [160, 225], tool: [330, 32], disc: [0, 1], bodyDir: [0, 1] },
+  walk1: { src: `${DIR}beaver-walk-1.png`, width: 374, height: 521, centre: 203, ground: 514, body: 508 , hat: [200, 6], hand: [273, 274] },
+  walk2: { src: `${DIR}beaver-walk-2.png`, width: 332, height: 534, centre: 167, ground: 527, body: 521 , hat: [164, 6], hand: [237, 287] },
+  walk3: { src: `${DIR}beaver-walk-3.png`, width: 360, height: 520, centre: 188, ground: 513, body: 507 , hat: [186, 6], hand: [258, 273] },
+  walk4: { src: `${DIR}beaver-walk-4.png`, width: 335, height: 533, centre: 169, ground: 526, body: 520 , hat: [166, 6], hand: [239, 286] },
 });
 /** Each pose is a short cycle of frames. `once` holds the last frame. */
 const POSES = Object.freeze({
@@ -6369,7 +6408,9 @@ const POSES = Object.freeze({
   point: { frames: ['pointMid', 'point'], durations: [160, 100000], once: true },
   think: { frames: ['think', 'think', 'blink'], durations: [3000, 2000, 110] },
   measuring: { frames: ['tape1', 'tape2', 'tape3', 'tape3', 'tape2'], durations: [320, 300, 420, 400, 260] },
-  protractor: { frames: ['protractor'], durations: [1000] },
+  protLow: { frames: ['protLow'], durations: [1000] },
+  protSide: { frames: ['protSide'], durations: [1000] },
+  protHigh: { frames: ['protHigh'], durations: [1000] },
   walk: { frames: ['walk1', 'walk2', 'walk3', 'walk4'], durations: [115, 115, 115, 115] },
   walkStop: { frames: ['walk1'], durations: [1000] },
 });
@@ -6403,6 +6444,8 @@ function createBeaverGuide({ hostEl, x, groundY }) {
     layers[name] = image;
   }
   let registration = 'feet';
+  let placed = { x: 0, y: 0, scale: 1, flip: false, rotate: 0 };
+  let shownFrame = 'idle';
   /**
    * Frames from different sheets differ by a few px, so each is scaled to a common body height and
    * registered on the boots' centre (walking, measuring: his feet on the line) or on the hat's
@@ -6412,7 +6455,7 @@ function createBeaverGuide({ hostEl, x, groundY }) {
     for (const [name, frame] of Object.entries(GUIDE_FRAMES)) {
       const image = layers[name];
       const k = SCALE * (606 / (frame.body || 600));
-      const [ax, ay] = registration === 'head' ? frame.hat : [frame.centre, frame.ground];
+      const [ax, ay] = registration === 'head' ? frame.hat : registration === 'tool' ? (frame.tool ?? [frame.centre, frame.ground]) : [frame.centre, frame.ground];
       image.style.width = `${(frame.width * k).toFixed(1)}px`;
       image.style.height = `${(frame.height * k).toFixed(1)}px`;
       image.style.left = `${(-ax * k).toFixed(1)}px`;
@@ -6429,6 +6472,7 @@ function createBeaverGuide({ hostEl, x, groundY }) {
   let present = false;
 
   function show(frameName) {
+    shownFrame = frameName;
     for (const [key, layer] of Object.entries(layers)) layer.classList.toggle('is-on', key === frameName);
   }
   function advance() {
@@ -6496,6 +6540,7 @@ function createBeaverGuide({ hostEl, x, groundY }) {
     },
     /** Sets his place at once (every frame while he walks along a side). `rotate` turns him onto the side. */
     placeAt({ x: toX, y: toY, scale = 0.5, flip = false, rotate = 0 }) {
+      placed = { x: toX, y: toY, scale, flip, rotate };
       root.style.left = `${toX.toFixed(1)}px`;
       root.style.top = `${toY.toFixed(1)}px`;
       pivot.style.transform = `scale(${(flip ? -scale : scale).toFixed(3)}, ${scale.toFixed(3)}) rotate(${rotate.toFixed(1)}deg)`;
@@ -6504,16 +6549,58 @@ function createBeaverGuide({ hostEl, x, groundY }) {
     setInstant(on) {
       root.classList.toggle('is-instant', Boolean(on));
     },
-    /** 'feet' (the origin is his boots on the ground) or 'head' (the origin is the top of his hat). */
+    /** Where the hand that holds the tape is right now (stage px), for the tape to run up to it. */
+    handPoint() {
+      const frame = GUIDE_FRAMES[shownFrame] ?? GUIDE_FRAMES.idle;
+      const hand = frame.hand ?? [frame.centre, frame.ground - 240];
+      const k = SCALE * (606 / (frame.body || 600));
+      const [ax, ay] = registration === 'head' ? frame.hat : registration === 'tool' ? (frame.tool ?? [frame.centre, frame.ground]) : [frame.centre, frame.ground];
+      let lx = (hand[0] - ax) * k;
+      const ly = (hand[1] - ay) * k;
+      const r = (placed.rotate * Math.PI) / 180;
+      const rx = lx * Math.cos(r) - ly * Math.sin(r);
+      const ry = lx * Math.sin(r) + ly * Math.cos(r);
+      return { x: placed.x + (placed.flip ? -rx : rx) * placed.scale, y: placed.y + ry * placed.scale };
+    },
+    /**
+     * Which held-protractor frame to use at a corner, flipped or not, and how far to turn it, so that the
+     * protractor's flat edge lies along one side and its round side faces into the corner while he
+     * stays upright-ish and outside the shape. `sides` are the two unit directions from the corner.
+     */
+    pickToolPose(sides) {
+      const deg = (v) => (Math.atan2(v[1], v[0]) * 180) / Math.PI;
+      const wrap = (a) => ((a + 540) % 360) - 180;
+      const inward = [sides[0][0] + sides[1][0], sides[0][1] + sides[1][1]];
+      let best = null;
+      for (const [k, d] of sides.entries()) {
+        const other = sides[1 - k];
+        let n = [-d[1], d[0]];
+        if (n[0] * other[0] + n[1] * other[1] < 0) n = [-n[0], -n[1]];         // the perpendicular that points into the corner
+        for (const frameName of ['protLow', 'protSide', 'protHigh']) {
+          const frame = GUIDE_FRAMES[frameName];
+          for (const flip of [false, true]) {
+            const disc = [flip ? -frame.disc[0] : frame.disc[0], frame.disc[1]];
+            const body = [flip ? -frame.bodyDir[0] : frame.bodyDir[0], frame.bodyDir[1]];
+            const rotate = wrap(deg(n) - deg(disc));
+            const r = (rotate * Math.PI) / 180;
+            const bodyNow = [body[0] * Math.cos(r) - body[1] * Math.sin(r), body[0] * Math.sin(r) + body[1] * Math.cos(r)];
+            const inside = bodyNow[0] * inward[0] + bodyNow[1] * inward[1] > 0.15;
+            const cost = Math.abs(rotate) + (inside ? 1000 : 0) + (frameName === 'protLow' ? 0 : 4);
+            if (!best || cost < best.cost) best = { frameName, flip, rotate, cost };
+          }
+        }
+      }
+      return best;
+    },
+    /** 'feet' (the origin is his boots on the ground), 'head' (the top of his hat) or 'tool' (the protractor's centre). */
     setRegistration(mode) {
-      registration = mode === 'head' ? 'head' : 'feet';
+      registration = mode === 'head' || mode === 'tool' ? mode : 'feet';
       fitFrames();
     },
     /** Back to his place at the foot of the card. */
     home() {
-      return this.moveTo({ x: home.x, y: home.groundY, scale: 1, flip: false, rotate: 0 });
+      return this.moveTo({ x: home.x, y: home.groundY, scale: 1, flip: true, rotate: 0 });   // at home he faces the shape
     },
-    protractor: () => setPose('protractor'),
     idle: () => setPose('idle'),
     /** While a line is spoken: the talking cycle, then back to idle (unless a reaction took over). */
     async talkUntil(finished) {
@@ -6629,7 +6716,7 @@ const { buildTriangleFigure } = __require('js/learning/triangle-figure.js');
 const { LEARNING_COPY } = __require('js/learning/learning-content.js');
 const { playClassAnimation, prefersReducedMotion } = __require('js/core/motion.js');
 const ASSETS = 'assets/images/workshop/';
-const WIDGET_IMAGES = [`${ASSETS}sort-crate.png`, `${ASSETS}btn-pill.png`, `${ASSETS}name-tag.png`, `${ASSETS}card-frame.png`, `${ASSETS}summary-card.png`];
+const WIDGET_IMAGES = [`${ASSETS}sort-crate.png`, `${ASSETS}btn-pill.png`, `${ASSETS}card-frame.png`, `${ASSETS}summary-card.png`];
 
 const escapeHtml = (value) => String(value).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -7211,7 +7298,8 @@ function withSignal(promise, signal) {
   });
 }
 
-function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = false, manual = false }) {
+function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = false, manual: manualAtStart = false }) {
+  let manual = manualAtStart;                // review aid: no auto-advance, every screen waits for Next (toggled live by the debug panel)
   const scope = createSequenceScope();
   let index = 0;
   let stopped = false;
@@ -7392,7 +7480,8 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
     guide.setPose('walk');
     await guide.moveTo(onSide(start));
     guide.setInstant(true);
-    await canvas.measureSide(i, { signal: signal(), fromEnd, tool: false, onProgress: (t, at) => guide.placeAt(onSide(at)) });
+    const hand = () => { const h = guide.handPoint(); return [h.x - BOARD.surface.left, h.y - BOARD.surface.top]; };
+    await canvas.measureSide(i, { signal: signal(), fromEnd, tool: false, hand, onProgress: (t, at) => guide.placeAt(onSide(at)) });
     guide.setPose('walkStop');
     await pause(600);
   }
@@ -7449,11 +7538,8 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
 
     async measureSides(screen) {
       setState('DEMONSTRATING');
-      let measuring = null;
-      const measureAll = async () => { for (const i of SIDE_ORDER) await measureSideWithGuide(i); };
-      const spoken = board.narrate(screen.narration, { focus: screen.focus, cues: [{ phrase: 'measure', run: () => { measuring = measureAll(); } }] });
-      await withSignal(spoken.finished, signal());
-      await withSignal(measuring ?? measureAll(), signal());
+      await narrate(screen.narration, { focus: screen.focus });     // he says it first, then gets to work
+      for (const i of SIDE_ORDER) await measureSideWithGuide(i);
       guide.setInstant(false);
       guide.setPose('walk');
       await guide.home();
@@ -7463,25 +7549,40 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
 
     async measureAngles(screen) {
       setState('DEMONSTRATING');
-      // He walks to each corner (clockwise) and holds the protractor up while its arc is read.
+      // He says it first; then, corner by corner (clockwise), he walks up, sets the protractor he holds onto
+      // the corner (its flat edge along a side, its round side into the angle), the arc sweeps while the
+      // value counts up, and he lifts it off again.
+      await narrate(screen.narration, { focus: screen.focus });
       const centre = canvas.centroid();
-      guide.setInstant(false);
-      const readCorners = async () => {
-        for (const i of CORNER_ORDER) {
-          const v = canvas.points[i];
-          const side = v[0] - centre[0] < -1 ? -1 : 1;
-          const apex = Math.abs(v[0] - centre[0]) < 40;
-          guide.setPose('walk');
-          await guide.moveTo({ x: BOARD.surface.left + v[0] + side * (apex ? 88 : 96), y: BOARD.surface.top + v[1] + (apex ? 50 : 8), scale: 0.5, flip: side > 0, rotate: 0 });
-          guide.protractor();
-          await canvas.measureAngle(i, { signal: signal() });
-          await pause(500);
-        }
-      };
-      let reading = null;
-      const spoken = board.narrate(screen.narration, { focus: screen.focus, cues: [{ phrase: 'measure', run: () => { reading = readCorners(); } }] });
-      await withSignal(spoken.finished, signal());
-      await withSignal(reading ?? readCorners(), signal());
+      const unit = (v) => { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; };
+      for (const i of CORNER_ORDER) {
+        const v = canvas.points[i];
+        const sides = [canvas.points[(i + 1) % 3], canvas.points[(i + 2) % 3]].map((q) => unit([q[0] - v[0], q[1] - v[1]]));
+        const inward = unit([centre[0] - v[0], centre[1] - v[1]]);
+        const pose = guide.pickToolPose(sides);
+        const at = (back, rotate) => ({ x: BOARD.surface.left + v[0] - inward[0] * back, y: BOARD.surface.top + v[1] - inward[1] * back, scale: 0.5, flip: pose.flip, rotate: pose.flip ? -rotate : rotate });
+        guide.setInstant(false);
+        guide.setRegistration('feet');
+        guide.setPose('walk');
+        await guide.moveTo({ x: BOARD.surface.left + v[0] - inward[0] * 70, y: BOARD.surface.top + v[1] - inward[1] * 70 + 40, scale: 0.5, flip: pose.flip, rotate: 0 });
+        guide.setInstant(true);
+        guide.setRegistration('tool');
+        guide.setPose(pose.frameName);
+        guide.placeAt(at(34, 0));                    // the protractor just off the corner...
+        guide.setInstant(false);
+        await pause(40);
+        guide.placeAt(at(0, pose.rotate));           // ...then set onto it, turned to lie along the side
+        await pause(560);
+        await canvas.measureAngle(i, { signal: signal() });
+        await pause(500);
+        guide.placeAt(at(34, 0));                    // and lifted off
+        await pause(460);
+        guide.setInstant(true);
+        guide.setRegistration('feet');
+        guide.setPose('walkStop');
+        guide.placeAt({ x: BOARD.surface.left + v[0] - inward[0] * 70, y: BOARD.surface.top + v[1] - inward[1] * 70 + 40, scale: 0.5, flip: pose.flip, rotate: 0 });
+        guide.setInstant(false);
+      }
       guide.setPose('walk');
       await guide.home();
       guide.idle();
@@ -7568,9 +7669,9 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
 
     async drag(screen) {
       await narrate(screen.narration);
-      if (screen.sub) {
+      if (screen.instruction) {                  // the question is read first; then the box swaps to the instruction
         await pause(700);
-        await withSignal(board.narrateSub(screen.sub).finished, signal());
+        await narrate(screen.instruction);
       }
       setState('INTERACTING');
       let resolveDone;
@@ -7593,7 +7694,6 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
         canvas.clearHint();
       }
       setState('FEEDBACK');
-      board.setSub(null);
       canvas.sparkleVertices();
       const m = canvas.measured;
       if (screen.success?.final) {
@@ -7850,7 +7950,6 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
     gameState.update({ learningScreen: screen.id });
     board.cancelCues();
     await clearOverlay();
-    board.setSub(null);
     board.narrationEl.hidden = false;
     await Promise.all([prepareTriangle(screen), screen.kind === 'summary' ? Promise.resolve() : placeGuide(screen)]);
     const runner = runners[screen.kind];
@@ -7871,7 +7970,6 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
         index,
         total: LEARNING_SCREENS.length,
         narration: board.narrationText,
-        sub: board.subText,
         badges: [...board.overlayEl.querySelectorAll('.ws-badge')].map((b) => b.textContent),
         guide: guide.isPresent ? guide.pose : null,
         measured: canvas.measured,
@@ -7920,6 +8018,12 @@ function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = f
     get index() { return index; },
     get screens() { return LEARNING_SCREENS; },
     onChange(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+    /** Turns the review mode on or off while running; turning it off releases a screen waiting for Next. */
+    setManual(on) {
+      manual = Boolean(on);
+      if (!manual) resolveNext?.();
+    },
+    get manual() { return manual; },
     jumpTo(target) {
       const i = typeof target === 'string' ? LEARNING_SCREENS.findIndex((s) => s.id === target) : target;
       if (i < 0 || i >= LEARNING_SCREENS.length || stopped) return;
@@ -8016,6 +8120,7 @@ function createLearningScreen({ els, audio, voice, camera, triangles, feedback, 
   let guide = null;
   let flow = null;
   let debugPanel = null;
+  let onKey = null;
   let backdrop = null;
   let leaving = false;
 
@@ -8064,6 +8169,14 @@ function createLearningScreen({ els, audio, voice, camera, triangles, feedback, 
       flow = createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa, manual: debug });
       board.talker = guide;
       if (debug) debugPanel = createDebugPanel({ hostEl: els.hud, flow });
+      // TEMPORARY review aid: the D key shows / hides the screen list with Back and Next (same as ?debug=1).
+      onKey = (event) => {
+        if (event.key !== 'd' && event.key !== 'D') return;
+        if (event.target && /input|textarea|select/i.test(event.target.tagName)) return;
+        if (debugPanel) { debugPanel.destroy(); debugPanel = null; flow?.setManual(false); }
+        else if (flow) { debugPanel = createDebugPanel({ hostEl: els.hud, flow }); flow.setManual(true); }
+      };
+      window.addEventListener('keydown', onKey);
       const completed = await flow.run(startLesson);
       if (!completed) return;
       // Back to the bridge: the board goes down, he climbs back into the cab, the frames come back.
@@ -8094,6 +8207,7 @@ function createLearningScreen({ els, audio, voice, camera, triangles, feedback, 
       flow = null;
       debugPanel?.destroy();
       debugPanel = null;
+      if (onKey) { window.removeEventListener('keydown', onKey); onKey = null; }
       board?.destroy();
       board = null;
       guide?.destroy();

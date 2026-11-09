@@ -31,6 +31,40 @@ function wordDelays(text, spoken, typingMs) {
   const step = words.length > 1 ? Math.max(40, Math.min(220, (typingMs - 300) / (words.length - 1))) : 0;
   return words.map((_, i) => Math.round(synced ? times[i] / (spoken.rate ?? 1) : i * step));
 }
+/**
+ * A line longer than one comfortable box is shown in parts, one after another (the voice reads it whole):
+ * first at sentence ends, then at a natural join nearest the middle. Returns word-index boundaries.
+ */
+const LINE_MAX = 58;
+const JOINS = [' is called ', ', ', ' and ', ' but ', ' so ', ' by ', ' when ', ' to ', ' with '];
+export function splitLine(text) {
+  const words = text.split(' ');
+  if (text.length <= LINE_MAX) return [[0, words.length]];
+  const pieces = [];                                 // [startWord, endWord) ranges
+  let start = 0;
+  words.forEach((w, i) => { if (/[.!?]$/.test(w) && i < words.length - 1) { pieces.push([start, i + 1]); start = i + 1; } });
+  pieces.push([start, words.length]);
+  const out = [];
+  for (const [a, b] of pieces) {
+    const piece = words.slice(a, b).join(' ');
+    if (piece.length <= LINE_MAX || b - a < 4) { out.push([a, b]); continue; }
+    let bestAt = -1; let bestDist = Infinity;
+    for (const join of JOINS) {
+      let from = 0;
+      for (;;) {
+        const at = piece.indexOf(join, from);
+        if (at < 0) break;
+        const cut = join === ', ' ? at + 1 : at;    // the comma stays with the first part
+        const dist = Math.abs(cut - piece.length / 2);
+        const wordsBefore = piece.slice(0, cut).trim().split(' ').length;
+        if (dist < bestDist && wordsBefore >= 2 && b - a - wordsBefore >= 2) { bestDist = dist; bestAt = a + wordsBefore; }
+        from = at + 1;
+      }
+    }
+    if (bestAt > a && bestAt < b) { out.push([a, bestAt]); out.push([bestAt, b]); } else out.push([a, b]);
+  }
+  return out;
+}
 /** The index of the word where `phrase` begins in `text` (case and trailing punctuation ignored), or -1. */
 function phraseIndex(text, phrase) {
   const clean = (w) => w.toLowerCase().replace(/[.,!?;:]+$/, '');
@@ -51,7 +85,6 @@ export function createWorkshopBoard({ hostEl, voice, audio, talker = null }) {
     <div class="workshop__card">
       <div class="ws-narration" role="status" aria-live="polite">
         <p class="ws-narration__text"></p>
-        <p class="ws-narration__sub" hidden></p>
       </div>
       <div class="workshop__surface">
         <div class="ws-stage"></div>
@@ -68,11 +101,13 @@ export function createWorkshopBoard({ hostEl, voice, audio, talker = null }) {
   const guideHostEl = root.querySelector('.workshop__guide');
   const narrationEl = root.querySelector('.ws-narration');
   const textEl = root.querySelector('.ws-narration__text');
-  const subEl = root.querySelector('.ws-narration__sub');
 
   const reduced = () => prefersReducedMotion();
   let cueTimers = [];
-  const cancelCues = () => { cueTimers.forEach(clearTimeout); cueTimers = []; };
+  let partTimers = [];
+  let currentLine = '';
+  const cancelParts = () => { partTimers.forEach(clearTimeout); partTimers = []; };
+  const cancelCues = () => { cueTimers.forEach(clearTimeout); cueTimers = []; cancelParts(); };
   /** Runs each cue when its phrase is spoken (the words appear at the same moment). */
   function scheduleCues(text, spoken, typingMs, cues) {
     cancelCues();
@@ -123,7 +158,7 @@ export function createWorkshopBoard({ hostEl, voice, audio, talker = null }) {
      * The teaching line: the words appear at the voice's pace (recorded clip, device voice, or a
      * reading pace); the beaver talks meanwhile when he is there. `focus` words take the key-word style.
      */
-    narrate(text, { sub = null, focus = null, speaker = 'builder', mode = 'swap', visible = true, cues = null } = {}) {
+    narrate(text, { focus = null, speaker = 'builder', mode = 'swap', visible = true, cues = null } = {}) {
       narrationEl.hidden = !visible;
       if (!visible) {
         const spoken = voice.say(text, { speaker });
@@ -134,46 +169,42 @@ export function createWorkshopBoard({ hostEl, voice, audio, talker = null }) {
       if (mode === 'swap') playClassAnimation(narrationEl, 'is-swapping', 420);
       const spoken = voice.say(text, { speaker });
       const typingMs = spoken.spoke ? Math.max(300, (spoken.seconds - 0.35) * 1000) : Math.min(4200, text.length * READING_MS_PER_CHARACTER);
-      const typed = revealWords(textEl, text, typingMs, focus, { times: spoken.clipId ? VO_WORD_TIMES[spoken.clipId] : null, rate: spoken.rate ?? 1, started: spoken.started });
+      currentLine = text;
+      cancelParts();
+      const parts = splitLine(text);
+      let typed;
+      if (parts.length === 1) {
+        typed = revealWords(textEl, text, typingMs, focus, { times: spoken.clipId ? VO_WORD_TIMES[spoken.clipId] : null, rate: spoken.rate ?? 1, started: spoken.started });
+      } else {
+        // Each part takes the box in turn, when its first word is due; the words keep the whole line's timing.
+        const words = text.split(' ');
+        const delays = wordDelays(text, spoken, typingMs);
+        const showPart = ([a, b], started) => revealWords(textEl, words.slice(a, b).join(' '), 0, focus, { times: delays.slice(a, b).map((d) => d - delays[a]), rate: 1, started });
+        showPart(parts[0], spoken.started);
+        (spoken.started ?? Promise.resolve()).then(() => {
+          for (const part of parts.slice(1)) {
+            partTimers.push(setTimeout(() => { playClassAnimation(narrationEl, 'is-swapping', 420); showPart(part, null); }, reduced() ? 0 : delays[part[0]]));
+          }
+        });
+        const last = parts[parts.length - 1];
+        typed = wait(reduced() ? 0 : delays[last[1] - 1] + 460);
+      }
       scheduleCues(text, spoken, typingMs, cues);
-      this.setSub(sub);
       this.talker?.talkUntil?.(spoken.finished);
       return { finished: Promise.all([spoken.finished, typed]).then(() => undefined), seconds: spoken.seconds };
-    },
-    /** The instruction line, spoken after the question: it appears under the line, word by word. */
-    narrateSub(text, { speaker = 'builder' } = {}) {
-      narrationEl.hidden = false;
-      subEl.hidden = false;
-      subEl.classList.remove('is-hint');
-      const spoken = voice.say(text, { speaker });
-      const typingMs = spoken.spoke ? Math.max(300, (spoken.seconds - 0.35) * 1000) : Math.min(4200, text.length * READING_MS_PER_CHARACTER);
-      const typed = revealWords(subEl, text, typingMs, null, { times: spoken.clipId ? VO_WORD_TIMES[spoken.clipId] : null, rate: spoken.rate ?? 1, started: spoken.started });
-      this.talker?.talkUntil?.(spoken.finished);
-      return { finished: Promise.all([spoken.finished, typed]).then(() => undefined), seconds: spoken.seconds };
-    },
-    /** A quieter second line under the narration (an instruction or, after a wrong try, a hint). */
-    setSub(text, { hint = false } = {}) {
-      subEl.hidden = !text;
-      subEl.textContent = text ?? '';
-      subEl.classList.toggle('is-hint', hint);
-      if (text) playClassAnimation(subEl, 'is-entering', 420);
-    },
-    /** The instruction line on screen, as plain text (for the QA hooks). */
-    get subText() {
-      if (subEl.hidden) return '';
-      return subEl.querySelector('.visually-hidden')?.textContent ?? subEl.textContent;
     },
     /** The line on screen, as plain text (for the QA hooks). */
     get narrationText() {
-      return textEl.querySelector('.visually-hidden')?.textContent ?? textEl.textContent;
+      return currentLine || (textEl.querySelector('.visually-hidden')?.textContent ?? textEl.textContent);
     },
     /** Stops the voice mid-line (a debug jump). */
     stopVoice() {
       voice.stop();
     },
     clearNarration() {
+      cancelParts();
+      currentLine = '';
       textEl.textContent = '';
-      this.setSub(null);
     },
     hideNarration() {
       narrationEl.hidden = true;

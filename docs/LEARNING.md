@@ -26,7 +26,7 @@ Start (play button: browsers need one tap before sound)
   build offers a replay).
 ```
 
-Review aid: `?debug=1` adds a screen list with Back / Next at the foot of the stage. With it on nothing
+Review aid: `?debug=1` (or pressing the D key while the lesson runs) adds a screen list with Back / Next at the foot of the stage. With it on nothing
 moves on by itself: every screen plays its dialogue and animation and waits for Next; Back replays the
 previous screen from its start. Remove `createDebugPanel` (js/learning/debug-panel.js) when it is no
 longer wanted.
@@ -117,13 +117,12 @@ every label is live text. Transparent PNG unless noted.
 | `beaver-think.png` | 311 × 616 | thinking |
 | `beaver-cheer.png`, `beaver-cheer-mid.png` | 392 × 617, 368 × 610 | two-frame cheer |
 | `beaver-tape-1/2/3.png` | ~333–409 × 591–597 | pulling the tape (front view) |
-| `beaver-protractor.png` | 356 × 596 | reading a corner |
+| `beaver-protractor-low.png`, `-side.png`, `-high.png` | ≈ 900 × 980 | holding the protractor with its flat edge down / sideways / up, set onto a corner |
 | `beaver-walk-1/2/3/4.png` | ~332–374 × 520–534 | side-view walk cycle with the tape (walking along a side) |
 | `sort-crate.png` | 339 × 277 | the sorting crates |
 | `card-frame.png` | 1495 × 799 | the lesson card itself: flat cream panel, navy edge, gold line, corner screws (stretched to 1600 × 820, shown at 110%) |
 | `summary-card.png` | 816 × 848 | the square summary card with its ribbon tab; the name and sentence are live text |
 | `btn-pill.png` | 707 × 270 | the yellow answer buttons (9-sliced, text live) |
-| `name-tag.png` | 681 × 210 | the navy name tags for the shape names and the crates (9-sliced, text live) |
 
 Frames come from four sheets, so each is registered on the boots' centre and scaled to a common body
 height in `beaver-guide.js` (`GUIDE_FRAMES`); poses are short frame cycles with a 90 ms cross-fade and
@@ -175,6 +174,15 @@ drag targets, sorting targets) for the play-through; `?vo=0` turns narration off
   shakes the card back and pulses the three lengths so the learner reads them again.
 - Measuring (Fishing Frenzy): the tape is a thin ticked strip (long tick per cm, short per half) running
   just beside the side as the beaver walks it; the length slides out of the side it was measured on; a
-  filled wedge sweeps open with the arc under the protractor, and the degree value counts
-  up to its reading before it stamps in, the sides / angles that are not being named step back to 42%, and a
+  filled wedge sweeps open with the arc (fill and arc are drawn beneath the sides, so nothing crosses a line)
+  while the value counts up beside the corner. The beaver carries the protractor himself: three held poses
+  (flat edge down, sideways, up: beaver-protractor-low/side/high.png, each with the centre of its flat edge
+  as the `tool` point) and `pickToolPose` in beaver-guide.js chooses the pose, flip and turn that lay the
+  flat edge along a side with the round side into the angle while he stays outside the shape and near
+  upright; he walks up, sets it onto the corner, it is read, he lifts it off. The tape runs from the side
+  up to his hand (`handPoint`), with the case in his hand. He says the measuring line first, then works,
+  and pops up from his feet when he arrives and sinks away when he leaves. A line longer than one box is
+  shown in parts (sentence ends, then the natural join nearest the middle; `splitLine` in workshop-board.js),
+  each part taking the box when its first word is due. The sides / angles that are not being named step
+  back to 42%, and a
   bright spark runs along each named side.

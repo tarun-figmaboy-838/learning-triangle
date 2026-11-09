@@ -23,13 +23,11 @@
 /* The narration box: at the top of the card, as wide as its words, never a bar of empty space. */
 .ws-narration {
   position: absolute; left: 50%; top: 26px; translate: -50% 0; z-index: 4;
-  width: max-content; max-width: 1240px; padding: 14px 38px 15px; border-radius: 22px; text-align: center;
+  width: max-content; max-width: 1520px; padding: 14px 38px 15px; border-radius: 22px; text-align: center; white-space: nowrap;
   background: #1d3a5f; color: #fff8ec; font-family: var(--font-display);
   box-shadow: 0 6px 16px rgba(29, 58, 95, 0.25);
 }
-.ws-narration__text { margin: 0; font-size: 31px; line-height: 1.22; text-wrap: balance; }
-.ws-narration__sub { margin: 4px 0 0; font-size: 21px; line-height: 1.2; color: #cfe3ff; font-family: var(--font-body); }
-.ws-narration__sub.is-entering { animation: ws-fade-up 420ms var(--ease-out) both; }
+.ws-narration__text { margin: 0; font-size: 31px; line-height: 1.22; }
 .ws-narration.is-swapping { animation: instruction-boing 550ms cubic-bezier(0.2, 1.8, 0.4, 1) both; }
 
 /* The drawing surface: the live canvas and the screen's widgets over it. */
@@ -69,20 +67,23 @@
 }
 .ws-chip--sort { left: 50%; translate: -50% 0; }
 .ws-chip.is-entering { animation: ws-pop-in 520ms var(--ease-back) both; }
-.ws-badge {
-  position: absolute; height: 64px; padding: 0 46px 4px; text-align: center; white-space: nowrap; pointer-events: none; display: inline-flex; align-items: center; justify-content: center;
-  border: 0; border-image: url("../assets/images/workshop/name-tag.png") 0 120 fill / 0 37px stretch;
-  color: var(--badge, #ffd23f); font-family: var(--font-display); font-size: 29px; letter-spacing: 2px; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
-  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.25));
+.ws-badge, .ws-bin__label {
+  /* The name chip the other lessons use: a white pill with a thick coloured rim and bold dark text. */
+  display: inline-flex; align-items: center; justify-content: center; height: 62px; padding: 0 34px 2px; white-space: nowrap; text-align: center;
+  background: #fff; border: 4px solid var(--rim, #1565c0); border-radius: 999px; color: var(--ink, #0b3f7a);
+  font-family: var(--font-display); font-size: 28px; font-weight: 800; letter-spacing: 1px;
+  box-shadow: 0 4px 0 rgba(11, 63, 122, 0.16), 0 8px 14px rgba(11, 63, 122, 0.12);
 }
-.ws-badge--scalene { --badge: #e9a3ff; } .ws-badge--isosceles { --badge: #8fd0ff; } .ws-badge--equilateral { --badge: #9df09a; }
-.ws-badge--acute { --badge: #ffc266; } .ws-badge--right { --badge: #ff9b93; } .ws-badge--obtuse { --badge: #ffe27a; }
+.ws-badge { position: absolute; pointer-events: none; }
+.ws-badge--scalene, .ws-tag--scalene { --rim: #8e24aa; --ink: #6a1b9a; } .ws-badge--isosceles, .ws-tag--isosceles { --rim: #1565c0; --ink: #0b3f7a; }
+.ws-badge--equilateral, .ws-tag--equilateral { --rim: #2e7d32; --ink: #1b5e20; } .ws-badge--acute { --rim: #c45f00; --ink: #8a4200; }
+.ws-badge--right { --rim: #c62828; --ink: #8e1b1b; } .ws-badge--obtuse { --rim: #a86f00; --ink: #7a4f00; }
 /* The same families as text on white (summary slots, lenses, result cards): darker, readable. */
 .ws-summary__slot--scalene, .ws-result-card--scalene .ws-result-card__name { --badge: #8e24aa; } .ws-summary__slot--isosceles, .ws-lens--isosceles { --badge: #1565c0; }
 .ws-summary__slot--equilateral { --badge: #2e7d32; } .ws-summary__slot--acute { --badge: #c45f00; } .ws-summary__slot--right, .ws-lens--right { --badge: #c62828; } .ws-summary__slot--obtuse { --badge: #a86f00; }
 .ws-summary__big--scalene { --badge: #8e24aa; } .ws-summary__big--isosceles { --badge: #1565c0; } .ws-summary__big--equilateral { --badge: #2e7d32; }
 .ws-summary__big--acute { --badge: #c45f00; } .ws-summary__big--right { --badge: #c62828; } .ws-summary__big--obtuse { --badge: #a86f00; }
-.ws-badge--small { position: static; height: 52px; padding: 0 34px 3px; font-size: 22px; letter-spacing: 1px; }
+.ws-badge--small { position: static; height: 50px; padding: 0 26px 2px; font-size: 22px; border-width: 3px; }
 .ws-badge.is-entering { animation: ws-badge-in 640ms cubic-bezier(0.2, 1.7, 0.4, 1) both; }
 .ws-greatjob {
   position: absolute; display: inline-flex; align-items: center; gap: 12px; padding: 10px 22px; border-radius: 14px; white-space: nowrap;
@@ -105,15 +106,6 @@
 /* ----- Answer options under the triangle: a centred row of pills, every one alike until it is checked ----- */
 .ws-options-row { position: absolute; left: 50%; translate: -50% 0; display: flex; gap: 22px; justify-content: center; }
 .ws-options-row.is-entering .ws-option--pill { animation: ws-pop-in 520ms var(--ease-back) both; animation-delay: calc(var(--i) * 90ms); }
-.ws-option--pill {
-  height: 70px; padding: 0 44px 6px; white-space: nowrap; font-size: 26px; font-weight: 700; color: #1d3a5f; background: none; border-radius: 0;
-  border: 0; border-image: url("../assets/images/workshop/btn-pill.png") 0 135 fill / 0 35px stretch;
-  filter: drop-shadow(0 6px 6px rgba(60, 40, 0, 0.28)); transition: transform 110ms var(--ease-out), filter 160ms;
-}
-.ws-option--pill:active:not(:disabled), .ws-option--pill.is-selected { transform: translateY(5px); filter: drop-shadow(0 1px 2px rgba(60, 40, 0, 0.3)) brightness(1.06); }
-.ws-option--pill.is-correct { filter: drop-shadow(0 0 10px rgba(59, 194, 106, 1)) drop-shadow(0 0 22px rgba(59, 194, 106, 0.8)); }
-.ws-option--pill.is-incorrect { filter: saturate(0.2) brightness(0.9); }
-.ws-option--pill .ws-option__dot { display: none; }
 .ws-dual { position: absolute; left: 50%; translate: -50% 0; display: flex; flex-direction: column; gap: 12px; align-items: center; }
 .ws-dual.is-entering { animation: ws-fade-up 480ms var(--ease-out) both; }
 .ws-dual .ws-group { margin: 0; display: flex; align-items: center; gap: 16px; }
@@ -143,6 +135,16 @@
 .ws-option--list { padding: 8px 12px; font-size: 22px; }
 .ws-option--pills { flex: 1; justify-content: center; padding: 10px 6px; font-size: 22px; }
 .ws-option--pills .ws-option__dot { display: none; }
+/* The yellow pill art for answers (after the plain option rules, so it wins). */
+.ws-option.ws-option--pill {
+  height: 70px; padding: 0 44px 6px; white-space: nowrap; font-size: 26px; font-weight: 700; color: #1d3a5f; background: none; border-radius: 0;
+  border: 0; border-image: url("../assets/images/workshop/btn-pill.png") 0 135 fill / 0 35px stretch;
+  filter: drop-shadow(0 6px 6px rgba(60, 40, 0, 0.28)); transition: transform 110ms var(--ease-out), filter 160ms;
+}
+.ws-option.ws-option--pill:active:not(:disabled), .ws-option.ws-option--pill.is-selected { transform: translateY(5px); filter: drop-shadow(0 1px 2px rgba(60, 40, 0, 0.3)) brightness(1.06); }
+.ws-option.ws-option--pill.is-correct { filter: drop-shadow(0 0 10px rgba(59, 194, 106, 1)) drop-shadow(0 0 22px rgba(59, 194, 106, 0.8)); }
+.ws-option.ws-option--pill.is-incorrect { filter: saturate(0.2) brightness(0.9); }
+.ws-option.ws-option--pill .ws-option__dot { display: none; }
 
 /* ----- Multi-select cards ----- */
 .ws-grid { position: absolute; inset: 0; }
@@ -180,8 +182,7 @@
 .ws-figure__label.is-pulse { animation: ws-label-pulse 560ms var(--ease-back); transform-box: fill-box; transform-origin: center; }
 .ws-sort.is-entering .ws-sort-card, .ws-sort.is-entering .ws-bin { animation: ws-pop-in 560ms var(--ease-back) both; animation-delay: calc(var(--i) * 110ms); }
 .ws-bin { position: absolute; height: 262px; text-align: center; font-family: var(--font-display); cursor: pointer; }
-.ws-bin__label { position: relative; display: inline-flex; margin-bottom: 4px; height: 58px; padding: 0 36px 3px; align-items: center; justify-content: center; border: 0; border-image: url("../assets/images/workshop/name-tag.png") 0 120 fill / 0 34px stretch; font-size: 23px; letter-spacing: 2px; color: var(--badge, #ffd23f); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45); }
-.ws-tag--scalene { --badge: #e9a3ff; } .ws-tag--isosceles { --badge: #8fd0ff; } .ws-tag--equilateral { --badge: #9df09a; }
+.ws-bin__label { position: relative; margin-bottom: 6px; height: 56px; padding: 0 28px 2px; font-size: 23px; }
 .ws-bin__crate { position: relative; height: 200px; }
 .ws-bin__crate img { position: absolute; left: 50%; top: 0; width: 250px; height: auto; translate: -50% 0; filter: drop-shadow(0 6px 8px rgba(6, 24, 48, 0.3)); transition: transform 200ms var(--ease-out), filter 200ms; }
 .ws-bin.is-over img { transform: scale(1.05); filter: brightness(1.08) drop-shadow(0 0 10px rgba(255, 214, 60, 0.9)) drop-shadow(0 6px 8px rgba(6, 24, 48, 0.3)); }
@@ -244,7 +245,7 @@
 /* While some sides / angles are named, the others step back (Fishing Frenzy's focusing rule). */
 .ws-tri.is-focusing .ws-side:not(.is-emphasis) .ws-side__body, .ws-tri.is-focusing .ws-angle:not(.is-emphasis) .ws-angle__arc,
 .ws-tri.is-focusing .ws-angle:not(.is-emphasis) .ws-angle__square, .ws-tri.is-focusing .ws-angle:not(.is-emphasis) .ws-angle__label { opacity: 0.42; }
-.ws-tri.is-focusing .ws-angle:not(.is-emphasis) .ws-angle__wedge { opacity: 0.08; }
+.ws-tri.is-focusing .ws-angle:not(.is-emphasis) .ws-angle__wedge { opacity: 0.35; }
 .ws-side__body, .ws-angle__arc, .ws-angle__square, .ws-angle__label { transition: opacity 300ms var(--ease-out); }
 .ws-trace-glow { fill: none; stroke: #ffd000; stroke-width: 10; stroke-linecap: round; pointer-events: none; filter: drop-shadow(0 0 4px #ffb020) drop-shadow(0 0 12px rgba(255, 176, 32, 0.9)); }   /* the gold light that runs along a named line */
 .ws-tri.is-drawing .ws-side__body { filter: drop-shadow(0 0 3px var(--tone-deep)) drop-shadow(0 0 8px #ffd000) drop-shadow(0 0 16px rgba(255, 176, 32, 0.8)); }   /* the pen glows while a side is drawn */
@@ -270,9 +271,9 @@
 /* Angles: theme blue; an obtuse one turns red. */
 .ws-angle { --angle: #1565c0; }
 .ws-angle.is-obtuse { --angle: #d8463b; }
-.ws-angle__wedge { fill: var(--angle); opacity: 0.3; mix-blend-mode: multiply; transition: opacity 260ms, fill 300ms; }
-.ws-angle.is-emphasis .ws-angle__wedge { opacity: 0.34; }
-.ws-angle__arc { fill: none; stroke: var(--angle); stroke-width: 7; stroke-linecap: round; transition: stroke 300ms; }
+.ws-angle__wedge { fill: var(--angle); fill-opacity: 0.45; transition: opacity 260ms, fill 300ms, fill-opacity 300ms; }   /* a solid colour slice between the sides (drawn under them), rimmed by the arc */
+.ws-angle.is-emphasis .ws-angle__wedge { fill-opacity: 0.62; }
+.ws-angle__arc { fill: none; stroke: var(--angle); stroke-width: 5; stroke-linecap: round; transition: stroke 300ms; }
 .ws-angle__square { fill: none; stroke: var(--angle); stroke-width: 7; stroke-linejoin: round; transition: stroke 300ms; }
 .ws-angle__label { font-family: var(--font-display); font-size: 30px; font-weight: 700; fill: var(--angle); paint-order: stroke; stroke: #fff; stroke-width: 7px; stroke-linejoin: round; text-anchor: middle; dominant-baseline: central; transition: fill 300ms; }
 .ws-angle.is-emphasis .ws-angle__arc, .ws-angle.is-emphasis .ws-angle__square { stroke-width: 10; filter: drop-shadow(0 0 4px var(--angle)) drop-shadow(0 0 14px var(--angle)); }
@@ -288,14 +289,12 @@
 .ws-tape__body { fill: #f7b400; stroke: #5a4310; stroke-width: 3; }
 .ws-tape__tick { stroke: #5a4310; stroke-width: 2; }
 .ws-tape__reel { fill: #5a4310; }
-.ws-protractor { transition: opacity 400ms; filter: drop-shadow(0 4px 6px rgba(20, 30, 80, 0.25)); }
-.ws-protractor__disc { fill: rgba(214, 232, 248, 0.82); stroke: #1565c0; stroke-width: 4; }
-.ws-protractor__inner { fill: none; stroke: #1565c0; stroke-width: 2; opacity: 0.6; }
-.ws-protractor__tick { stroke: #1565c0; stroke-width: 2.5; }
-.ws-protractor__pin { fill: #1565c0; }
 .ws-tape-strip { transition: opacity 400ms; filter: drop-shadow(0 3px 4px rgba(60, 40, 0, 0.3)); }
 .ws-tape-strip__band { fill: #f7c531; stroke: #5a4310; stroke-width: 1.5; }
 .ws-tape-strip__hook { fill: #5a4310; }
+.ws-tape-strip__lead { stroke: #f7c531; stroke-width: 6; stroke-linecap: round; filter: drop-shadow(0 1px 1px rgba(122, 90, 16, 0.35)); transition: opacity 300ms; }   /* up from the side to his hand */
+.ws-tape-strip__case { fill: #f7b400; stroke: #5a4310; stroke-width: 2; transition: opacity 300ms; }
+.ws-tape-strip__lead.is-leaving, .ws-tape-strip__case.is-leaving { opacity: 0; }
 .ws-tape-strip.is-leaving { opacity: 0; }
 .ws-tape.is-leaving, .ws-protractor.is-leaving { opacity: 0; }
 /* The drag hint: a dashed arrow from the pulsing corner to a dashed target. */
@@ -336,7 +335,7 @@
 .guide[data-pose="protractor"] .guide__body { animation: ws-guide-think 2.2s ease-in-out infinite; }
 .guide.is-talking .guide__body { animation: ws-guide-talk 320ms ease-in-out infinite alternate; }
 .guide.is-nodding .guide__body { animation: operator-nod 620ms var(--ease-out) 1; }
-.guide.is-entering { animation: ws-guide-enter 700ms var(--ease-out) both; }
+.guide.is-entering { animation: ws-guide-enter 640ms var(--ease-back) both; }
 .guide.is-entering .guide__body { animation: ws-guide-steps 175ms ease-in-out 4 alternate; }
 .guide.is-leaving { animation: ws-guide-leave 500ms var(--ease-in) forwards; }
 
@@ -371,9 +370,9 @@
 @keyframes ws-guide-point { 0% { transform: rotate(0); } 40% { transform: rotate(-4deg) translateX(6px); } 100% { transform: rotate(0); } }
 @keyframes ws-guide-think { 0%, 100% { transform: rotate(-1.2deg); } 50% { transform: rotate(1.2deg); } }
 @keyframes ws-guide-talk { from { transform: translateY(0) scale(1, 1); } to { transform: translateY(-2px) scale(1.01, 0.99); } }
-@keyframes ws-guide-enter { 0% { opacity: 0; transform: translateX(-90px); } 100% { opacity: 1; transform: translateX(0); } }
+@keyframes ws-guide-enter { 0% { opacity: 0; transform: translateY(70px) scale(0.55); } 62% { opacity: 1; transform: translateY(-12px) scale(1.06); } 100% { opacity: 1; transform: translateY(0) scale(1); } }   /* he pops up from his feet */
 @keyframes ws-guide-steps { from { transform: translateY(0) rotate(-2deg); } to { transform: translateY(-7px) rotate(2deg); } }
-@keyframes ws-guide-leave { 0% { opacity: 1; transform: translateX(0); } 100% { opacity: 0; transform: translateX(-90px); } }
+@keyframes ws-guide-leave { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(70px) scale(0.55); } }   /* and sinks away the same way */
 
 @media (prefers-reduced-motion: reduce) {
   .workshop *, .guide, .guide * { animation: none !important; transition: none !important; }

@@ -247,7 +247,7 @@ def play(lesson):
             reshown = lesson.wait(lambda s: s["state"] == "REINFORCING", 20, f"{sid} measurements re-shown after a wrong answer")
             lesson.shot(f"{sid}-wrong")
             back = lesson.wait(lambda s: s["state"] == "WAITING_FOR_INPUT", 20, f"{sid} ready again")
-            check(reshown["id"] == sid and back["id"] == sid and not back["sub"], f"{sid}: a wrong answer re-shows the measurements and stays on the question, no extra words")
+            check(reshown["id"] == sid and back["id"] == sid and not back.get("sub"), f"{sid}: a wrong answer re-shows the measurements and stays on the question, no extra words")
             for _ in range(3):      # double/triple taps on the right option must not break anything
                 lesson.click_option(CORRECT[sid])
             lesson.wait(lambda s: s["id"] != sid, 30, f"{sid} advances after the right answer")

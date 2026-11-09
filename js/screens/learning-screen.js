@@ -28,6 +28,7 @@ export function createLearningScreen({ els, audio, voice, camera, triangles, fee
   let guide = null;
   let flow = null;
   let debugPanel = null;
+  let onKey = null;
   let backdrop = null;
   let leaving = false;
 
@@ -76,6 +77,14 @@ export function createLearningScreen({ els, audio, voice, camera, triangles, fee
       flow = createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa, manual: debug });
       board.talker = guide;
       if (debug) debugPanel = createDebugPanel({ hostEl: els.hud, flow });
+      // TEMPORARY review aid: the D key shows / hides the screen list with Back and Next (same as ?debug=1).
+      onKey = (event) => {
+        if (event.key !== 'd' && event.key !== 'D') return;
+        if (event.target && /input|textarea|select/i.test(event.target.tagName)) return;
+        if (debugPanel) { debugPanel.destroy(); debugPanel = null; flow?.setManual(false); }
+        else if (flow) { debugPanel = createDebugPanel({ hostEl: els.hud, flow }); flow.setManual(true); }
+      };
+      window.addEventListener('keydown', onKey);
       const completed = await flow.run(startLesson);
       if (!completed) return;
       // Back to the bridge: the board goes down, he climbs back into the cab, the frames come back.
@@ -106,6 +115,7 @@ export function createLearningScreen({ els, audio, voice, camera, triangles, fee
       flow = null;
       debugPanel?.destroy();
       debugPanel = null;
+      if (onKey) { window.removeEventListener('keydown', onKey); onKey = null; }
       board?.destroy();
       board = null;
       guide?.destroy();

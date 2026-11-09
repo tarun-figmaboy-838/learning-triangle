@@ -9,7 +9,7 @@ import { LEARNING_COPY } from './learning-content.js';
 import { playClassAnimation, prefersReducedMotion } from '../core/motion.js';
 
 const ASSETS = 'assets/images/workshop/';
-export const WIDGET_IMAGES = [`${ASSETS}sort-crate.png`, `${ASSETS}btn-pill.png`, `${ASSETS}name-tag.png`, `${ASSETS}card-frame.png`, `${ASSETS}summary-card.png`];
+export const WIDGET_IMAGES = [`${ASSETS}sort-crate.png`, `${ASSETS}btn-pill.png`, `${ASSETS}card-frame.png`, `${ASSETS}summary-card.png`];
 
 const escapeHtml = (value) => String(value).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 

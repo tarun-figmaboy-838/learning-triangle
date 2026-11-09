@@ -42,7 +42,8 @@ function withSignal(promise, signal) {
   });
 }
 
-export function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = false, manual = false }) {
+export function createLearningFlow({ board, canvas, guide, audio, fx, gameState, qa = false, manual: manualAtStart = false }) {
+  let manual = manualAtStart;                // review aid: no auto-advance, every screen waits for Next (toggled live by the debug panel)
   const scope = createSequenceScope();
   let index = 0;
   let stopped = false;
@@ -223,7 +224,8 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
     guide.setPose('walk');
     await guide.moveTo(onSide(start));
     guide.setInstant(true);
-    await canvas.measureSide(i, { signal: signal(), fromEnd, tool: false, onProgress: (t, at) => guide.placeAt(onSide(at)) });
+    const hand = () => { const h = guide.handPoint(); return [h.x - BOARD.surface.left, h.y - BOARD.surface.top]; };
+    await canvas.measureSide(i, { signal: signal(), fromEnd, tool: false, hand, onProgress: (t, at) => guide.placeAt(onSide(at)) });
     guide.setPose('walkStop');
     await pause(600);
   }
@@ -280,11 +282,8 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
 
     async measureSides(screen) {
       setState('DEMONSTRATING');
-      let measuring = null;
-      const measureAll = async () => { for (const i of SIDE_ORDER) await measureSideWithGuide(i); };
-      const spoken = board.narrate(screen.narration, { focus: screen.focus, cues: [{ phrase: 'measure', run: () => { measuring = measureAll(); } }] });
-      await withSignal(spoken.finished, signal());
-      await withSignal(measuring ?? measureAll(), signal());
+      await narrate(screen.narration, { focus: screen.focus });     // he says it first, then gets to work
+      for (const i of SIDE_ORDER) await measureSideWithGuide(i);
       guide.setInstant(false);
       guide.setPose('walk');
       await guide.home();
@@ -294,25 +293,40 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
 
     async measureAngles(screen) {
       setState('DEMONSTRATING');
-      // He walks to each corner (clockwise) and holds the protractor up while its arc is read.
+      // He says it first; then, corner by corner (clockwise), he walks up, sets the protractor he holds onto
+      // the corner (its flat edge along a side, its round side into the angle), the arc sweeps while the
+      // value counts up, and he lifts it off again.
+      await narrate(screen.narration, { focus: screen.focus });
       const centre = canvas.centroid();
-      guide.setInstant(false);
-      const readCorners = async () => {
-        for (const i of CORNER_ORDER) {
-          const v = canvas.points[i];
-          const side = v[0] - centre[0] < -1 ? -1 : 1;
-          const apex = Math.abs(v[0] - centre[0]) < 40;
-          guide.setPose('walk');
-          await guide.moveTo({ x: BOARD.surface.left + v[0] + side * (apex ? 88 : 96), y: BOARD.surface.top + v[1] + (apex ? 50 : 8), scale: 0.5, flip: side > 0, rotate: 0 });
-          guide.protractor();
-          await canvas.measureAngle(i, { signal: signal() });
-          await pause(500);
-        }
-      };
-      let reading = null;
-      const spoken = board.narrate(screen.narration, { focus: screen.focus, cues: [{ phrase: 'measure', run: () => { reading = readCorners(); } }] });
-      await withSignal(spoken.finished, signal());
-      await withSignal(reading ?? readCorners(), signal());
+      const unit = (v) => { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; };
+      for (const i of CORNER_ORDER) {
+        const v = canvas.points[i];
+        const sides = [canvas.points[(i + 1) % 3], canvas.points[(i + 2) % 3]].map((q) => unit([q[0] - v[0], q[1] - v[1]]));
+        const inward = unit([centre[0] - v[0], centre[1] - v[1]]);
+        const pose = guide.pickToolPose(sides);
+        const at = (back, rotate) => ({ x: BOARD.surface.left + v[0] - inward[0] * back, y: BOARD.surface.top + v[1] - inward[1] * back, scale: 0.5, flip: pose.flip, rotate: pose.flip ? -rotate : rotate });
+        guide.setInstant(false);
+        guide.setRegistration('feet');
+        guide.setPose('walk');
+        await guide.moveTo({ x: BOARD.surface.left + v[0] - inward[0] * 70, y: BOARD.surface.top + v[1] - inward[1] * 70 + 40, scale: 0.5, flip: pose.flip, rotate: 0 });
+        guide.setInstant(true);
+        guide.setRegistration('tool');
+        guide.setPose(pose.frameName);
+        guide.placeAt(at(34, 0));                    // the protractor just off the corner...
+        guide.setInstant(false);
+        await pause(40);
+        guide.placeAt(at(0, pose.rotate));           // ...then set onto it, turned to lie along the side
+        await pause(560);
+        await canvas.measureAngle(i, { signal: signal() });
+        await pause(500);
+        guide.placeAt(at(34, 0));                    // and lifted off
+        await pause(460);
+        guide.setInstant(true);
+        guide.setRegistration('feet');
+        guide.setPose('walkStop');
+        guide.placeAt({ x: BOARD.surface.left + v[0] - inward[0] * 70, y: BOARD.surface.top + v[1] - inward[1] * 70 + 40, scale: 0.5, flip: pose.flip, rotate: 0 });
+        guide.setInstant(false);
+      }
       guide.setPose('walk');
       await guide.home();
       guide.idle();
@@ -399,9 +413,9 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
 
     async drag(screen) {
       await narrate(screen.narration);
-      if (screen.sub) {
+      if (screen.instruction) {                  // the question is read first; then the box swaps to the instruction
         await pause(700);
-        await withSignal(board.narrateSub(screen.sub).finished, signal());
+        await narrate(screen.instruction);
       }
       setState('INTERACTING');
       let resolveDone;
@@ -424,7 +438,6 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
         canvas.clearHint();
       }
       setState('FEEDBACK');
-      board.setSub(null);
       canvas.sparkleVertices();
       const m = canvas.measured;
       if (screen.success?.final) {
@@ -681,7 +694,6 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
     gameState.update({ learningScreen: screen.id });
     board.cancelCues();
     await clearOverlay();
-    board.setSub(null);
     board.narrationEl.hidden = false;
     await Promise.all([prepareTriangle(screen), screen.kind === 'summary' ? Promise.resolve() : placeGuide(screen)]);
     const runner = runners[screen.kind];
@@ -702,7 +714,6 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
         index,
         total: LEARNING_SCREENS.length,
         narration: board.narrationText,
-        sub: board.subText,
         badges: [...board.overlayEl.querySelectorAll('.ws-badge')].map((b) => b.textContent),
         guide: guide.isPresent ? guide.pose : null,
         measured: canvas.measured,
@@ -751,6 +762,12 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
     get index() { return index; },
     get screens() { return LEARNING_SCREENS; },
     onChange(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+    /** Turns the review mode on or off while running; turning it off releases a screen waiting for Next. */
+    setManual(on) {
+      manual = Boolean(on);
+      if (!manual) resolveNext?.();
+    },
+    get manual() { return manual; },
     jumpTo(target) {
       const i = typeof target === 'string' ? LEARNING_SCREENS.findIndex((s) => s.id === target) : target;
       if (i < 0 || i >= LEARNING_SCREENS.length || stopped) return;
