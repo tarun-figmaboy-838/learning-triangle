@@ -34,8 +34,9 @@ SCRIPT = os.path.join(ROOT, "tools/vo/vo_script.json")
 LINES_JS = os.path.join(ROOT, "js/data/vo-lines.js")
 JSC = "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc"
 API = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-TEXT_MODEL = "gemini-3-flash-preview"
-TTS_MODEL = "gemini-3.1-flash-tts-preview"
+# The studio's models first; a free-tier key may only have the 2.5 ones (same "Charon" voice).
+TEXT_MODELS = ["gemini-3-flash-preview", "gemini-2.5-flash"]
+TTS_MODELS = ["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"]
 VOICE = "Charon"                     # the studio's "Male Teacher (Formal)"
 TARGET = "Hindi"                     # the studio's language setting for the game's clips
 
@@ -86,6 +87,22 @@ def lesson_lines():
     return intro + [line for line in lines if line not in intro]
 
 
+class Unavailable(Exception):
+    """This model is not open to this key (try the next one)."""
+
+
+def call_first(models, body, key):
+    """The first model in `models` that this key may use."""
+    last = None
+    for model in models:
+        try:
+            return call(model, body, key)
+        except Unavailable as error:
+            last = error
+            print(f"   {model} not available with this key ({error}); trying the next model")
+    raise SystemExit(f"no model available with this key: {last}")
+
+
 def call(model, body, key):
     """One generateContent call, with patient retries on rate limits."""
     data = json.dumps(body).encode()
@@ -96,6 +113,8 @@ def call(model, body, key):
                 return json.loads(response.read())
         except urllib.error.HTTPError as error:
             detail = error.read().decode(errors="replace")[:300]
+            if error.code in (400, 403, 404) or (error.code == 429 and "limit: 0" in detail):
+                raise Unavailable(f"HTTP {error.code}")          # not on this key's plan: the caller tries the next model
             if error.code in (429, 500, 503) and attempt < 5:
                 wait = 20 * (attempt + 1)
                 print(f"   {model}: HTTP {error.code}, retrying in {wait}s")
@@ -106,7 +125,7 @@ def call(model, body, key):
 
 
 def prepare(text, key):
-    reply = call(TEXT_MODEL, {"contents": [{"parts": [{"text": PREPARE.format(target=TARGET, text=text)}]}]}, key)
+    reply = call_first(TEXT_MODELS, {"contents": [{"parts": [{"text": PREPARE.format(target=TARGET, text=text)}]}]}, key)
     parts = reply.get("candidates", [{}])[0].get("content", {}).get("parts", [])
     return "".join(p.get("text", "") for p in parts).strip() or text
 
@@ -114,7 +133,7 @@ def prepare(text, key):
 def speak(text, key):
     body = {"contents": [{"parts": [{"text": text}]}],
             "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": VOICE}}}}}
-    reply = call(TTS_MODEL, body, key)
+    reply = call_first(TTS_MODELS, body, key)
     part = reply["candidates"][0]["content"]["parts"][0]["inlineData"]
     rate = int(re.search(r"rate=(\d+)", part.get("mimeType", "")).group(1)) if "rate=" in part.get("mimeType", "") else 24000
     return base64.b64decode(part["data"]), rate
