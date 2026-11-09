@@ -18,7 +18,6 @@ export const LEARNING_COPY = Object.freeze({
   check: 'CHECK',
   continue: 'CONTINUE',
   dragToSort: 'DRAG TO SORT',
-  dropHere: 'DROP TRIANGLE HERE',
   greatJob: 'GREAT JOB!',
   summary: {
     heading: "Let's summarise what we learned.",

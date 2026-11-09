@@ -220,7 +220,7 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     node.setAttribute('tabindex', '0');
     node.setAttribute('aria-label', `Triangle ${card.id}`);
     const figure = buildTriangleFigure(card.spec, { width: 480, height: 252, labels: 'sides', ticks: true, pad: 32 });
-    node.append(element('span', 'ws-letter', escapeHtml(card.id)), figure.svg);
+    node.appendChild(figure.svg);
     node.style.setProperty('--i', String(index));
     node.style.zIndex = String(3 - index);
     place(node, { left: DECK.left + index * DECK.step, top: DECK.top + index * DECK.step });
@@ -236,7 +236,7 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     node.setAttribute('role', 'button');
     node.setAttribute('tabindex', '0');
     node.setAttribute('aria-label', `${bin.label} crate`);
-    node.innerHTML = `<span class="ws-bin__label ws-tag ws-tag--${bin.id}">${escapeHtml(bin.label)}</span><div class="ws-bin__crate"><img src="${ASSETS}sort-crate.png" alt="" draggable="false"><span class="ws-bin__slot">${escapeHtml(LEARNING_COPY.dropHere)}</span></div>`;
+    node.innerHTML = `<span class="ws-bin__label ws-tag ws-tag--${bin.id}">${escapeHtml(bin.label)}</span><div class="ws-bin__crate"><img src="${ASSETS}sort-crate.png" alt="" draggable="false"></div>`;
     node.style.setProperty('--i', String(index));
     place(node, { left: BIN.xs[index], top: BIN.top, width: BIN.width });
     root.appendChild(node);
@@ -289,7 +289,6 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 520));
     bodies.forEach((line) => line.classList.remove('is-lit'));
     bin.node.classList.add('is-filled');
-    bin.node.querySelector('.ws-bin__slot').textContent = '';
     audio?.play('snapRight');
     playClassAnimation(bin.node, 'is-receiving', 520);
     playClassAnimation(bin.node.querySelector('.ws-bin__label'), 'is-pulse', 480);
