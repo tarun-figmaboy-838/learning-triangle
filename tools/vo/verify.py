@@ -23,6 +23,7 @@ VOCABULARY = "Triangles by sides: scalene, isosceles, equilateral. By angles: ac
 
 
 def words(text):
+    text = re.sub(r"(\d+)° angle", r"\1-degree angle", text)       # as clone.py says it: "a ninety-degree angle"
     text = text.lower().replace("°", " degrees").replace("-", " ")
     tokens = re.findall(r"[a-z0-9']+", text)
     return [NUMBERS.get(t, t) for t in tokens]

@@ -368,7 +368,7 @@
   "where": [
    "Triangle Workshop L14"
   ],
-  "seconds": 7.23
+  "seconds": 6.89
  },
  {
   "id": "vo040",
@@ -444,11 +444,11 @@
   "id": "vo047",
   "speaker": "builder",
   "line": "A triangle with one 90° angle is right-angled.",
-  "spoken": "A triangle with one 90 degrees angle is right-angled.",
+  "spoken": "A triangle with one 90-degree angle is right-angled.",
   "where": [
    "Triangle Workshop CFU04"
   ],
-  "seconds": 4.77
+  "seconds": 4.63
  },
  {
   "id": "vo048",
@@ -508,7 +508,7 @@
   "where": [
    "Triangle Workshop CFU05"
   ],
-  "seconds": 4.69
+  "seconds": 5.3
  },
  {
   "id": "vo054",
@@ -598,7 +598,7 @@
   "where": [
    "Triangle Workshop Summary"
   ],
-  "seconds": 5.02
+  "seconds": 5.92
  },
  {
   "id": "vo063",
@@ -664,11 +664,11 @@
   "id": "vo069",
   "speaker": "builder",
   "line": "Drag any vertex to create one 90° angle.",
-  "spoken": "Drag any vertex to create one 90 degrees angle.",
+  "spoken": "Drag any vertex to create one 90-degree angle.",
   "where": [
    "Triangle workshop"
   ],
-  "seconds": 4.82
+  "seconds": 4.91
  },
  {
   "id": "vo070",

@@ -51,6 +51,7 @@ SAY_AS = {"Scalene. All sides are different.": "Scalene, all sides are different
 def speakable(text):
     """The line as it should be said (the screen keeps the deck's wording)."""
     text = SAY_AS.get(text, text)
+    text = re.sub(r"(\d+)° angle", r"\1-degree angle", text)        # "one 90° angle" -> "one ninety-degree angle"
     return re.sub(r"\s+", " ", text.replace("°", " degrees")).strip()
 
 
