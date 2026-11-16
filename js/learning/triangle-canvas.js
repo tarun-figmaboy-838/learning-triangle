@@ -4,7 +4,7 @@
  * shape every frame. Corners can be dragged (pointer capture, touch, a wide invisible hit area);
  * while a goal is set, a corner near a position that makes the goal true snaps onto it.
  */
-import { measure, formatCm, formatDeg, constrainVertex, snapVertex, goalMet, solutionFor, vec, PX_PER_CM } from './triangle-model.js';
+import { measure, formatDeg, constrainVertex, snapVertex, goalMet, solutionFor, vec, PX_PER_CM } from './triangle-model.js';
 import { svgEl, fmt, sideLabelPoint, arcPath, squarePoints, tickSegment, cornerFrame, outwardNormal, centroid, valueHues } from './triangle-draw.js';
 import { tween, easings, wait, prefersReducedMotion, playClassAnimation } from '../core/motion.js';
 
@@ -91,7 +91,7 @@ export function createTriangleCanvas({ host, width, height, audio }) {
   function render() {
     measured = measure(points, pxPerCm);
     const angleHue = valueHues(measured.shownDeg);                // equal angles (as shown) share a colour
-    const sideHue = valueHues(measured.cm.map(formatCm));        // equal lengths share a colour
+    const sideHue = valueHues(measured.shownCm);                  // equal lengths share a colour
     for (let i = 0; i < 3; i += 1) {
       const [x1, y1] = points[i];
       const [x2, y2] = points[(i + 1) % 3];
@@ -135,7 +135,7 @@ export function createTriangleCanvas({ host, width, height, audio }) {
 
       const l = sideLabels[i];
       l.group.dataset.hue = String(sideHue[i]);
-      l.text.textContent = formatCm(measured.cm[i]);
+      l.text.textContent = measured.shownCm[i];
       // The number sits clear of the line and its equal-side tick whichever way the side runs: the gap
       // grows by the half of the text that lies along the side's normal (its width on a vertical side).
       const normal = outwardNormal(points, i);

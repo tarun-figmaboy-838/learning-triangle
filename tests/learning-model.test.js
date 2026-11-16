@@ -207,16 +207,24 @@ test('labels that look equal are equal: the snap magnet is wider than the label 
   assert.ok(SNAP_RADIUS_PX > 0.1 * PX_PER_CM, `snap ${SNAP_RADIUS_PX}px vs rounding ${0.1 * PX_PER_CM}px`);
 });
 
-test('the angles shown always add up to 180°, with 90° only on a right angle', () => {
-  const cases = [[33.5, 56.5, 90], [59.6, 60.4, 60], [60.4, 60.4, 59.2], [90.6, 44.7, 44.7], [89.4, 45.3, 45.3], [110.5, 40.25, 29.25]];
+test('the angles shown add up to 180°, equal angles read equal, 90° only on a right angle', () => {
+  const cases = [[33.5, 56.5, 90], [59.6, 60.4, 60], [60.4, 60.4, 59.2], [90.6, 44.7, 44.7], [89.4, 45.3, 45.3], [110.5, 40.25, 29.25],
+    [88.85, 45.575, 45.575], [89, 45.5, 45.5], [120, 30, 30]];
   for (const deg of cases) {
     const shown = displayDegrees(deg);
     assert.equal(shown.reduce((sum, d) => sum + d, 0), 180, `${deg} -> ${shown}`);
     shown.forEach((d, i) => assert.ok((d === 90) === (Math.abs(deg[i] - 90) <= 0.49), `${deg} -> ${shown}: 90 only for a right angle`));
+    [[0, 1], [1, 2], [0, 2]].forEach(([i, j]) => { if (Math.abs(deg[i] - deg[j]) < 0.05) assert.equal(shown[i], shown[j], `${deg} -> ${shown}: equal angles show equal`); });
+    shown.forEach((d, i) => assert.ok(Math.abs(d - deg[i]) < 1.6, `${deg} -> ${shown}: close to the true angle`));
   }
   for (const screen of LEARNING_SCREENS.filter((s) => s.triangle)) {
     assert.equal(measure(place(screen.triangle)).shownDeg.reduce((sum, d) => sum + d, 0), 180, screen.id);
   }
+});
+
+test('sides counted as equal always read the same length', () => {
+  const m = measure([[0, 0], [4.949 * PX_PER_CM, 0], [2.4745 * PX_PER_CM, 4.2995 * PX_PER_CM]].map(([x, y]) => [x, y]));
+  m.equalSides.forEach((equal, i) => { if (equal) m.equalSides.forEach((other, j) => { if (other) assert.equal(m.shownCm[i], m.shownCm[j]); }); });
 });
 
 test('every screen id is unique', () => {

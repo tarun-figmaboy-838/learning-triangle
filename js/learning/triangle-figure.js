@@ -3,7 +3,7 @@
  * the same geometry as the live canvas, drawn once from a spec and fitted into a box. Side lengths,
  * angles, ticks and the right-angle square are all computed from the shape, never typed in.
  */
-import { cmPointsFromSpec, measure, formatCm, formatDeg, PX_PER_CM } from './triangle-model.js';
+import { cmPointsFromSpec, measure, formatDeg, PX_PER_CM } from './triangle-model.js';
 import { svgEl, fmt, sideLabelPoint, arcPath, squarePoints, tickSegment, outwardNormal, cornerFrame, valueHues } from './triangle-draw.js';
 
 /**
@@ -36,7 +36,7 @@ export function buildTriangleFigure(spec, { width = 260, height = 200, labels = 
   }
   // Corner marks go UNDER the sides (a coloured slice rimmed by its arc, as on the big triangle), ticks on top.
   const angleHue = valueHues(m.shownDeg);
-  const sideHue = valueHues(m.cm.map(formatCm));
+  const sideHue = valueHues(m.shownCm);
   const corners = svgEl('g', { class: 'ws-figure__marks' });
   const radius = Math.max(30, 20 * strokeScale + 14);
   for (let i = 0; i < 3; i += 1) {
@@ -68,7 +68,7 @@ export function buildTriangleFigure(spec, { width = 260, height = 200, labels = 
     for (let i = 0; i < 3; i += 1) {
       // Clear of the line and its tick whichever way the side runs: the gap grows by half the text's
       // extent along the side's normal (its width on an upright side, its height on a flat one).
-      const text = formatCm(m.cm[i]);
+      const text = m.shownCm[i];
       const n = outwardNormal(vertices, i);
       const gap = 6 * strokeScale + 6 + Math.abs(n[0]) * (text.length * labelSize * 0.29) + Math.abs(n[1]) * (labelSize * 0.55);
       const [x, y] = sideLabelPoint(vertices, i, gap);

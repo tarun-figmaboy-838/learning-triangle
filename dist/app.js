@@ -2830,7 +2830,7 @@ bySides: [
 { name: 'Equilateral', tone: 'equilateral', text: 'All three sides are equal.', spec: { sides: [5, 5, 5] }, labels: 'sides' },
 ],
 byAngles: [
-{ name: 'Acute-angled', tone: 'acute', text: 'All angles are less than 90°.', spec: { angles: [60, 60, 60], base: 5 }, labels: 'angles' },
+{ name: 'Acute-angled', tone: 'acute', text: 'All angles are less than 90°.', spec: { angles: [65, 70, 45], base: 5 }, labels: 'angles' },
 { name: 'Right-angled', tone: 'right', text: 'One angle is 90°.', spec: { angles: [60, 90, 30], base: 4 }, labels: 'angles' },
 { name: 'Obtuse-angled', tone: 'obtuse', text: 'One angle is greater than 90°.', spec: { angles: [120, 30, 30], base: 6 }, labels: 'angles' },
 ],
@@ -3181,13 +3181,18 @@ if (Math.abs(largest - 90) <= RIGHT_DEG_TOLERANCE) return 'right';
 if (largest > 90) return 'obtuse';
 return 'acute';
 }
+const EQUAL_DEG_TOLERANCE = 0.05;
 function displayDegrees(deg) {
-const options = deg.map((d) => (Math.abs(d - 90) <= RIGHT_DEG_TOLERANCE ? [90] : [...new Set([Math.floor(d), Math.ceil(d)])].filter((v) => v !== 90)));
+const near = (d) => [Math.floor(d) - 1, Math.floor(d), Math.ceil(d), Math.ceil(d) + 1];
+const options = deg.map((d) => (Math.abs(d - 90) <= RIGHT_DEG_TOLERANCE ? [90] : [...new Set(near(d))].filter((v) => v > 0 && v !== 90)));
+const pairs = [[0, 1], [1, 2], [0, 2]].filter(([i, j]) => Math.abs(deg[i] - deg[j]) < EQUAL_DEG_TOLERANCE);
 let best = null;
 for (const a of options[0]) for (const b of options[1]) for (const c of options[2]) {
-if (a + b + c !== 180) continue;
-const cost = Math.abs(a - deg[0]) + Math.abs(b - deg[1]) + Math.abs(c - deg[2]);
-if (!best || cost < best.cost) best = { shown: [a, b, c], cost };
+const shown = [a, b, c];
+if (a + b + c !== 180 || pairs.some(([i, j]) => shown[i] !== shown[j])) continue;
+const errors = shown.map((v, i) => Math.abs(v - deg[i]));
+const cost = errors.reduce((sum, e) => sum + e, 0) + Math.max(...errors) * 0.01;
+if (!best || cost < best.cost) best = { shown, cost };
 }
 return best ? best.shown : deg.map(Math.round);
 }
@@ -3200,6 +3205,10 @@ const rightAt = deg.findIndex((value) => Math.abs(value - 90) <= RIGHT_DEG_TOLER
 const obtuseAt = deg.findIndex((value) => value > 90 + RIGHT_DEG_TOLERANCE);
 return {
 px, cm, deg, equalSides, rightAt, obtuseAt,
+shownCm: cm.map((value, i) => {
+const group = [i, ...others(i).filter((j) => nearlyEqualCm(value, cm[j]))];
+return formatCm(group.reduce((sum, k) => sum + cm[k], 0) / group.length);
+}),
 shownDeg: displayDegrees(deg),
 bySides: classifyBySides(cm),
 byAngles: classifyByAngles(deg),
@@ -3463,7 +3472,7 @@ return labels.map((label) => { let k = seen.indexOf(label); if (k < 0) { seen.pu
 return { svgEl, fmt, outwardNormal, sideLabelPoint, cornerFrame, arcPath, squarePoints, tickSegment, centroid, valueHues };
 });
 __define('js/learning/triangle-canvas.js', function () {
-const { measure, formatCm, formatDeg, constrainVertex, snapVertex, goalMet, solutionFor, vec, PX_PER_CM } = __require('js/learning/triangle-model.js');
+const { measure, formatDeg, constrainVertex, snapVertex, goalMet, solutionFor, vec, PX_PER_CM } = __require('js/learning/triangle-model.js');
 const { svgEl, fmt, sideLabelPoint, arcPath, squarePoints, tickSegment, cornerFrame, outwardNormal, centroid, valueHues } = __require('js/learning/triangle-draw.js');
 const { tween, easings, wait, prefersReducedMotion, playClassAnimation } = __require('js/core/motion.js');
 const VERTEX_HIT_RADIUS = 46;
@@ -3540,7 +3549,7 @@ const inSet = (value, i) => value === true || (Array.isArray(value) && value.inc
 function render() {
 measured = measure(points, pxPerCm);
 const angleHue = valueHues(measured.shownDeg);
-const sideHue = valueHues(measured.cm.map(formatCm));
+const sideHue = valueHues(measured.shownCm);
 for (let i = 0; i < 3; i += 1) {
 const [x1, y1] = points[i];
 const [x2, y2] = points[(i + 1) % 3];
@@ -3581,7 +3590,7 @@ angleClass(a, 'is-right', isRight);
 angleClass(a, 'is-obtuse', measured.obtuseAt === i);
 const l = sideLabels[i];
 l.group.dataset.hue = String(sideHue[i]);
-l.text.textContent = formatCm(measured.cm[i]);
+l.text.textContent = measured.shownCm[i];
 const normal = outwardNormal(points, i);
 const gap = 22 + Math.abs(normal[0]) * (l.text.textContent.length * 8.5) + Math.abs(normal[1]) * 15;
 const [sx, sy] = sideLabelPoint(points, i, gap);
@@ -4174,7 +4183,7 @@ root.remove();
 return { GUIDE_FRAMES, GUIDE_IMAGES, createBeaverGuide };
 });
 __define('js/learning/triangle-figure.js', function () {
-const { cmPointsFromSpec, measure, formatCm, formatDeg, PX_PER_CM } = __require('js/learning/triangle-model.js');
+const { cmPointsFromSpec, measure, formatDeg, PX_PER_CM } = __require('js/learning/triangle-model.js');
 const { svgEl, fmt, sideLabelPoint, arcPath, squarePoints, tickSegment, outwardNormal, cornerFrame, valueHues } = __require('js/learning/triangle-draw.js');
 const MAX_SCALE = PX_PER_CM * 0.78;
 function buildTriangleFigure(spec, { width = 260, height = 200, labels = null, ticks = false, square = false, arcs = false, pad = 34, strokeScale = 1, labelSize = 19 } = {}) {
@@ -4200,7 +4209,7 @@ const attrs = { x1: fmt(x1), y1: fmt(y1), x2: fmt(x2), y2: fmt(y2) };
 sides.append(svgEl('line', { ...attrs, class: 'ws-figure__edge', style: `stroke-width:${14 * strokeScale}` }), svgEl('line', { ...attrs, class: 'ws-figure__body', style: `stroke-width:${8 * strokeScale}` }));
 }
 const angleHue = valueHues(m.shownDeg);
-const sideHue = valueHues(m.cm.map(formatCm));
+const sideHue = valueHues(m.shownCm);
 const corners = svgEl('g', { class: 'ws-figure__marks' });
 const radius = Math.max(30, 20 * strokeScale + 14);
 for (let i = 0; i < 3; i += 1) {
@@ -4230,7 +4239,7 @@ svg.appendChild(svgEl('circle', { cx: fmt(x), cy: fmt(y), r: 8 * strokeScale, cl
 }
 if (labels === 'sides') {
 for (let i = 0; i < 3; i += 1) {
-const text = formatCm(m.cm[i]);
+const text = m.shownCm[i];
 const n = outwardNormal(vertices, i);
 const gap = 6 * strokeScale + 6 + Math.abs(n[0]) * (text.length * labelSize * 0.29) + Math.abs(n[1]) * (labelSize * 0.55);
 const [x, y] = sideLabelPoint(vertices, i, gap);

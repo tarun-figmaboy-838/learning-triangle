@@ -66,17 +66,24 @@ export function classifyByAngles(deg) {
   return 'acute';
 }
 
+const EQUAL_DEG_TOLERANCE = 0.05;
+
 /**
- * The angles as shown: whole degrees that always add up to 180. Each is its value rounded down or up
- * (whichever total is closest to the truth); 90 is shown only for a right angle, and a right angle is 90.
+ * The angles as shown, in whole degrees, as a learner checks them: they always add up to 180, equal angles
+ * (an isosceles triangle's base angles) always show the same number, a right angle is 90 and nothing else
+ * is. Of the whole-degree sets that keep those rules, the one closest to the true angles is shown.
  */
 export function displayDegrees(deg) {
-  const options = deg.map((d) => (Math.abs(d - 90) <= RIGHT_DEG_TOLERANCE ? [90] : [...new Set([Math.floor(d), Math.ceil(d)])].filter((v) => v !== 90)));
+  const near = (d) => [Math.floor(d) - 1, Math.floor(d), Math.ceil(d), Math.ceil(d) + 1];
+  const options = deg.map((d) => (Math.abs(d - 90) <= RIGHT_DEG_TOLERANCE ? [90] : [...new Set(near(d))].filter((v) => v > 0 && v !== 90)));
+  const pairs = [[0, 1], [1, 2], [0, 2]].filter(([i, j]) => Math.abs(deg[i] - deg[j]) < EQUAL_DEG_TOLERANCE);
   let best = null;
   for (const a of options[0]) for (const b of options[1]) for (const c of options[2]) {
-    if (a + b + c !== 180) continue;
-    const cost = Math.abs(a - deg[0]) + Math.abs(b - deg[1]) + Math.abs(c - deg[2]);
-    if (!best || cost < best.cost) best = { shown: [a, b, c], cost };
+    const shown = [a, b, c];
+    if (a + b + c !== 180 || pairs.some(([i, j]) => shown[i] !== shown[j])) continue;
+    const errors = shown.map((v, i) => Math.abs(v - deg[i]));
+    const cost = errors.reduce((sum, e) => sum + e, 0) + Math.max(...errors) * 0.01;
+    if (!best || cost < best.cost) best = { shown, cost };
   }
   return best ? best.shown : deg.map(Math.round);
 }
@@ -91,6 +98,11 @@ export function measure(vertices, pxPerCm = PX_PER_CM) {
   const obtuseAt = deg.findIndex((value) => value > 90 + RIGHT_DEG_TOLERANCE);
   return {
     px, cm, deg, equalSides, rightAt, obtuseAt,
+    // Lengths as shown: sides the lesson counts as equal (and ticks) always read the same number.
+    shownCm: cm.map((value, i) => {
+      const group = [i, ...others(i).filter((j) => nearlyEqualCm(value, cm[j]))];
+      return formatCm(group.reduce((sum, k) => sum + cm[k], 0) / group.length);
+    }),
     shownDeg: displayDegrees(deg),
     bySides: classifyBySides(cm),
     byAngles: classifyByAngles(deg),

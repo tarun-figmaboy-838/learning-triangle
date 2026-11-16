@@ -185,7 +185,8 @@ export const LEARNING_SCREENS = Object.freeze([
       { name: 'Equilateral', tone: 'equilateral', text: 'All three sides are equal.', spec: { sides: [5, 5, 5] }, labels: 'sides' },
     ],
     byAngles: [
-      { name: 'Acute-angled', tone: 'acute', text: 'All angles are less than 90°.', spec: { angles: [60, 60, 60], base: 5 }, labels: 'angles' },
+      // All three angles different, so it is not mistaken for the equilateral card above it.
+      { name: 'Acute-angled', tone: 'acute', text: 'All angles are less than 90°.', spec: { angles: [65, 70, 45], base: 5 }, labels: 'angles' },
       { name: 'Right-angled', tone: 'right', text: 'One angle is 90°.', spec: { angles: [60, 90, 30], base: 4 }, labels: 'angles' },
       { name: 'Obtuse-angled', tone: 'obtuse', text: 'One angle is greater than 90°.', spec: { angles: [120, 30, 30], base: 6 }, labels: 'angles' },
     ],
