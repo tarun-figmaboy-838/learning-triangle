@@ -713,6 +713,43 @@ const VO_LINES = {
 "Drag a vertex until the three lengths match.": { id: "vo066", file: "vo066.m4a", ogg: "vo066.ogg", seconds: 3.13, speaker: "builder" },
 "Sort the triangles.": { id: "vo032", file: "vo032.m4a", ogg: "vo032.ogg", seconds: 1.77, speaker: "builder" },
 "Great job! You sorted all the triangles.": { id: "vo033", file: "vo033.m4a", ogg: "vo033.ogg", seconds: 2.93, speaker: "builder" },
+"A triangle with all three sides equal is called an equilateral triangle.": { id: "vo031", file: "vo031.m4a", ogg: "vo031.ogg", seconds: 6.28, speaker: "builder" },
+"Make this triangle isosceles.": { id: "vo034", file: "vo034.m4a", ogg: "vo034.ogg", seconds: 2.75, speaker: "builder" },
+"Great! This triangle is isosceles.": { id: "vo035", file: "vo035.m4a", ogg: "vo035.ogg", seconds: 3.6, speaker: "builder" },
+"Now let's measure the angles.": { id: "vo036", file: "vo036.m4a", ogg: "vo036.ogg", seconds: 3.4, speaker: "builder" },
+"What do you notice about the angles?": { id: "vo037", file: "vo037.m4a", ogg: "vo037.ogg", seconds: 2.89, speaker: "builder" },
+"All three angles are less than 90°. So they are acute angles.": { id: "vo038", file: "vo038.m4a", ogg: "vo038.ogg", seconds: 7.07, speaker: "builder" },
+"A triangle which has 3 acute angles is called an acute angled triangle.": { id: "vo039", file: "vo039.m4a", ogg: "vo039.ogg", seconds: 7.23, speaker: "builder" },
+"Can you make one angle exactly 90°?": { id: "vo040", file: "vo040.m4a", ogg: "vo040.ogg", seconds: 4.47, speaker: "builder" },
+"Drag a vertex; angles change live.": { id: "vo067", file: "vo067.m4a", ogg: "vo067.ogg", seconds: 4.09, speaker: "builder" },
+"A triangle with one angle equal to 90° is called a right angled triangle.": { id: "vo041", file: "vo041.m4a", ogg: "vo041.ogg", seconds: 6.56, speaker: "builder" },
+"What if one of the angles was obtuse?": { id: "vo042", file: "vo042.m4a", ogg: "vo042.ogg", seconds: 3.27, speaker: "builder" },
+"Drag any vertex to make any angle obtuse.": { id: "vo068", file: "vo068.m4a", ogg: "vo068.ogg", seconds: 3.94, speaker: "builder" },
+"A triangle with one angle greater than 90° is called an obtuse-angled triangle.": { id: "vo043", file: "vo043.m4a", ogg: "vo043.ogg", seconds: 6.85, speaker: "builder" },
+"Which of these are acute-angled triangles?": { id: "vo044", file: "vo044.m4a", ogg: "vo044.ogg", seconds: 3.95, speaker: "builder" },
+"Correct! Both A and D have only acute angles.": { id: "vo045", file: "vo045.m4a", ogg: "vo045.ogg", seconds: 4.85, speaker: "builder" },
+"Make this triangle right-angled.": { id: "vo046", file: "vo046.m4a", ogg: "vo046.ogg", seconds: 3.0, speaker: "builder" },
+"Drag any vertex to create one 90° angle.": { id: "vo069", file: "vo069.m4a", ogg: "vo069.ogg", seconds: 4.82, speaker: "builder" },
+"A triangle with one 90° angle is right-angled.": { id: "vo047", file: "vo047.m4a", ogg: "vo047.ogg", seconds: 4.77, speaker: "builder" },
+"What type of triangle is this by its sides?": { id: "vo048", file: "vo048.m4a", ogg: "vo048.ogg", seconds: 4.14, speaker: "builder" },
+"What type is this triangle by its angles?": { id: "vo049", file: "vo049.m4a", ogg: "vo049.ogg", seconds: 3.78, speaker: "builder" },
+"This triangle is both isosceles and right angled.": { id: "vo050", file: "vo050.m4a", ogg: "vo050.ogg", seconds: 4.8, speaker: "builder" },
+"So a triangle can be classified by both its sides and its angles.": { id: "vo051", file: "vo051.m4a", ogg: "vo051.ogg", seconds: 6.41, speaker: "builder" },
+"Classify the triangle.": { id: "vo052", file: "vo052.m4a", ogg: "vo052.ogg", seconds: 2.02, speaker: "builder" },
+"Correct! This triangle is scalene and obtuse-angled.": { id: "vo053", file: "vo053.m4a", ogg: "vo053.ogg", seconds: 4.69, speaker: "builder" },
+"Make a right-angled isosceles triangle.": { id: "vo054", file: "vo054.m4a", ogg: "vo054.ogg", seconds: 3.2, speaker: "builder" },
+"Satisfy both conditions in one shape.": { id: "vo070", file: "vo070.m4a", ogg: "vo070.ogg", seconds: 3.31, speaker: "builder" },
+"You can classify triangles by sides and angles!": { id: "vo055", file: "vo055.m4a", ogg: "vo055.ogg", seconds: 3.99, speaker: "builder" },
+"Scalene. All sides are different.": { id: "vo057", file: "vo057.m4a", ogg: "vo057.ogg", seconds: 3.56, speaker: "builder" },
+"Isosceles. Two sides are equal.": { id: "vo058", file: "vo058.m4a", ogg: "vo058.ogg", seconds: 3.3, speaker: "builder" },
+"Equilateral. All three sides are equal.": { id: "vo059", file: "vo059.m4a", ogg: "vo059.ogg", seconds: 4.23, speaker: "builder" },
+"Acute-angled. All angles are less than 90°.": { id: "vo060", file: "vo060.m4a", ogg: "vo060.ogg", seconds: 4.97, speaker: "builder" },
+"Right-angled. One angle is 90°.": { id: "vo061", file: "vo061.m4a", ogg: "vo061.ogg", seconds: 4.27, speaker: "builder" },
+"Obtuse-angled. One angle is greater than 90°.": { id: "vo062", file: "vo062.m4a", ogg: "vo062.ogg", seconds: 5.02, speaker: "builder" },
+"Let's summarise what we learned.": { id: "vo056", file: "vo056.m4a", ogg: "vo056.ogg", seconds: 2.49, speaker: "builder" },
+"A triangle can be classified by both its sides and its angles.": { id: "vo063", file: "vo063.m4a", ogg: "vo063.ogg", seconds: 5.25, speaker: "builder" },
+"Let's explore triangles!": { id: "vo071", file: "vo071.m4a", ogg: "vo071.ogg", seconds: 2.53, speaker: "builder" },
+"You're ready!": { id: "vo064", file: "vo064.m4a", ogg: "vo064.ogg", seconds: 1.38, speaker: "builder" },
 };
 return { VO_LINES };
 });
@@ -1852,6 +1889,353 @@ const VO_WORD_TIMES = Object.freeze({
 1716,
 1957,
 2198
+],
+"vo031": [
+320,
+629,
+1026,
+1224,
+1573,
+1771,
+2169,
+2676,
+2964,
+3811,
+4010,
+5673
+],
+"vo034": [
+320,
+515,
+710,
+1210
+],
+"vo035": [
+340,
+1200,
+1392,
+1934,
+2266
+],
+"vo036": [
+330,
+574,
+1279,
+1957,
+2331
+],
+"vo037": [
+320,
+510,
+700,
+890,
+1270,
+1840,
+2030
+],
+"vo038": [
+330,
+550,
+960,
+1500,
+1960,
+2180,
+2690,
+4780,
+5010,
+5230,
+5570,
+6310
+],
+"vo039": [
+320,
+550,
+1010,
+1370,
+1600,
+2110,
+2700,
+3160,
+3740,
+4640,
+5060,
+5520,
+6490
+],
+"vo040": [
+320,
+535,
+749,
+964,
+1298,
+1828,
+3242
+],
+"vo067": [
+320,
+622,
+925,
+2140,
+2985,
+3428
+],
+"vo041": [
+330,
+682,
+1065,
+1407,
+1799,
+2182,
+2906,
+3097,
+4234,
+4566,
+5100,
+5291,
+5483,
+5867
+],
+"vo042": [
+320,
+479,
+1028,
+1187,
+1346,
+1505,
+1823,
+2222
+],
+"vo068": [
+340,
+511,
+962,
+1304,
+1885,
+2055,
+2597,
+2938
+],
+"vo043": [
+320,
+622,
+1006,
+1338,
+1680,
+2065,
+2619,
+2811,
+3579,
+3771,
+4535,
+4848,
+6196
+],
+"vo044": [
+320,
+570,
+820,
+1070,
+1440,
+2860
+],
+"vo045": [
+320,
+1910,
+2000,
+2260,
+2450,
+2640,
+2980,
+3360,
+3920
+],
+"vo046": [
+320,
+531,
+1263,
+1686
+],
+"vo069": [
+320,
+548,
+1134,
+1589,
+2257,
+2735,
+2963,
+4104
+],
+"vo047": [
+390,
+720,
+1160,
+1650,
+1870,
+2750,
+3330,
+3740
+],
+"vo048": [
+320,
+493,
+1015,
+1608,
+1954,
+2216,
+2389,
+2562,
+3045
+],
+"vo049": [
+330,
+693,
+886,
+1489,
+1772,
+2158,
+2521,
+2714
+],
+"vo050": [
+320,
+520,
+1060,
+1260,
+1750,
+2950,
+3540,
+4020
+],
+"vo051": [
+350,
+551,
+862,
+1264,
+1466,
+1927,
+2740,
+3271,
+3472,
+4093,
+4796,
+4997,
+5618
+],
+"vo052": [
+320,
+1155,
+1347
+],
+"vo053": [
+330,
+1930,
+2020,
+2395,
+2588,
+2975,
+3458
+],
+"vo054": [
+320,
+515,
+869,
+1453,
+2521
+],
+"vo070": [
+370,
+1015,
+1320,
+2255,
+2470,
+2685
+],
+"vo055": [
+320,
+510,
+790,
+1360,
+1980,
+2310,
+2690,
+3120
+],
+"vo057": [
+490,
+1560,
+1660,
+2130,
+2290
+],
+"vo058": [
+320,
+2040,
+2130,
+2482,
+2708
+],
+"vo059": [
+330,
+2520,
+2610,
+2700,
+3050,
+3410
+],
+"vo060": [
+320,
+3500,
+3590,
+3680,
+3770,
+3860,
+3950
+],
+"vo061": [
+320,
+1830,
+2015,
+2818,
+3055
+],
+"vo062": [
+330,
+2470,
+2560,
+2885,
+3215,
+3617,
+3817
+],
+"vo056": [
+320,
+514,
+1185,
+1379,
+1702
+],
+"vo063": [
+320,
+623,
+1009,
+1462,
+1655,
+2444,
+2816,
+3259,
+3452,
+4078,
+4271,
+4574
+],
+"vo071": [
+320,
+544,
+1592
+],
+"vo064": [
+360,
+600
 ]
 });
 return { VO_WORD_TIMES };

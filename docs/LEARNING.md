@@ -146,6 +146,17 @@ python3 tools/vo/word_times.py           # per-word times: captions and animatio
 python3 tools/build.py
 ```
 
+Without a key, the same voice is cloned locally and for free: `tools/vo/clone.py` runs Chatterbox (Resemble AI,
+MIT licence) on this Mac and learns the beaver's voice from his own studio clips (setup in the script's header).
+`tools/vo/verify.py` then checks every clip without listening: Whisper must hear the line's exact words, and the
+clip's voice fingerprint must sit within the studio clips' own range.
+
+```sh
+~/.cache/learning-triangle-voice/venv/bin/python tools/vo/clone.py     # every line without a clip
+~/.cache/learning-triangle-voice/venv/bin/python tools/vo/verify.py    # words and voice, clip by clip
+python3 tools/vo/word_times.py && python3 tools/build.py
+```
+
 The player (`js/core/voice-manager.js`) uses one reused `<audio>` unlocked by the Start tap, looks a line up
 by its exact text, plays the Ogg where the browser supports Opus and the AAC / MP3 twin elsewhere, ducks the
 effects under the voice, and prefetches every clip after Start.

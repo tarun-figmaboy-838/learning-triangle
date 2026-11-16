@@ -59,7 +59,8 @@ tools/
   build.py                 bundle + minify
   media.py                 PNG → WebP / AVIF, clips → Ogg Opus
   qa/                      headless-Chrome play-through (cdp.py is a tiny DevTools client)
-  vo/                      record.py (Gemini TTS, the beaver's voice), word_times.py, vo_script.json
+  vo/                      record.py (Gemini TTS) or clone.py (free, local voice cloning) for the beaver's voice,
+                           verify.py (words + voice check), word_times.py, vo_script.json
 ```
 
 ## Media
