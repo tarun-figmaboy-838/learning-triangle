@@ -35,7 +35,7 @@ export function buildTriangleFigure(spec, { width = 260, height = 200, labels = 
     sides.append(svgEl('line', { ...attrs, class: 'ws-figure__edge', style: `stroke-width:${14 * strokeScale}` }), svgEl('line', { ...attrs, class: 'ws-figure__body', style: `stroke-width:${8 * strokeScale}` }));
   }
   // Corner marks go UNDER the sides (a coloured slice rimmed by its arc, as on the big triangle), ticks on top.
-  const angleHue = valueHues(m.deg.map(formatDeg));
+  const angleHue = valueHues(m.shownDeg);
   const sideHue = valueHues(m.cm.map(formatCm));
   const corners = svgEl('g', { class: 'ws-figure__marks' });
   const radius = Math.max(30, 20 * strokeScale + 14);
@@ -78,7 +78,7 @@ export function buildTriangleFigure(spec, { width = 260, height = 200, labels = 
   if (labels === 'angles') {
     for (let i = 0; i < 3; i += 1) {
       // Outside the corner, straight back along its bisector: on a small card the three values never meet.
-      const text = formatDeg(m.deg[i]);
+      const text = formatDeg(m.shownDeg[i]);
       const { bisector } = cornerFrame(vertices, i);
       const away = 10 * strokeScale + 8 + Math.abs(bisector[0]) * (text.length * labelSize * 0.3) + Math.abs(bisector[1]) * (labelSize * 0.6);
       const [x, y] = [vertices[i][0] - bisector[0] * away, vertices[i][1] - bisector[1] * away];

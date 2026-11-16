@@ -13,6 +13,8 @@ const DEFAULT_VISIBLE = Object.freeze({ sides: true, vertices: true, sideLabels:
 
 /** Every corner mark is the same size, big enough to read at a glance. */
 const CORNER_RADIUS = 80;
+/** The right-angle square: the same share of the corner as on the card figures, so it reads as big as an arc. */
+const SQUARE = CORNER_RADIUS * 0.7;
 const normaliseSet = (value) => (value === true ? [0, 1, 2] : Array.isArray(value) ? value : []);
 
 export function createTriangleCanvas({ host, width, height, audio }) {
@@ -88,7 +90,7 @@ export function createTriangleCanvas({ host, width, height, audio }) {
   /** Positions every element from the current corners; cheap enough to run on every pointer move. */
   function render() {
     measured = measure(points, pxPerCm);
-    const angleHue = valueHues(measured.deg.map(formatDeg));     // equal angles share a colour
+    const angleHue = valueHues(measured.shownDeg);                // equal angles (as shown) share a colour
     const sideHue = valueHues(measured.cm.map(formatCm));        // equal lengths share a colour
     for (let i = 0; i < 3; i += 1) {
       const [x1, y1] = points[i];
@@ -110,11 +112,11 @@ export function createTriangleCanvas({ host, width, height, audio }) {
       const radius = CORNER_RADIUS;
       a.arc.setAttribute('d', cornerArc(points, i, radius));
       a.wedge.setAttribute('d', wedgePath(points, i, radius));
-      a.square.setAttribute('points', squarePoints(points, i, CORNER_RADIUS * 0.62));
+      a.square.setAttribute('points', squarePoints(points, i, SQUARE));
       const showArc = inSet(visible.angleArcs, i);
       const showSquare = (visible.square || showArc) && isRight;      // a right angle is marked with its square, never a curve
       if (showSquare) {
-        const [p1, p2, p3] = squarePoints(points, i, CORNER_RADIUS * 0.62).split(' ');
+        const [p1, p2, p3] = squarePoints(points, i, SQUARE).split(' ');
         a.wedge.setAttribute('d', `M ${fmt(points[i][0])} ${fmt(points[i][1])} L ${p1} L ${p2} L ${p3} Z`);   // the square, filled
       }
       setHidden(a.arc, !showArc || showSquare);
@@ -124,7 +126,7 @@ export function createTriangleCanvas({ host, width, height, audio }) {
       a.label.setAttribute('x', fmt(lx)); a.label.setAttribute('y', fmt(ly));
       a.label.style.setProperty('--ox', `${fmt((points[i][0] - lx) * 0.75)}px`);   // the value slides out of its corner
       a.label.style.setProperty('--oy', `${fmt((points[i][1] - ly) * 0.75)}px`);
-      a.label.textContent = formatDeg(measured.deg[i]);
+      a.label.textContent = formatDeg(measured.shownDeg[i]);
       setHidden(a.label, !inSet(visible.angleLabels, i));
       a.group.dataset.hue = String(angleHue[i]);
       a.mark.dataset.hue = String(angleHue[i]);
@@ -313,7 +315,13 @@ export function createTriangleCanvas({ host, width, height, audio }) {
   /** The same light sweeps round the arc of corner i. */
   function traceAngle(index, { delay = 0, duration = 700 } = {}) {
     if (reduced()) return;
-    const path = svgEl('path', { class: 'ws-trace-glow', d: cornerArc(points, index, CORNER_RADIUS), pathLength: 1 });
+    // A right angle is marked with its square, never a curve: the light runs along the square's two edges.
+    let d = cornerArc(points, index, CORNER_RADIUS);
+    if (measured.rightAt === index) {
+      const [p, q, r] = squarePoints(points, index, SQUARE).split(' ');
+      d = `M ${p} L ${q} L ${r}`;
+    }
+    const path = svgEl('path', { class: 'ws-trace-glow', d, pathLength: 1 });
     runTrace(path, delay, duration);
   }
   function runTrace(el, delay, duration) {
@@ -444,7 +452,7 @@ export function createTriangleCanvas({ host, width, height, audio }) {
   /** The arc of corner i sweeps open while the value counts up beside it (the beaver holds the protractor on it, PDF L11). */
   async function measureAngle(index, { signal } = {}) {
     const a = angles[index];
-    const reading = measured.deg[index];
+    const reading = measured.shownDeg[index];
     const radius = CORNER_RADIUS;
     angleClass(a, 'is-measuring', true);
     visible.angleLabels = [...new Set([...normaliseSet(visible.angleLabels), index])];

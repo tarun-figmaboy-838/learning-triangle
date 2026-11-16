@@ -66,6 +66,21 @@ export function classifyByAngles(deg) {
   return 'acute';
 }
 
+/**
+ * The angles as shown: whole degrees that always add up to 180. Each is its value rounded down or up
+ * (whichever total is closest to the truth); 90 is shown only for a right angle, and a right angle is 90.
+ */
+export function displayDegrees(deg) {
+  const options = deg.map((d) => (Math.abs(d - 90) <= RIGHT_DEG_TOLERANCE ? [90] : [...new Set([Math.floor(d), Math.ceil(d)])].filter((v) => v !== 90)));
+  let best = null;
+  for (const a of options[0]) for (const b of options[1]) for (const c of options[2]) {
+    if (a + b + c !== 180) continue;
+    const cost = Math.abs(a - deg[0]) + Math.abs(b - deg[1]) + Math.abs(c - deg[2]);
+    if (!best || cost < best.cost) best = { shown: [a, b, c], cost };
+  }
+  return best ? best.shown : deg.map(Math.round);
+}
+
 /** Everything the lesson shows about a triangle, computed from its corners. */
 export function measure(vertices, pxPerCm = PX_PER_CM) {
   const px = sideLengthsPx(vertices);
@@ -76,6 +91,7 @@ export function measure(vertices, pxPerCm = PX_PER_CM) {
   const obtuseAt = deg.findIndex((value) => value > 90 + RIGHT_DEG_TOLERANCE);
   return {
     px, cm, deg, equalSides, rightAt, obtuseAt,
+    shownDeg: displayDegrees(deg),
     bySides: classifyBySides(cm),
     byAngles: classifyByAngles(deg),
   };

@@ -8,7 +8,7 @@
 import { test, assert, report } from './harness.js';
 import {
   measure, layoutFromSpec, cmPointsFromSpec, classifyBySides, classifyByAngles, formatCm, formatDeg,
-  snapVertex, goalMet, solutionFor, constrainVertex, isValidTriangle, PX_PER_CM, MIN_ALTITUDE_CM, SNAP_RADIUS_PX,
+  snapVertex, goalMet, solutionFor, constrainVertex, isValidTriangle, displayDegrees, PX_PER_CM, MIN_ALTITUDE_CM, SNAP_RADIUS_PX,
 } from '../js/learning/triangle-model.js';
 import { LEARNING_SCREENS } from '../js/learning/learning-content.js';
 
@@ -205,6 +205,18 @@ test('a corner dragged through the opposite side stays a usable triangle on its 
 test('labels that look equal are equal: the snap magnet is wider than the label rounding', () => {
   // Two sides whose labels both read 5.0 cm differ by at most 0.1 cm = 5.6 px; the magnet reaches further.
   assert.ok(SNAP_RADIUS_PX > 0.1 * PX_PER_CM, `snap ${SNAP_RADIUS_PX}px vs rounding ${0.1 * PX_PER_CM}px`);
+});
+
+test('the angles shown always add up to 180°, with 90° only on a right angle', () => {
+  const cases = [[33.5, 56.5, 90], [59.6, 60.4, 60], [60.4, 60.4, 59.2], [90.6, 44.7, 44.7], [89.4, 45.3, 45.3], [110.5, 40.25, 29.25]];
+  for (const deg of cases) {
+    const shown = displayDegrees(deg);
+    assert.equal(shown.reduce((sum, d) => sum + d, 0), 180, `${deg} -> ${shown}`);
+    shown.forEach((d, i) => assert.ok((d === 90) === (Math.abs(deg[i] - 90) <= 0.49), `${deg} -> ${shown}: 90 only for a right angle`));
+  }
+  for (const screen of LEARNING_SCREENS.filter((s) => s.triangle)) {
+    assert.equal(measure(place(screen.triangle)).shownDeg.reduce((sum, d) => sum + d, 0), 180, screen.id);
+  }
 });
 
 test('every screen id is unique', () => {

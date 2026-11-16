@@ -3068,7 +3068,7 @@ typed = revealWords(textEl, text, typingMs, focus, { times: spoken.clipId ? VO_W
 } else {
 const words = text.split(' ');
 const delays = wordDelays(text, spoken, typingMs);
-const showPart = ([a, b], started) => revealWords(textEl, words.slice(a, b).join(' '), 0, focus, { times: delays.slice(a, b).map((d) => d - delays[a]), rate: 1, started });
+const showPart = ([a, b], started) => revealWords(textEl, words.slice(a, b).join(' '), delays[b - 1] - delays[a] + 300, focus, { times: delays.slice(a, b).map((d) => d - delays[a]), rate: 1, started });
 showPart(parts[0], spoken.started);
 (spoken.started ?? Promise.resolve()).then(() => {
 for (const part of parts.slice(1)) {
@@ -3181,6 +3181,16 @@ if (Math.abs(largest - 90) <= RIGHT_DEG_TOLERANCE) return 'right';
 if (largest > 90) return 'obtuse';
 return 'acute';
 }
+function displayDegrees(deg) {
+const options = deg.map((d) => (Math.abs(d - 90) <= RIGHT_DEG_TOLERANCE ? [90] : [...new Set([Math.floor(d), Math.ceil(d)])].filter((v) => v !== 90)));
+let best = null;
+for (const a of options[0]) for (const b of options[1]) for (const c of options[2]) {
+if (a + b + c !== 180) continue;
+const cost = Math.abs(a - deg[0]) + Math.abs(b - deg[1]) + Math.abs(c - deg[2]);
+if (!best || cost < best.cost) best = { shown: [a, b, c], cost };
+}
+return best ? best.shown : deg.map(Math.round);
+}
 function measure(vertices, pxPerCm = PX_PER_CM) {
 const px = sideLengthsPx(vertices);
 const cm = px.map((value) => value / pxPerCm);
@@ -3190,6 +3200,7 @@ const rightAt = deg.findIndex((value) => Math.abs(value - 90) <= RIGHT_DEG_TOLER
 const obtuseAt = deg.findIndex((value) => value > 90 + RIGHT_DEG_TOLERANCE);
 return {
 px, cm, deg, equalSides, rightAt, obtuseAt,
+shownDeg: displayDegrees(deg),
 bySides: classifyBySides(cm),
 byAngles: classifyByAngles(deg),
 };
@@ -3377,7 +3388,7 @@ return isValidTriangle(trial, bounds) && goalMet(goal, measure(trial.map((v, i) 
 const pool = usable.length ? usable : candidates;
 return pool.reduce((best, point) => (dist(point, current) < dist(best, current) ? point : best), pool[0]);
 }
-return { PX_PER_CM, MIN_ALTITUDE_CM, SNAP_RADIUS_PX, vec, classifyBySides, classifyByAngles, measure, formatCm, formatDeg, cmPointsFromSpec, layoutFromSpec, isValidTriangle, constrainVertex, snapVertex, goalMet, solutionFor };
+return { PX_PER_CM, MIN_ALTITUDE_CM, SNAP_RADIUS_PX, vec, classifyBySides, classifyByAngles, displayDegrees, measure, formatCm, formatDeg, cmPointsFromSpec, layoutFromSpec, isValidTriangle, constrainVertex, snapVertex, goalMet, solutionFor };
 });
 __define('js/learning/triangle-draw.js', function () {
 const { vec } = __require('js/learning/triangle-model.js');
@@ -3458,6 +3469,7 @@ const { tween, easings, wait, prefersReducedMotion, playClassAnimation } = __req
 const VERTEX_HIT_RADIUS = 46;
 const DEFAULT_VISIBLE = Object.freeze({ sides: true, vertices: true, sideLabels: false, angleArcs: false, angleLabels: false, ticks: false, square: false });
 const CORNER_RADIUS = 80;
+const SQUARE = CORNER_RADIUS * 0.7;
 const normaliseSet = (value) => (value === true ? [0, 1, 2] : Array.isArray(value) ? value : []);
 function createTriangleCanvas({ host, width, height, audio }) {
 const svg = svgEl('svg', { class: 'ws-canvas', viewBox: `0 0 ${width} ${height}`, 'aria-hidden': 'true' });
@@ -3527,7 +3539,7 @@ const setHidden = (element, hidden) => element.classList.toggle('ws-hidden', hid
 const inSet = (value, i) => value === true || (Array.isArray(value) && value.includes(i));
 function render() {
 measured = measure(points, pxPerCm);
-const angleHue = valueHues(measured.deg.map(formatDeg));
+const angleHue = valueHues(measured.shownDeg);
 const sideHue = valueHues(measured.cm.map(formatCm));
 for (let i = 0; i < 3; i += 1) {
 const [x1, y1] = points[i];
@@ -3547,11 +3559,11 @@ const isRight = measured.rightAt === i;
 const radius = CORNER_RADIUS;
 a.arc.setAttribute('d', cornerArc(points, i, radius));
 a.wedge.setAttribute('d', wedgePath(points, i, radius));
-a.square.setAttribute('points', squarePoints(points, i, CORNER_RADIUS * 0.62));
+a.square.setAttribute('points', squarePoints(points, i, SQUARE));
 const showArc = inSet(visible.angleArcs, i);
 const showSquare = (visible.square || showArc) && isRight;
 if (showSquare) {
-const [p1, p2, p3] = squarePoints(points, i, CORNER_RADIUS * 0.62).split(' ');
+const [p1, p2, p3] = squarePoints(points, i, SQUARE).split(' ');
 a.wedge.setAttribute('d', `M ${fmt(points[i][0])} ${fmt(points[i][1])} L ${p1} L ${p2} L ${p3} Z`);
 }
 setHidden(a.arc, !showArc || showSquare);
@@ -3561,7 +3573,7 @@ const [lx, ly] = cornerLabelPoint(points, i);
 a.label.setAttribute('x', fmt(lx)); a.label.setAttribute('y', fmt(ly));
 a.label.style.setProperty('--ox', `${fmt((points[i][0] - lx) * 0.75)}px`);
 a.label.style.setProperty('--oy', `${fmt((points[i][1] - ly) * 0.75)}px`);
-a.label.textContent = formatDeg(measured.deg[i]);
+a.label.textContent = formatDeg(measured.shownDeg[i]);
 setHidden(a.label, !inSet(visible.angleLabels, i));
 a.group.dataset.hue = String(angleHue[i]);
 a.mark.dataset.hue = String(angleHue[i]);
@@ -3726,7 +3738,12 @@ runTrace(line, delay, duration);
 }
 function traceAngle(index, { delay = 0, duration = 700 } = {}) {
 if (reduced()) return;
-const path = svgEl('path', { class: 'ws-trace-glow', d: cornerArc(points, index, CORNER_RADIUS), pathLength: 1 });
+let d = cornerArc(points, index, CORNER_RADIUS);
+if (measured.rightAt === index) {
+const [p, q, r] = squarePoints(points, index, SQUARE).split(' ');
+d = `M ${p} L ${q} L ${r}`;
+}
+const path = svgEl('path', { class: 'ws-trace-glow', d, pathLength: 1 });
 runTrace(path, delay, duration);
 }
 function runTrace(el, delay, duration) {
@@ -3842,7 +3859,7 @@ await wait(reduced() ? 0 : 450, signal);
 }
 async function measureAngle(index, { signal } = {}) {
 const a = angles[index];
-const reading = measured.deg[index];
+const reading = measured.shownDeg[index];
 const radius = CORNER_RADIUS;
 angleClass(a, 'is-measuring', true);
 visible.angleLabels = [...new Set([...normaliseSet(visible.angleLabels), index])];
@@ -4182,7 +4199,7 @@ const [x2, y2] = vertices[(i + 1) % 3];
 const attrs = { x1: fmt(x1), y1: fmt(y1), x2: fmt(x2), y2: fmt(y2) };
 sides.append(svgEl('line', { ...attrs, class: 'ws-figure__edge', style: `stroke-width:${14 * strokeScale}` }), svgEl('line', { ...attrs, class: 'ws-figure__body', style: `stroke-width:${8 * strokeScale}` }));
 }
-const angleHue = valueHues(m.deg.map(formatDeg));
+const angleHue = valueHues(m.shownDeg);
 const sideHue = valueHues(m.cm.map(formatCm));
 const corners = svgEl('g', { class: 'ws-figure__marks' });
 const radius = Math.max(30, 20 * strokeScale + 14);
@@ -4222,7 +4239,7 @@ svg.appendChild(svgEl('text', { x: fmt(x), y: fmt(y), class: `ws-figure__label w
 }
 if (labels === 'angles') {
 for (let i = 0; i < 3; i += 1) {
-const text = formatDeg(m.deg[i]);
+const text = formatDeg(m.shownDeg[i]);
 const { bisector } = cornerFrame(vertices, i);
 const away = 10 * strokeScale + 8 + Math.abs(bisector[0]) * (text.length * labelSize * 0.3) + Math.abs(bisector[1]) * (labelSize * 0.6);
 const [x, y] = [vertices[i][0] - bisector[0] * away, vertices[i][1] - bisector[1] * away];
@@ -4414,7 +4431,7 @@ b.classList.toggle('is-dimmed', !right);
 remove: () => leave(root),
 };
 }
-function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
+function createSortBoard({ overlayEl, cards, bins, audio, onDrop, onAllSorted }) {
 const root = element('div', 'ws-sort');
 const BENCH = Object.freeze({ left: 610, top: 0, width: 340, height: 340 });
 const DECK_TILT = [0, -10, 10];
@@ -4456,12 +4473,18 @@ root.append(node, front);
 binEls.set(bin.id, { node, front, bin });
 });
 const scaleFactor = () => (root.getBoundingClientRect().width / root.offsetWidth) || 1;
-function binAt(clientX, clientY) {
+function binUnder(cardNode) {
+const c = cardNode.getBoundingClientRect();
+let best = null;
+let bestArea = 0;
 for (const { node, bin } of binEls.values()) {
 const r = node.getBoundingClientRect();
-if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) return bin.id;
+const top = r.top - r.height * 0.45;
+const w = Math.min(c.right, r.right) - Math.max(c.left, r.left);
+const h = Math.min(c.bottom, r.bottom) - Math.max(c.top, top);
+if (w > 0 && h > 0 && w * h > bestArea) { bestArea = w * h; best = bin.id; }
 }
-return null;
+return best;
 }
 function highlightBin(id) {
 for (const { node, front, bin } of binEls.values()) { node.classList.toggle('is-over', bin.id === id); front.classList.toggle('is-over', bin.id === id); }
@@ -4480,21 +4503,22 @@ next.node.style.zIndex = '4';
 place(next.node, BENCH);
 audio?.play('badge');
 }
-async function settleInto(entry, binId) {
+async function settleInto(entry, binId, { dropped = false } = {}) {
 const bin = binEls.get(binId);
 const k = bins.findIndex((b) => b.id === binId);
 entry.placed = true;
 entry.node.classList.remove('is-dragging', 'is-selected', 'is-current');
-entry.node.style.transform = '';
 const equal = entry.figure.measured.equalSides;
 const bodies = entry.node.querySelectorAll('.ws-figure__body');
 bodies.forEach((line, i) => { if (equal[i]) line.classList.add('is-lit'); });
 audio?.play('snapEqual');
 await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 520));
 const left = BIN.xs[k] + (BIN.width - PLACED.width) / 2;
+entry.node.style.transform = '';
 entry.node.classList.add('is-placed');
+entry.node.classList.toggle('is-dropped-in', dropped);
 entry.node.style.zIndex = '5';
-place(entry.node, { left, top: BIN.top - PLACED.height - 30, width: PLACED.width, height: PLACED.height });
+place(entry.node, { left, top: dropped ? BIN.top - PLACED.height + 40 : BIN.top - PLACED.height - 30, width: PLACED.width, height: PLACED.height });
 await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 480));
 entry.node.style.zIndex = '2';
 entry.node.classList.add('is-dropping');
@@ -4509,6 +4533,7 @@ playClassAnimation(bin.front, 'is-receiving', 520);
 playClassAnimation(bin.front.querySelector('.ws-bin__label'), 'is-pulse', 480);
 await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 260));
 advance();
+if (!current) onAllSorted?.();
 }
 async function bounceBack(entry) {
 entry.node.classList.remove('is-dragging');
@@ -4521,9 +4546,10 @@ async function attempt(cardId, binId) {
 const entry = cardEls.get(cardId);
 if (!entry || entry.placed || entry !== current || !enabled) return;
 const ok = onDrop?.(cardId, binId);
+const dropped = Boolean(entry.node.style.transform);
 select(null);
 highlightBin(null);
-if (ok) await settleInto(entry, binId);
+if (ok) await settleInto(entry, binId, { dropped });
 else await bounceBack(entry);
 }
 for (const entry of cardEls.values()) {
@@ -4544,7 +4570,7 @@ const dx = (event.clientX - drag.x) / k;
 const dy = (event.clientY - drag.y) / k;
 if (Math.hypot(dx, dy) > 4) drag.moved = true;
 node.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) scale(0.72)`;
-highlightBin(binAt(event.clientX, event.clientY));
+highlightBin(binUnder(node));
 });
 const finish = async (event) => {
 if (!drag || (event && event.pointerId !== drag.id)) return;
@@ -4556,7 +4582,7 @@ node.style.transform = '';
 select(selected === entry.card.id ? null : entry.card.id);
 return;
 }
-const target = binAt(event.clientX, event.clientY);
+const target = binUnder(node);
 if (target) await attempt(entry.card.id, target);
 else {
 node.classList.remove('is-dragging');
@@ -4585,8 +4611,9 @@ element: root,
 setEnabled(value) { enabled = Boolean(value); root.classList.toggle('is-locked', !enabled); },
 ghostPath() {
 if (!current) return null;
-return [[BENCH.left + BENCH.width / 2, BENCH.top + BENCH.height / 2], ...BIN.xs.map((x) => [x + BIN.width / 2, BIN.top + 110])];
+return [[BENCH.left + BENCH.width / 2, BENCH.top + BENCH.height - 26], ...BIN.xs.map((x) => [x + BIN.width / 2, BIN.top + 14])];
 },
+currentFigure: () => current?.figure.svg ?? null,
 targets() {
 const centre = (node) => { const r = node.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
 return { current: current?.card.id ?? null, cards: Object.fromEntries([...cardEls].map(([id, e]) => [id, centre(e.node)])), bins: Object.fromEntries([...binEls].map(([id, e]) => [id, centre(e.node)])) };
@@ -4783,29 +4810,37 @@ remove: () => leave(root),
 }
 const HAND_SVG = `<svg class="ws-ghost__hand" viewBox="-4 -4 76 90" aria-hidden="true"><path d="M20 7c0-3.6 2.9-6.5 6.5-6.5S33 3.4 33 7v25.5l3.4-1.3c3.2-1.2 6.8.3 8.1 3.4l.3.7 2.7-1c3.2-1.1 6.7.4 8 3.6l.4 1 2-.6c3.3-1 6.8.8 7.8 4.1.2.7.3 1.4.3 2.1V58c0 11.6-9.4 21-21 21h-6.4c-7.8 0-15-4.3-18.6-11.3L2.6 47.4c-1.6-3.1-.4-6.9 2.7-8.5 2.8-1.5 6.2-.7 8.1 1.8L20 49V7z" fill="#fff" stroke="#123b63" stroke-width="3.2" stroke-linejoin="round"/><path d="M33 33v12M45 35v10M55 38v8" stroke="#123b63" stroke-width="2.6" stroke-linecap="round" opacity=".55"/></svg>`;
 function createGhostHand({ hostEl }) {
-const root = element('div', 'ws-ghost', `<span class="ws-ghost__dot"></span><span class="ws-ghost__ring"></span>${HAND_SVG}`);
+const root = element('div', 'ws-ghost', `<span class="ws-ghost__card"></span><span class="ws-ghost__dot"></span><span class="ws-ghost__ring"></span>${HAND_SVG}`);
+const cardEl = root.querySelector('.ws-ghost__card');
 root.hidden = true;
 hostEl.appendChild(root);
 let anim = null;
 const reduced = () => prefersReducedMotion();
 const at = ([x, y], extra = {}) => ({ transform: `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`, ...extra });
-function play(frames, duration, { pressed = false } = {}) {
+function dragFrames(pts) {
+const step = 0.62 / Math.max(1, pts.length - 1);
+const frames = [at(pts[0], { opacity: 0, offset: 0 }), at(pts[0], { opacity: 1, offset: 0.12 }), at(pts[0], { opacity: 1, offset: 0.22 })];
+pts.slice(1).forEach((p, i) => frames.push(at(p, { opacity: 1, offset: 0.22 + step * (i + 1) })));
+frames.push(at(pts[pts.length - 1], { opacity: 1, offset: 0.9 }), at(pts[pts.length - 1], { opacity: 0, offset: 1 }));
+return frames;
+}
+function play(frames, duration, { pressed = false, carrying = false } = {}) {
 anim?.cancel();
 if (reduced()) return Promise.resolve();
 root.hidden = false;
 root.classList.toggle('is-dragging', pressed);
+root.classList.toggle('is-carrying', carrying);
 anim = root.animate(frames, { duration, easing: 'ease-in-out', fill: 'forwards' });
 return anim.finished.then(() => { root.hidden = true; }).catch(() => {});
 }
 return {
 element: root,
 drag(from, ...path) {
-const pts = [from, ...path];
-const step = 0.62 / Math.max(1, pts.length - 1);
-const frames = [at(from, { opacity: 0, offset: 0 }), at(from, { opacity: 1, offset: 0.12 }), at(from, { opacity: 1, offset: 0.22 })];
-pts.slice(1).forEach((p, i) => frames.push(at(p, { opacity: 1, offset: 0.22 + step * (i + 1) })));
-frames.push(at(pts[pts.length - 1], { opacity: 1, offset: 0.9 }), at(pts[pts.length - 1], { opacity: 0, offset: 1 }));
-return play(frames, 1100 + 650 * (pts.length - 1), { pressed: true });
+return play(dragFrames([from, ...path]), 1100 + 650 * path.length, { pressed: true });
+},
+carry(figure, from, ...path) {
+cardEl.replaceChildren(...(figure ? [figure.cloneNode(true)] : []));
+return play(dragFrames([from, ...path]), 1100 + 650 * path.length, { pressed: true, carrying: true });
 },
 point(points) {
 if (!points.length) return Promise.resolve();
@@ -5314,7 +5349,7 @@ audio.play('celebration');
 fx.confetti(70);
 await narrate(screen.success.narration, { focus: 'sides and angles', cues: [
 { phrase: 'sides', run: () => { canvas.emphasiseSides(equalSideIndices()); equalSideIndices().forEach((i) => canvas.pulseSideLabel(i)); } },
-{ phrase: 'angles', run: () => { canvas.emphasiseAngles([m.rightAt]); canvas.pulseAngle(m.rightAt); live.greatJob = live.row.add(createGreatJob({ overlayEl: board.overlayEl, at: {} })); canvas.sparkleVertices(); } },
+{ phrase: 'angles', run: () => { canvas.clearEmphasis(); canvas.emphasiseAngles([m.rightAt]); canvas.pulseAngle(m.rightAt); live.greatJob = live.row.add(createGreatJob({ overlayEl: board.overlayEl, at: {} })); canvas.sparkleVertices(); } },
 ] });
 await settle(screen.success.narration);
 canvas.clearEmphasis();
@@ -5324,26 +5359,19 @@ await narrate(screen.narration);
 setState('INTERACTING');
 let resolveDone;
 const done = new Promise((resolve) => { resolveDone = resolve; });
-let placed = 0;
 const sorter = createSortBoard({
 overlayEl: board.overlayEl, cards: screen.cards, bins: screen.bins, audio,
-onDrop: (cardId, binId) => {
-const ok = screen.cards.find((c) => c.id === cardId)?.answer === binId;
-if (ok) {
-placed += 1;
-if (placed === screen.cards.length) setTimeout(() => resolveDone(), 420);
-}
-return ok;
-},
+onDrop: (cardId, binId) => screen.cards.find((c) => c.id === cardId)?.answer === binId,
+onAllSorted: () => resolveDone(),
 });
 live.sorter = sorter;
-ghostGuide((hand) => { const path = sorter.ghostPath(); if (path) hand.drag(...path); }, { firstMs: 2200 });
+ghostGuide((hand) => { const path = sorter.ghostPath(); if (path) hand.carry(sorter.currentFigure(), ...path); }, { firstMs: 2200 });
 await withSignal(done, signal());
 stopGhost();
 setState('FEEDBACK');
 sorter.setEnabled(false);
 audio.play('tada');
-await pause(500);
+await pause(1400);
 await sorter.remove();
 live.sorter = null;
 live.result = createSortResult({ overlayEl: board.overlayEl, cards: screen.cards, bins: screen.bins });

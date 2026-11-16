@@ -553,7 +553,7 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       fx.confetti(70);
       await narrate(screen.success.narration, { focus: 'sides and angles', cues: [
         { phrase: 'sides', run: () => { canvas.emphasiseSides(equalSideIndices()); equalSideIndices().forEach((i) => canvas.pulseSideLabel(i)); } },
-        { phrase: 'angles', run: () => { canvas.emphasiseAngles([m.rightAt]); canvas.pulseAngle(m.rightAt); live.greatJob = live.row.add(createGreatJob({ overlayEl: board.overlayEl, at: {} })); canvas.sparkleVertices(); } },
+        { phrase: 'angles', run: () => { canvas.clearEmphasis(); canvas.emphasiseAngles([m.rightAt]); canvas.pulseAngle(m.rightAt); live.greatJob = live.row.add(createGreatJob({ overlayEl: board.overlayEl, at: {} })); canvas.sparkleVertices(); } },
       ] });
       await settle(screen.success.narration);
       canvas.clearEmphasis();
@@ -564,26 +564,19 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
       setState('INTERACTING');
       let resolveDone;
       const done = new Promise((resolve) => { resolveDone = resolve; });
-      let placed = 0;
       const sorter = createSortBoard({
         overlayEl: board.overlayEl, cards: screen.cards, bins: screen.bins, audio,
-        onDrop: (cardId, binId) => {
-          const ok = screen.cards.find((c) => c.id === cardId)?.answer === binId;
-          if (ok) {
-            placed += 1;
-            if (placed === screen.cards.length) setTimeout(() => resolveDone(), 420);
-          }
-          return ok;
-        },
+        onDrop: (cardId, binId) => screen.cards.find((c) => c.id === cardId)?.answer === binId,
+        onAllSorted: () => resolveDone(),
       });
       live.sorter = sorter;
-      ghostGuide((hand) => { const path = sorter.ghostPath(); if (path) hand.drag(...path); }, { firstMs: 2200 });
+      ghostGuide((hand) => { const path = sorter.ghostPath(); if (path) hand.carry(sorter.currentFigure(), ...path); }, { firstMs: 2200 });
       await withSignal(done, signal());
       stopGhost();
       setState('FEEDBACK');
       sorter.setEnabled(false);
       audio.play('tada');
-      await pause(500);
+      await pause(1400);                        // all three cards rest in their crates for a moment
       await sorter.remove();
       live.sorter = null;
       live.result = createSortResult({ overlayEl: board.overlayEl, cards: screen.cards, bins: screen.bins });

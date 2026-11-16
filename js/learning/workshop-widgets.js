@@ -212,7 +212,7 @@ export function createMultiGrid({ overlayEl, cards, audio, onChange }) {
 
 /* ---------- Sorting: drag each triangle card into its crate ---------- */
 
-export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
+export function createSortBoard({ overlayEl, cards, bins, audio, onDrop, onAllSorted }) {
   const root = element('div', 'ws-sort');
   // One triangle at a time sits on the bench with its lengths in view; the rest wait in a small pile on
   // the left; the crates stand along the bottom. Reading the lengths (and the tick marks) is the task.
@@ -260,12 +260,19 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
   });
 
   const scaleFactor = () => (root.getBoundingClientRect().width / root.offsetWidth) || 1;
-  function binAt(clientX, clientY) {
+  /** The crate the dragged card is over: the one it overlaps most (its opening and the air just above count). */
+  function binUnder(cardNode) {
+    const c = cardNode.getBoundingClientRect();
+    let best = null;
+    let bestArea = 0;
     for (const { node, bin } of binEls.values()) {
       const r = node.getBoundingClientRect();
-      if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) return bin.id;
+      const top = r.top - r.height * 0.45;
+      const w = Math.min(c.right, r.right) - Math.max(c.left, r.left);
+      const h = Math.min(c.bottom, r.bottom) - Math.max(c.top, top);
+      if (w > 0 && h > 0 && w * h > bestArea) { bestArea = w * h; best = bin.id; }
     }
-    return null;
+    return best;
   }
   function highlightBin(id) {
     for (const { node, front, bin } of binEls.values()) { node.classList.toggle('is-over', bin.id === id); front.classList.toggle('is-over', bin.id === id); }
@@ -286,23 +293,26 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     audio?.play('badge');
   }
 
-  async function settleInto(entry, binId) {
+  async function settleInto(entry, binId, { dropped = false } = {}) {
     const bin = binEls.get(binId);
     const k = bins.findIndex((b) => b.id === binId);
     entry.placed = true;
+    // It stays where it was dropped (over its crate): no slide back to the bench.
     entry.node.classList.remove('is-dragging', 'is-selected', 'is-current');
-    entry.node.style.transform = '';
     // The lesson's cue first: the equal sides light up (none on a scalene, all three on an equilateral).
     const equal = entry.figure.measured.equalSides;
     const bodies = entry.node.querySelectorAll('.ws-figure__body');
     bodies.forEach((line, i) => { if (equal[i]) line.classList.add('is-lit'); });
     audio?.play('snapEqual');
     await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 520));
-    // Then it flies over its crate, shrinking, and drops in: it ends behind the front panel, its top showing.
+    // Then it shrinks to just above its crate's opening and sinks in, behind the front panel, its top showing.
+    // A card dropped on the crate stays low (no hop); a card sent from the bench with a tap flies over first.
     const left = BIN.xs[k] + (BIN.width - PLACED.width) / 2;
+    entry.node.style.transform = '';
     entry.node.classList.add('is-placed');
+    entry.node.classList.toggle('is-dropped-in', dropped);
     entry.node.style.zIndex = '5';
-    place(entry.node, { left, top: BIN.top - PLACED.height - 30, width: PLACED.width, height: PLACED.height });
+    place(entry.node, { left, top: dropped ? BIN.top - PLACED.height + 40 : BIN.top - PLACED.height - 30, width: PLACED.width, height: PLACED.height });
     await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 480));
     entry.node.style.zIndex = '2';                                     // between the crate's back and its front
     entry.node.classList.add('is-dropping');
@@ -317,6 +327,7 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     playClassAnimation(bin.front.querySelector('.ws-bin__label'), 'is-pulse', 480);
     await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 260));
     advance();
+    if (!current) onAllSorted?.();                // only once the last card is in its crate
   }
   async function bounceBack(entry) {
     entry.node.classList.remove('is-dragging');
@@ -330,9 +341,10 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     const entry = cardEls.get(cardId);
     if (!entry || entry.placed || entry !== current || !enabled) return;
     const ok = onDrop?.(cardId, binId);
+    const dropped = Boolean(entry.node.style.transform);       // dragged onto the crate (not tapped there)
     select(null);
     highlightBin(null);
-    if (ok) await settleInto(entry, binId);
+    if (ok) await settleInto(entry, binId, { dropped });
     else await bounceBack(entry);
   }
 
@@ -354,7 +366,7 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
       const dy = (event.clientY - drag.y) / k;
       if (Math.hypot(dx, dy) > 4) drag.moved = true;
       node.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) scale(0.72)`;
-      highlightBin(binAt(event.clientX, event.clientY));
+      highlightBin(binUnder(node));
     });
     const finish = async (event) => {
       if (!drag || (event && event.pointerId !== drag.id)) return;
@@ -366,7 +378,7 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
         select(selected === entry.card.id ? null : entry.card.id);
         return;
       }
-      const target = binAt(event.clientX, event.clientY);
+      const target = binUnder(node);
       if (target) await attempt(entry.card.id, target);
       else {
         node.classList.remove('is-dragging');
@@ -394,11 +406,16 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
   return {
     element: root,
     setEnabled(value) { enabled = Boolean(value); root.classList.toggle('is-locked', !enabled); },
-    /** Overlay-space points for the ghost hand: the bench card's centre and the three crates' label tops. */
+    /**
+     * Overlay-space points for the ghost hand: it presses the card's blank lower edge (never the triangle)
+     * and carries it along the crates' openings, all three alike, so the hint never gives the answer.
+     */
     ghostPath() {
       if (!current) return null;
-      return [[BENCH.left + BENCH.width / 2, BENCH.top + BENCH.height / 2], ...BIN.xs.map((x) => [x + BIN.width / 2, BIN.top + 110])];
+      return [[BENCH.left + BENCH.width / 2, BENCH.top + BENCH.height - 26], ...BIN.xs.map((x) => [x + BIN.width / 2, BIN.top + 14])];
     },
+    /** The triangle on the bench, for the ghost hand to carry a copy of. */
+    currentFigure: () => current?.figure.svg ?? null,
     /** Client-space centres and which triangle is on the bench (for the automated play-through). */
     targets() {
       const centre = (node) => { const r = node.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
@@ -623,30 +640,40 @@ export function createSummaryView({ overlayEl, screen }) {
 /* ---------- The ghost hand: shows the gesture after a moment of idling (Fishing Frenzy's hand nudge) ---------- */
 const HAND_SVG = `<svg class="ws-ghost__hand" viewBox="-4 -4 76 90" aria-hidden="true"><path d="M20 7c0-3.6 2.9-6.5 6.5-6.5S33 3.4 33 7v25.5l3.4-1.3c3.2-1.2 6.8.3 8.1 3.4l.3.7 2.7-1c3.2-1.1 6.7.4 8 3.6l.4 1 2-.6c3.3-1 6.8.8 7.8 4.1.2.7.3 1.4.3 2.1V58c0 11.6-9.4 21-21 21h-6.4c-7.8 0-15-4.3-18.6-11.3L2.6 47.4c-1.6-3.1-.4-6.9 2.7-8.5 2.8-1.5 6.2-.7 8.1 1.8L20 49V7z" fill="#fff" stroke="#123b63" stroke-width="3.2" stroke-linejoin="round"/><path d="M33 33v12M45 35v10M55 38v8" stroke="#123b63" stroke-width="2.6" stroke-linecap="round" opacity=".55"/></svg>`;
 export function createGhostHand({ hostEl }) {
-  const root = element('div', 'ws-ghost', `<span class="ws-ghost__dot"></span><span class="ws-ghost__ring"></span>${HAND_SVG}`);
+  const root = element('div', 'ws-ghost', `<span class="ws-ghost__card"></span><span class="ws-ghost__dot"></span><span class="ws-ghost__ring"></span>${HAND_SVG}`);
+  const cardEl = root.querySelector('.ws-ghost__card');
   root.hidden = true;
   hostEl.appendChild(root);
   let anim = null;
   const reduced = () => prefersReducedMotion();
   const at = ([x, y], extra = {}) => ({ transform: `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`, ...extra });
-  function play(frames, duration, { pressed = false } = {}) {
+  /** Appear on the first point, press, travel through the rest, hold, fade. */
+  function dragFrames(pts) {
+    const step = 0.62 / Math.max(1, pts.length - 1);
+    const frames = [at(pts[0], { opacity: 0, offset: 0 }), at(pts[0], { opacity: 1, offset: 0.12 }), at(pts[0], { opacity: 1, offset: 0.22 })];
+    pts.slice(1).forEach((p, i) => frames.push(at(p, { opacity: 1, offset: 0.22 + step * (i + 1) })));
+    frames.push(at(pts[pts.length - 1], { opacity: 1, offset: 0.9 }), at(pts[pts.length - 1], { opacity: 0, offset: 1 }));
+    return frames;
+  }
+  function play(frames, duration, { pressed = false, carrying = false } = {}) {
     anim?.cancel();
     if (reduced()) return Promise.resolve();
     root.hidden = false;
     root.classList.toggle('is-dragging', pressed);
+    root.classList.toggle('is-carrying', carrying);
     anim = root.animate(frames, { duration, easing: 'ease-in-out', fill: 'forwards' });
     return anim.finished.then(() => { root.hidden = true; }).catch(() => {});
   }
   return {
     element: root,
-    /** Press on `from`, carry a ghost of it along `path`, let go at the end. */
+    /** Press on `from`, carry a ghost of it (a corner) along `path`, let go at the end. */
     drag(from, ...path) {
-      const pts = [from, ...path];
-      const step = 0.62 / Math.max(1, pts.length - 1);
-      const frames = [at(from, { opacity: 0, offset: 0 }), at(from, { opacity: 1, offset: 0.12 }), at(from, { opacity: 1, offset: 0.22 })];
-      pts.slice(1).forEach((p, i) => frames.push(at(p, { opacity: 1, offset: 0.22 + step * (i + 1) })));
-      frames.push(at(pts[pts.length - 1], { opacity: 1, offset: 0.9 }), at(pts[pts.length - 1], { opacity: 0, offset: 1 }));
-      return play(frames, 1100 + 650 * (pts.length - 1), { pressed: true });
+      return play(dragFrames([from, ...path]), 1100 + 650 * path.length, { pressed: true });
+    },
+    /** The same gesture with a small see-through copy of a card (`figure`, an SVG) held above the finger. */
+    carry(figure, from, ...path) {
+      cardEl.replaceChildren(...(figure ? [figure.cloneNode(true)] : []));
+      return play(dragFrames([from, ...path]), 1100 + 650 * path.length, { pressed: true, carrying: true });
     },
     /** Point along the choices one after another (no tap: it never picks one). */
     point(points) {

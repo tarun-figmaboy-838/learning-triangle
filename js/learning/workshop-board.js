@@ -172,7 +172,8 @@ export function createWorkshopBoard({ hostEl, voice, audio, talker = null }) {
         // Each part takes the box in turn, when its first word is due; the words keep the whole line's timing.
         const words = text.split(' ');
         const delays = wordDelays(text, spoken, typingMs);
-        const showPart = ([a, b], started) => revealWords(textEl, words.slice(a, b).join(' '), 0, focus, { times: delays.slice(a, b).map((d) => d - delays[a]), rate: 1, started });
+        // Each part reveals word by word on the line's own word times (its span is passed so it animates).
+        const showPart = ([a, b], started) => revealWords(textEl, words.slice(a, b).join(' '), delays[b - 1] - delays[a] + 300, focus, { times: delays.slice(a, b).map((d) => d - delays[a]), rate: 1, started });
         showPart(parts[0], spoken.started);
         (spoken.started ?? Promise.resolve()).then(() => {
           for (const part of parts.slice(1)) {
