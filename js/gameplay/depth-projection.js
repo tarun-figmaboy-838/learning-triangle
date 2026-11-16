@@ -1,5 +1,4 @@
-import { PLATFORM_LAYOUT } from '../data/layout.js';
-import { BRIDGE_GEOMETRY } from '../data/bridge-geometry.js';
+import { PLATFORM_LAYOUT, BRIDGE_LAYOUT } from '../data/layout.js';
 
 /**
  * One perspective for the whole yard-to-bridge move (pseudo-3D over 2D art).
@@ -17,7 +16,7 @@ export const DEPTH = (() => {
   const horizonY = 255;                        // the backdrop's horizon (far quays and hills)
   const vanishX = 960;
   const nearGroundY = PLATFORM_LAYOUT.baseY;   // z = 0: where the frames stand in the yard
-  const farGroundY = BRIDGE_GEOMETRY.deckY;    // z = 1: where they stand on the bridge
+  const farGroundY = BRIDGE_LAYOUT.deckY;      // z = 1: where they stand on the bridge
   const farScale = (farGroundY - horizonY) / (nearGroundY - horizonY);
   const k = 1 / farScale - 1;
   // The same perspective as a real 3D camera: CSS `perspective: perspectivePx` with its origin on

@@ -13,9 +13,9 @@ Start (play button: browsers need one tap before sound)
         he looks at the frames left in the yard: "We must identify them! But to do that we need to
         learn about triangles first."
         Then: "Let's explore triangles!"
-→ The scene cross-fades to the quiet workshop (assets/images/workshop/learning-backdrop.png); the cab empties
+→ The scene cross-fades to the quiet workshop (assets/images/workshop/learning-backdrop.webp); the cab empties
   and the lesson card rises.
-→ 28 steps (js/learning/learning-content.js), no NEXT buttons: a teaching screen moves on once its line has
+→ 29 screens (js/learning/learning-content.js), no NEXT buttons: a teaching screen moves on once its line has
   been read, an interaction moves on at success; the deck's CHECK / CONTINUE buttons are the only ones pressed.
   The geometry moves on the spoken word: the sides are counted as "3 straight sides" is said, the name tag
   pops at "scalene", the square flashes at "90°" (cues in learning-flow.js, timed by the narration's word
@@ -26,10 +26,9 @@ Start (play button: browsers need one tap before sound)
   build offers a replay).
 ```
 
-Review aid: `?debug=1` (or pressing the D key while the lesson runs) adds a screen list with Back / Next at the foot of the stage. With it on nothing
-moves on by itself: every screen plays its dialogue and animation and waits for Next; Back replays the
-previous screen from its start. Remove `createDebugPanel` (js/learning/debug-panel.js) when it is no
-longer wanted.
+Review aid: `?debug=1` (or the D key while the lesson runs) adds a screen list with Back / Next at the foot
+of the stage. With it on nothing moves on by itself: every screen plays its dialogue and animation and waits
+for Next; Back replays the previous screen from its start (js/learning/debug-panel.js).
 
 | Step | Kind | Deck screen | What happens |
 |---|---|---|---|
@@ -85,12 +84,13 @@ and the constraints under JavaScriptCore.
 js/learning/learning-content.js   every screen as data (deck wording, specs, answers)
 js/learning/triangle-model.js     the maths
 js/learning/triangle-draw.js      shared SVG geometry (labels, arcs, ticks)
-js/learning/triangle-figure.js    static figures for cards, the summary, the entry
+js/learning/triangle-figure.js    static figures for the checkpoint cards and the summary
 js/learning/triangle-canvas.js    the live triangle: drawing in, morphing, measuring, dragging, snapping
 js/learning/workshop-board.js     the lesson card: narration box, surface, the beaver's place
 js/learning/workshop-widgets.js   option card, multi-select, sorting crates, two-way classifier, badges, lenses, summary
-js/learning/beaver-guide.js       the beaver's frames and poses (idle blink, talk, point, think, cheer, tape, protractor, walk)
+js/learning/beaver-guide.js       the beaver's frames and poses (idle blink, talk, walk with the tape, protractor, peek)
 js/learning/learning-flow.js      the state machine that runs the screens on one cancellable timeline
+js/learning/debug-panel.js        the review aid (?debug=1)
 js/screens/hook-screen.js         the intro
 js/screens/learning-screen.js     scene in / lesson / scene out
 styles/learning.css
@@ -103,29 +103,26 @@ WAITING_FOR_INPUT / INTERACTING and drags only in INTERACTING.
 ## Assets (generated with Figma for this section)
 
 All raster art below was generated with Figma AI (`generate_image`, file `0s4piKMIWWC06V7BAFAp3T`) on a
-flat magenta key colour and keyed out, despilled and cropped in code (the keying script is in the
-session notes; it matches the earlier arrow-pad workflow). No words or numbers are baked into any image:
-every label is live text. Transparent PNG unless noted.
+flat magenta key colour and keyed out, despilled and cropped in code, then compressed to WebP by
+`tools/media.py`. No words or numbers are baked into any image: every label is live text. Transparent unless noted.
 
 | File (assets/images/workshop) | Size | Used as |
 |---|---|---|
-| `learning-backdrop.png` | 1920 × 1080, opaque | the quiet workshop behind the lesson (softened 0.8 px) |
-| `beaver-measure.png` | 356 × 619 | idle (holding the tape) |
-| `beaver-idle-blink.png` | 324 × 607 | idle blink frame |
-| `beaver-idle-talk.png` | 321 × 607 | talking frame |
-| `beaver-point.png`, `beaver-point-mid.png` | 402 × 615, 371 × 609 | pointing (wind-up, hold) |
-| `beaver-think.png` | 311 × 616 | thinking |
-| `beaver-cheer.png`, `beaver-cheer-mid.png` | 392 × 617, 368 × 610 | two-frame cheer |
-| `beaver-tape-1/2/3.png` | ~333–409 × 591–597 | pulling the tape (front view) |
-| `beaver-protractor-low.png`, `-side.png`, `-high.png` | ≈ 900 × 980 | holding the protractor with its flat edge down / sideways / up, set onto a corner |
-| `beaver-walk-1/2/3/4.png` | ~332–374 × 520–534 | side-view walk cycle with the tape (walking along a side) |
-| `crate-back.png`, `crate-front.png` | 924 × 681 | the sorting crate in two layers, so a dropped card sinks in behind the front panel |
-| `card-frame.png` | 1495 × 799 | the lesson card itself: flat cream panel, navy edge, gold line, corner screws (stretched to 1600 × 820, shown at 110%) |
-| `summary-card.png` | 816 × 848 | the square summary card with its ribbon tab; the name and sentence are live text |
+| `learning-backdrop.webp` | 1920 × 1080, opaque | the quiet workshop behind the lesson (softened 0.8 px) |
+| `beaver-measure.webp` | 356 × 619 | idle (holding the tape) |
+| `beaver-idle-blink.webp` | 324 × 607 | idle blink frame |
+| `beaver-idle-talk.webp` | 321 × 607 | talking frame |
+| `beaver-protractor-low.webp`, `-side.webp`, `-high.webp` | ≈ 900 × 980 | holding the protractor with its flat edge down / sideways / up, set onto a corner |
+| `beaver-walk-1/2/3/4.webp` | ~332–374 × 520–534 | side-view walk cycle with the tape (walking along a side) |
+| `beaver-peek-idle.webp`, `beaver-peek-talk.webp` | 867 × 909 | peeking over a summary card, hands on its edge (listening, talking) |
+| `crate-back.webp`, `crate-front.webp` | 924 × 681 | the sorting crate in two layers, so a dropped card sinks in behind the front panel |
+| `card-frame.webp` | 1477 × 775 | the lesson card itself: flat cream panel, navy edge, gold line, corner screws (stretched to 1600 × 820, shown at 110%) |
+| `summary-card.webp` | 808 × 829 | the square summary card with its ribbon tab; the name and sentence are live text |
+| `btn-uiPrimary/Nav/Success/Danger.webp` | | the pill buttons (gold, blue, green, red), 3-sliced in CSS |
 
-Frames come from four sheets, so each is registered on the boots' centre and scaled to a common body
-height in `beaver-guide.js` (`GUIDE_FRAMES`); poses are short frame cycles with a 90 ms cross-fade and
-CSS body motion on top (breathing, a hop, a lean, the walk-in steps).
+Frames come from several sheets, so each is registered on the boots' centre (or the hat when peeking, the
+protractor when measuring) and scaled to a common body height in `beaver-guide.js` (`GUIDE_FRAMES`); poses
+are short frame cycles that switch at once, with CSS body motion on top (breathing, the walk-in steps).
 
 Prompts used (abridged): a glossy 3D-rendered toy-like beaver construction worker matching the cab
 operator (orange-brown fur, cream muzzle, buck teeth, paddle tail, yellow hard hat, yellow T-shirt under
@@ -135,32 +132,23 @@ with a few tools far apart, a grey concrete floor, low detail in the middle.
 
 ## Voice-over
 
-Only the beaver's studio voice is used: the "Male Teacher (Formal)" voice of Aamir's AI Wala Human studio,
-the voice of vo001.mp3. Every line the lesson and its intro speak has its id in tools/vo/vo_script.json
-(vo021 onward). A line without its studio clip is shown at a reading pace, never read by another voice
-(`?speech=1` turns the device voice on for review only).
-
-How the studio makes the voice (read from its app): Gemini `gemini-3-flash-preview` rewrites the English line in
-Devanagari (that gives the Indian accent), then `gemini-3.1-flash-tts-preview` speaks it with the prebuilt
-voice "Charon" (= "Male Teacher (Formal)"). `tools/vo/vo-gemini.py` makes those same two calls with any Gemini
-API key, so the beaver's voice can be recorded without the studio:
+Only the beaver's studio voice is used: Gemini TTS with the prebuilt voice "Charon" (the "Male Teacher
+(Formal)" voice of vo001.mp3), the English line first rewritten in Devanagari so it is spoken with a clear
+Indian accent. Every line the lesson and its hook speak has an id in `tools/vo/vo_script.json`. A line
+without a clip is shown at a reading pace, never read by another voice (`?speech=1` lets the device voice
+read it, for review only).
 
 ```sh
 export GEMINI_API_KEY=...                # from https://aistudio.google.com/apikey
-python3 tools/vo/vo-gemini.py            # records the lesson's missing lines (--list shows them)
-python3 tools/vo_word_times.py
+python3 tools/vo/record.py --list        # the lines, their ids and which have clips
+python3 tools/vo/record.py               # records the missing lines (.m4a + its Ogg Opus twin), updates js/data/vo-lines.js
+python3 tools/vo/word_times.py           # per-word times: captions and animations follow the voice
 python3 tools/build.py
 ```
 
-The studio itself could not record in this session: its Google Gemini account answers "Exceeded monthly Gemini
-API spending cap / prepayment credits depleted" (HTTP 402) for every line. Once its credit is topped up:
-
-```sh
-python3 tools/vo/vo-record.py batch        # records every missing line in the Male Teacher voice
-python3 tools/vo/vo-record.py build        # writes js/data/vo-lines.js
-python3 tools/vo_word_times.py             # per-word times: captions and animations follow the voice
-python3 tools/build.py
-```
+The player (`js/core/voice-manager.js`) uses one reused `<audio>` unlocked by the Start tap, looks a line up
+by its exact text, plays the Ogg where the browser supports Opus and the AAC / MP3 twin elsewhere, ducks the
+effects under the voice, and prefetches every clip after Start.
 
 ## QA
 
@@ -186,7 +174,7 @@ drag targets, sorting targets) for the play-through; `?vo=0` turns narration off
   just beside the side as the beaver walks it; the length slides out of the side it was measured on; a
   filled wedge sweeps open with the arc (fill and arc are drawn beneath the sides, so nothing crosses a line)
   while the value counts up beside the corner. The beaver carries the protractor himself: three held poses
-  (flat edge down, sideways, up: beaver-protractor-low/side/high.png, each with the centre of its flat edge
+  (flat edge down, sideways, up: beaver-protractor-low/side/high.webp, each with the centre of its flat edge
   as the `tool` point) and `pickToolPose` in beaver-guide.js chooses the pose, flip and turn that lay the
   flat edge along a side with the round side into the angle while he stays outside the shape and near
   upright; he walks up, sets it onto the corner, it is read, he lifts it off. The tape runs from the side
@@ -196,9 +184,9 @@ drag targets, sorting targets) for the play-through; `?vo=0` turns narration off
   each part taking the box when its first word is due. The sides / angles that are not being named step
   back to 42%, and a
   bright spark runs along each named side.
-- Buttons and chips are Fishing Frenzy's own CSS, not images: answers and CHECK are its glossy yellow
-  "crystal pill" (white border, amber ring, two gloss highlights; green when right, grey when wrong), CONTINUE /
-  "You're ready!" its orange done pill, and every shape name its flat white chip with the bright-blue rim.
+- Buttons: answers and CHECK are the gold pill, CONTINUE / "You're ready!" the blue one, a right answer turns
+  green and a wrong one red (`btn-ui*.webp`, 3-sliced in CSS, the same pill drawn again behind the label so
+  no slice seam shows). Shape names are navy name tags with the card frame's gold line.
 - The measuring screens (L04, L11) show the triangle 30% bigger (`zoom` on the screen; `setZoom` on the canvas
   scales px per cm, so every centimetre still reads true).
 - Checkpoint cards (multi-pick, sort bench, sort result) are Fishing Frenzy's shape card: white to ice-blue,

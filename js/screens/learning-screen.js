@@ -9,13 +9,12 @@ import { createDebugPanel } from '../learning/debug-panel.js';
 import { LEARNING_COPY } from '../learning/learning-content.js';
 
 /**
- * The Triangle Workshop: between "Your help is needed" and "How to play", the operator takes the
- * learner into his workshop on the yard. The crane pauses, he climbs down from the cab, the drafting
- * board rises from the platform, and the lesson runs (js/learning/). When it is done the board lowers,
- * he climbs back into the cab, and the crane game carries on. No page change: it is the same scene.
+ * The Triangle Workshop: the operator takes the learner into his workshop. The crane pauses, he climbs
+ * down from the cab, the lesson card rises, and the lesson runs (js/learning/). When it is done the card
+ * lowers, he climbs back into the cab, and the scene carries on (`learningNext`). Same page, same scene.
  *
- * URL options: ?start=learning jumps here from Start; ?lesson=L07 begins at that screen; ?qa=1 exposes
- * window.__learning for the automated play-through.
+ * URL options: ?lesson=L07 begins at that screen; ?qa=1 exposes window.__learning for the play-through;
+ * ?debug=1 (or the D key) adds the review panel.
  */
 export function createLearningScreen({ els, audio, voice, camera, triangles, feedback, builder, fx, gameState, screenManager, learningNext = 'how-to-play' }) {
   const scope = createSequenceScope();
@@ -30,7 +29,6 @@ export function createLearningScreen({ els, audio, voice, camera, triangles, fee
   let debugPanel = null;
   let onKey = null;
   let backdrop = null;
-  let leaving = false;
 
   /** The world cross-fades to the quiet workshop: the canal, crane and yard go, the wall and floor come. */
   async function enterWorkshop() {
@@ -88,7 +86,6 @@ export function createLearningScreen({ els, audio, voice, camera, triangles, fee
       const completed = await flow.run(startLesson);
       if (!completed) return;
       // Back to the bridge: the board goes down, he climbs back into the cab, the frames come back.
-      leaving = true;
       await wait(400, scope.signal);
       await Promise.all([board.lower({ signal: scope.signal }), guide.leave()]);
       await leaveWorkshop();
@@ -106,7 +103,6 @@ export function createLearningScreen({ els, audio, voice, camera, triangles, fee
 
   return {
     async enter() {
-      leaving = false;
       run();
     },
     async exit() {

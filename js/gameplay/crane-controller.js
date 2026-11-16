@@ -1,52 +1,24 @@
 import { CRANE_LAYOUT, CRANE_RIG, PLATFORM_LAYOUT } from '../data/layout.js';
 import { tween, wait, easings } from '../core/motion.js';
-import { debugLog } from '../core/debug-overlay.js';
 import { buildClawFrames } from './claw-controller.js';
 import { DEPTH, depthScale, groundY, frontToScreen, screenToFront } from './depth-projection.js';
 
-/**
- * The crane's states. Player input only moves the crane in the drivable ones; everything else is an
- * awaited scripted sequence (pick, transport, return), and only the transitions below are allowed.
- */
-export const CRANE_STATES = Object.freeze({
+/** The crane's phases, published on the game state so the cab operator's pose can follow them. */
+const PHASE = Object.freeze({
   IDLE: 'idle',
-  MOVING: 'moving',
-  ALIGNED_WITH_TRIANGLE: 'alignedWithTriangle',
   LOWERING_TO_PICK: 'loweringToPick',
   GRABBING: 'grabbing',
-  LIFTING_TRIANGLE: 'liftingTriangle',
-  CARRYING: 'carrying',                    // holding a frame, ready to transport (DROP is live)
-  TRANSPORTING_DEPTH: 'transportingDepth',
-  ALIGNING_WITH_BRIDGE: 'aligningWithBridge',
+  LIFTING: 'liftingTriangle',
+  CARRYING: 'carrying',
+  TRANSPORTING: 'transportingDepth',
+  ALIGNING: 'aligningWithBridge',
   LOWERING_TO_PLACE: 'loweringToPlace',
   RELEASING: 'releasing',
   RETURNING: 'returning',
-  LOCKED: 'locked',
 });
-
-const S = CRANE_STATES;
-/** Every legal move of the state machine; anything else is refused (and logged in debug mode). */
-const TRANSITIONS = Object.freeze({
-  [S.IDLE]: [S.MOVING, S.ALIGNED_WITH_TRIANGLE, S.LOCKED],
-  [S.MOVING]: [S.IDLE, S.ALIGNED_WITH_TRIANGLE, S.LOCKED],
-  [S.ALIGNED_WITH_TRIANGLE]: [S.IDLE, S.MOVING, S.LOWERING_TO_PICK, S.LOCKED],
-  [S.LOWERING_TO_PICK]: [S.GRABBING, S.LOCKED],
-  [S.GRABBING]: [S.LIFTING_TRIANGLE, S.LOCKED],
-  [S.LIFTING_TRIANGLE]: [S.CARRYING, S.LOCKED],
-  [S.CARRYING]: [S.TRANSPORTING_DEPTH, S.LOCKED],
-  [S.TRANSPORTING_DEPTH]: [S.ALIGNING_WITH_BRIDGE, S.LOCKED],
-  [S.ALIGNING_WITH_BRIDGE]: [S.LOWERING_TO_PLACE, S.LOCKED],
-  [S.LOWERING_TO_PLACE]: [S.RELEASING, S.LOCKED],
-  [S.RELEASING]: [S.RETURNING, S.LOCKED],
-  [S.RETURNING]: [S.IDLE, S.LOCKED],
-  // Scripted sequences (and the how-to demonstration) start from a locked crane.
-  [S.LOCKED]: [S.IDLE, S.MOVING, S.ALIGNED_WITH_TRIANGLE, S.CARRYING, S.LOWERING_TO_PICK, S.TRANSPORTING_DEPTH, S.RETURNING],
-});
-
-const DRIVABLE_STATES = new Set([S.IDLE, S.MOVING, S.ALIGNED_WITH_TRIANGLE, S.CARRYING]);
 
 const MAX_SWAY_DEG = 7;
-const LIFT_CLEARANCE = 70;      // after a pick the frame hangs this far above the yard plate: clearly off it
+const LIFT_CLEARANCE = 70;      // after a pick the frame hangs this far above the yard plate
 const DEPTH_TRAVEL_MS = 1900;   // the move from the yard (z 0) to the bridge (z 1)
 /** The jib slews about the top of the tower (the mast's centre line, the jib's centre line). */
 const SLEW_PIVOT = Object.freeze({ x: 29.4, y: 56.5 });
@@ -152,53 +124,30 @@ export function buildCraneDom(craneEl, platformEl) {
 }
 
 /**
- * The crane in three axes, in world coordinates (x and the claw's y as seen on the front plane, depth
- * 0 = over the yard, 1 = over the bridge deck): LEFT / RIGHT move the trolley across, UP / DOWN slew the
- * jib so the trolley and hook travel into / out of the scene, and the claw's height is automatic (PICK
- * lowers and lifts; DROP lifts, carries, lowers). Every scripted motion is an awaited sequence that cannot
- * overlap another.
+ * The crane in three axes, in world coordinates: x and the claw's y as seen on the front plane, and depth
+ * (0 = over the yard, 1 = over the bridge deck). The jib slews into the scene for depth; the hoist hangs
+ * from the trolley and swings like a pendulum. Every move is an awaited, scripted sequence.
  */
-export function createCraneController({ craneEl, dom, claw, gameState, audio }) {
+export function createCraneController({ dom, claw, gameState, audio }) {
   const { rig, arm, trolley, beacon, shadow, platformEl } = dom;
   const pendulumEl = rig.querySelector('.pendulum');
   const hoistEl = rig.querySelector('.hoist');
   const cargoEl = rig.querySelector('.claw-cargo');
   const trolleyHalf = CRANE_RIG.trolley.width / 2;
 
-  const motion = { x: CRANE_LAYOUT.homeX, vx: 0, y: CRANE_LAYOUT.restY, vy: 0, depth: 0, vz: 0, sway: 0, swayVelocity: 0 };
-  const axis = { x: 0, y: 0 };
+  const motion = { x: CRANE_LAYOUT.homeX, y: CRANE_LAYOUT.restY, depth: 0, sway: 0, swayVelocity: 0 };
   const rendered = { x: NaN, y: NaN, sway: NaN, depth: NaN };
   let lastX = motion.x;
   let lastY = motion.y;
   let lastMeasuredVx = 0;
-  let state = S.LOCKED;
   let carried = null;
-  let carryMaxY = CRANE_LAYOUT.maxY;   // while carrying, the frame can't be lowered back into the yard
-  let scriptedMotions = 0;
-  let hoverResolver = () => ({});
+  let carryMaxY = CRANE_LAYOUT.maxY;   // while carrying, the frame hangs clear of the yard
   let motorRunning = false;
   let winchRunning = false;
   let sequenceRunning = false;
-  let unlockWhenLanded = false;        // the level unlocked while the empty hook was still flying back
-  craneEl.dataset.state = state;
 
-  /** Moves the state machine; refuses (and reports) any transition the table does not allow. */
-  function setState(next) {
-    if (state === next) return true;
-    if (!TRANSITIONS[state]?.includes(next)) {
-      debugLog('crane', `refused ${state} -> ${next}`);
-      return false;
-    }
-    state = next;
-    craneEl.dataset.state = next;
-    gameState.update({ craneState: next });
-    debugLog('crane', 'state', next);
-    return true;
-  }
-
-  function publishBusy() {
-    const busy = sequenceRunning || scriptedMotions > 0;
-    if (gameState.get().craneBusy !== busy) gameState.update({ craneBusy: busy });
+  function setPhase(phase) {
+    gameState.update({ craneState: phase });
   }
 
   function ropeLength() {
@@ -255,17 +204,6 @@ export function createCraneController({ craneEl, dom, claw, gameState, audio }) 
     renderShadow(scale);
   }
 
-  function refreshHoverState(isMoving) {
-    if (carried) {
-      setState(S.CARRYING);
-      return;
-    }
-    const hover = hoverResolver(motion.x, carried, motion.depth) ?? {};
-    const hoveredId = hover.option?.id ?? null;
-    if (gameState.get().hoveredOptionId !== hoveredId) gameState.update({ hoveredOptionId: hoveredId });
-    setState(hoveredId ? S.ALIGNED_WITH_TRIANGLE : isMoving ? S.MOVING : S.IDLE);
-  }
-
   /** Authored pendulum: the load lags when the trolley starts and settles with a small swing when it stops. */
   function updateSway(dt, measuredVx) {
     const acceleration = (measuredVx - lastMeasuredVx) / dt;
@@ -285,33 +223,14 @@ export function createCraneController({ craneEl, dom, claw, gameState, audio }) 
 
   function update(dt) {
     if (dt <= 0) return;
-    const drivable = scriptedMotions === 0 && !sequenceRunning && DRIVABLE_STATES.has(state);
-    const maxSpeed = carried ? CRANE_LAYOUT.carrySpeed : CRANE_LAYOUT.maxSpeed;   // a load makes the crane heavier
-    const targetVx = drivable ? axis.x * maxSpeed : 0;
-    const targetVz = drivable ? -axis.y * CRANE_LAYOUT.depthSpeed * (carried ? 0.85 : 1) : 0;   // UP = away from the camera
-    // Accelerate gently (weight), brake a little faster (a tap is a small nudge, a release a smooth stop).
-    motion.vx += (targetVx - motion.vx) * Math.min(1, dt * (targetVx ? (carried ? 3.6 : 4.6) : 7));
-    motion.vz += (targetVz - motion.vz) * Math.min(1, dt * (targetVz ? 4 : 7));
-    if (!targetVx && Math.abs(motion.vx) < 2) motion.vx = 0;
-    if (!targetVz && Math.abs(motion.vz) < 0.004) motion.vz = 0;
-    if (scriptedMotions === 0) {
-      motion.x = clamp(motion.x + motion.vx * dt, CRANE_LAYOUT.minX, CRANE_LAYOUT.maxX);
-      if (motion.x === CRANE_LAYOUT.minX || motion.x === CRANE_LAYOUT.maxX) motion.vx = 0;
-      if (motion.vz) {
-        motion.depth = clamp(motion.depth + motion.vz * dt, 0, 1);    // the jib slews; the hook keeps its height
-        if (motion.depth === 0 || motion.depth === 1) motion.vz = 0;
-      }
-    }
-
     const measuredVx = (motion.x - lastX) / dt;
     const measuredVy = (motion.y - lastY) / dt;
     lastX = motion.x;
     lastY = motion.y;
     updateSway(dt, measuredVx);
 
-    // Sound follows the player's motion: the trolley motor for travel (along the jib or in depth), the winch
-    // for the cable. Scripted sequences play their own cues, so these loops never double up with them.
-    const travelling = Math.abs(measuredVx) > 6 || Math.abs(motion.vz) > 0.03;
+    // A glide or hoist outside a full sequence runs the trolley motor / winch; sequences play their own cues.
+    const travelling = Math.abs(measuredVx) > 6;
     const winching = Math.abs(measuredVy) > 6;
     trolley.classList.toggle('is-running', travelling);
     if (!sequenceRunning) {
@@ -325,27 +244,12 @@ export function createCraneController({ craneEl, dom, claw, gameState, audio }) 
       }
     }
     beacon.classList.toggle('is-flashing', travelling || winching || sequenceRunning);
-    if (drivable) refreshHoverState(travelling || winching);
-
-    const current = gameState.get();
-    if (Math.abs(current.craneX - motion.x) >= 1 || Math.abs(current.hoistY - motion.y) >= 1 || Math.abs((current.craneDepth ?? 0) - motion.depth) >= 0.01) {
-      gameState.update({ craneX: Math.round(motion.x), hoistY: Math.round(motion.y), craneDepth: Math.round(motion.depth * 100) / 100 });
-    }
     render();
   }
 
-  /** One scripted motion: the crane follows `apply` along a tween and ignores the player meanwhile. */
-  async function runScripted({ duration, ease = easings.mechanical, signal, apply }) {
-    scriptedMotions += 1;
-    publishBusy();
-    try {
-      await tween({ from: 0, to: 1, duration, ease, signal, onUpdate: apply });
-    } finally {
-      scriptedMotions -= 1;
-      motion.vx = 0;
-      motion.vy = 0;
-      publishBusy();
-    }
+  /** One scripted motion: the crane follows `apply` (0 → 1) along a tween. */
+  function runScripted({ duration, ease = easings.mechanical, signal, apply }) {
+    return tween({ from: 0, to: 1, duration, ease, signal, onUpdate: apply });
   }
 
   function glideTo(x, { duration, ease, signal } = {}) {
@@ -367,15 +271,7 @@ export function createCraneController({ craneEl, dom, claw, gameState, audio }) 
   /** Damp the pendulum to rest before the claw touches anything, so frames never jump. */
   async function settleSway(signal, duration = 220) {
     if (Math.abs(motion.sway) < 0.05 && Math.abs(motion.swayVelocity) < 0.5) return;
-    const from = motion.sway;
-    scriptedMotions += 1;
-    publishBusy();
-    try {
-      await tween({ from, to: 0, duration, ease: easings.outCubic, signal, onUpdate: (value) => { motion.sway = value; motion.swayVelocity = 0; } });
-    } finally {
-      scriptedMotions -= 1;
-      publishBusy();
-    }
+    await tween({ from: motion.sway, to: 0, duration, ease: easings.outCubic, signal, onUpdate: (value) => { motion.sway = value; motion.swayVelocity = 0; } });
   }
 
   /** Claw-top y at which a frame held by the claw hangs `clearance` px above the yard plate. */
@@ -388,11 +284,9 @@ export function createCraneController({ craneEl, dom, claw, gameState, audio }) 
     carried = option;
     carryMaxY = clawTopAboveYard(option, LIFT_CLEARANCE);
     option.element.classList.add('is-carried');
-    option.element.classList.remove('is-hovered');
     option.element.style.left = `${-option.grabX * option.width}px`;
     option.element.style.top = `${-option.grabY + 2}px`;
     cargoEl.appendChild(option.element);
-    gameState.update({ carriedTriangleId: option.id, hoveredOptionId: null });
   }
 
   /** Detaches the carried frame: where its top-left corner sits on the stage, and at what scale. */
@@ -406,7 +300,6 @@ export function createCraneController({ craneEl, dom, claw, gameState, audio }) 
     const left = claw.x - option.grabX * option.width * scale;
     const top = claw.y + (CRANE_LAYOUT.gripOffsetY - option.grabY + 2) * scale;
     option.element.classList.remove('is-carried');
-    gameState.update({ carriedTriangleId: null });
     return { option, left, top, scale };
   }
 
@@ -421,55 +314,21 @@ export function createCraneController({ craneEl, dom, claw, gameState, audio }) 
       motorRunning = false;
       audio.stopLoop('craneMotor');
     }
-    publishBusy();
     try {
       return await run();
     } finally {
       sequenceRunning = false;
-      publishBusy();
     }
+  }
+
+  /** Kicks the hook so it swings and settles. */
+  function swingImpulse(amount) {
+    motion.swayVelocity += amount;
   }
 
   return {
     update,
-    get state() {
-      return state;
-    },
-    get carried() {
-      return carried;
-    },
-    get position() {
-      return { x: motion.x, y: motion.y, depth: motion.depth };
-    },
-    get isBusy() {
-      return sequenceRunning || scriptedMotions > 0;
-    },
-    setAxis(next) {
-      axis.x = clamp(next.x, -1, 1);
-      axis.y = clamp(next.y, -1, 1);
-    },
-    setHoverResolver(resolver) {
-      hoverResolver = resolver;
-    },
-    lock() {
-      axis.x = 0;
-      axis.y = 0;
-      unlockWhenLanded = false;
-      setState(S.LOCKED);
-    },
-    unlock() {
-      if (state === S.RETURNING) {
-        unlockWhenLanded = true;                // the return trip hands control back when it lands
-        return;
-      }
-      if (state === S.LOCKED) setState(carried ? S.CARRYING : S.IDLE);
-    },
     glideTo,
-    hoistTo,
-    /** Kick the hook so it swings and settles (entrance, comic beats). */
-    swingImpulse(amount = 20) {
-      motion.swayVelocity += amount;
-    },
     teleport(x, y = CRANE_LAYOUT.restY) {
       motion.x = clamp(x, CRANE_LAYOUT.minX - 700, CRANE_LAYOUT.maxX + 700);
       motion.y = y;
@@ -477,16 +336,16 @@ export function createCraneController({ craneEl, dom, claw, gameState, audio }) 
       lastX = motion.x;
       lastY = motion.y;
       lastMeasuredVx = 0;
-      motion.vz = 0;
       motion.sway = 0;
       motion.swayVelocity = 0;
       render();
     },
 
-    /** PICK: open → line up → lower → close → squeeze → lift the frame clear of the yard. */
+    /** Pick: open, line up, lower, close, squeeze, and lift the frame clear of the yard. */
     pickUp(option, { signal } = {}) {
       return withSequence(async () => {
-        if (carried || !setState(S.LOWERING_TO_PICK)) return false;
+        if (carried) return false;
+        setPhase(PHASE.LOWERING_TO_PICK);
         audio.play('clawOpen');
         await claw.open();
         if (motion.depth > 0) {                                           // slew back over the yard first
@@ -498,7 +357,7 @@ export function createCraneController({ craneEl, dom, claw, gameState, audio }) 
         await settleSway(signal);
         audio.play('winchDown');
         await hoistTo(option.grabStageY - CRANE_LAYOUT.gripOffsetY + 6, { signal, ease: easings.outCubic });
-        setState(S.GRABBING);
+        setPhase(PHASE.GRABBING);
         await wait(90, signal);
         audio.play('clawClose');
         await claw.close();
@@ -509,47 +368,37 @@ export function createCraneController({ craneEl, dom, claw, gameState, audio }) 
         setTimeout(() => option.element.classList.remove('is-lifted'), 520);
         await claw.squeeze();
         await wait(60, signal);
-        setState(S.LIFTING_TRIANGLE);
+        setPhase(PHASE.LIFTING);
         audio.play('winchUp');
         await hoistTo(carryMaxY, { signal, duration: 520, ease: easings.outCubic });
-        this.swingImpulse(5);                                             // the weight settles on the cable
-        setState(S.CARRYING);
+        swingImpulse(5);                                                  // the weight settles on the cable
+        setPhase(PHASE.CARRYING);
         return true;
       });
     },
 
     /**
-     * DROP: the whole crane move, as one sequence:
-     *   lift (straight up off the yard) → into depth (yard plane to bridge plane, the load shrinking
-     *   in perspective, its shadow crossing the water) → approach (a long slow-down) → align over the
-     *   spot → lower until the frame's base stands on the road → place (a small seat) → release.
-     * `target(scale)` returns { x, y }: the trolley x and claw-top y that seat the frame at that scale.
-     * `onPhase(name)` lets the level engine frame each beat with the camera.
-     * Resolves with { option, left, top, scale } (where the frame now stands) or null.
+     * Carry the frame to the bridge as one sequence: lift off the yard, travel into depth (the load
+     * shrinking in perspective, its shadow crossing the water), align over the spot, lower until its
+     * base stands on the road, and release. `target(scale)` returns the trolley x and claw-top y that
+     * seat the frame at that scale. Resolves with { option, left, top, scale } or null.
      */
-    transportToBridge(target, { signal, onPhase } = {}) {
+    transportToBridge(target, { signal } = {}) {
       return withSequence(async () => {
-        if (!carried || !setState(S.TRANSPORTING_DEPTH)) return null;
-        const farScale = depthScale(1);
-        const seat = target(farScale);                                     // stage coordinates on the bridge
-        const spot = screenToFront({ x: seat.x, y: seat.y, z: 1 });        // the same point for the crane (world)
+        if (!carried) return null;
+        setPhase(PHASE.TRANSPORTING);
+        const seat = target(depthScale(1));                               // stage coordinates on the bridge
+        const spot = screenToFront({ x: seat.x, y: seat.y, z: 1 });       // the same point for the crane
 
-        const alreadyOver = motion.depth >= 0.8;              // the player brought it out over the bridge
-        if (!alreadyOver) {
-        // A. Lift: straight up, away from the yard. The cable tightens and the load gives a small sway.
-        onPhase?.('lift');
         audio.play('winchUp');
-        this.swingImpulse(-6);
+        swingImpulse(-6);
         await hoistTo(CRANE_LAYOUT.restY, { signal, duration: 560, ease: easings.outCubic });
         await wait(80, signal);
-        }
 
-        // B + C. Into depth, then a long gentle approach: the jib slews into the scene, the trolley runs out
-        // along it, and the load (same height above the ground) shrinks and recedes with it.
-        onPhase?.('depth');
+        // The jib slews into the scene and the trolley runs out along it; the load keeps its height.
         audio.startLoop('craneMotor', { heavy: true });
         audio.play('whoosh');
-        this.swingImpulse(12);                                  // the load lags as the jib starts to turn (cartoon swing)
+        swingImpulse(12);                                                 // the load lags as the jib starts to turn
         const start = { x: motion.x, depth: motion.depth };
         try {
           await runScripted({
@@ -557,53 +406,41 @@ export function createCraneController({ craneEl, dom, claw, gameState, audio }) 
             ease: easings.linear,
             signal,
             apply: (t) => {
-              const zT = easings.travel(t);
-              const xT = easings.inOutCubic(Math.min(1, t * 1.08));
-              motion.depth = start.depth + (1 - start.depth) * zT;
-              motion.x = start.x + (spot.x - start.x) * xT;
+              motion.depth = start.depth + (1 - start.depth) * easings.travel(t);
+              motion.x = start.x + (spot.x - start.x) * easings.inOutCubic(Math.min(1, t * 1.08));
             },
           });
         } finally {
           audio.stopLoop('craneMotor');
         }
-        this.swingImpulse(-9);                                  // ...and swings on when it stops: a wobble, then it settles
+        swingImpulse(-9);                                                 // ...and swings on when it stops
 
-        // D. Align over the spot (the spot was computed from the frame's real geometry at this scale).
-        setState(S.ALIGNING_WITH_BRIDGE);
-        onPhase?.('align');
+        setPhase(PHASE.ALIGNING);
         await glideTo(spot.x, { signal, duration: 200, ease: easings.outCubic });
         await settleSway(signal, 300);
         await wait(90, signal);
 
-        // E. Lower onto the deck: slow, steady, no snap.
-        setState(S.LOWERING_TO_PLACE);
-        onPhase?.('lower');
+        setPhase(PHASE.LOWERING_TO_PLACE);
         audio.play('winchDown');
         await hoistTo(spot.y, { signal, duration: 760, ease: easings.outCubic });
-
-        // F. Place: the frame touches down on the spot: a green lock-in and a metallic click.
-        onPhase?.('place');
         audio.play('placement');
         audio.play('ding');
         await wait(110, signal);
 
-        // G. Release: the claw opens; the frame stays on the bridge.
-        setState(S.RELEASING);
+        setPhase(PHASE.RELEASING);
         audio.play('clawOpen');
         await claw.open();
-        const released = release();
-        onPhase?.('release');
-        return released;
+        return release();
       });
     },
 
-    /** Removes whatever is in the claw (resets and restarts). */
+    /** Removes whatever hangs in the claw (a screen left mid-sequence). */
     discardCargo() {
       const released = release();
       released?.option.element.remove();
       claw.setClosed(false);
     },
-    /** Red warning beacon (wrong frame) or orange (moving), for comic emphasis. */
+    /** The red warning beacon (a frame that does not fit). */
     alarm(on) {
       beacon.classList.toggle('is-alarm', Boolean(on));
     },
@@ -612,10 +449,10 @@ export function createCraneController({ craneEl, dom, claw, gameState, audio }) 
       audio.play('winchUp');
       return hoistTo(CRANE_LAYOUT.restY, { signal, duration: 520, ease: easings.outCubic });
     },
-    /** The empty hook travels back out of depth to the front of the yard, ready for the next pick. */
-    returnHome({ signal, x = CRANE_LAYOUT.parkX } = {}) {
+    /** The empty hook travels back out of depth to its place over the yard. */
+    returnHome({ signal, x = CRANE_LAYOUT.homeX } = {}) {
       return withSequence(async () => {
-        setState(S.RETURNING);
+        setPhase(PHASE.RETURNING);
         const from = { x: motion.x, y: motion.y, depth: motion.depth };
         const to = { x: clamp(x, CRANE_LAYOUT.minX, CRANE_LAYOUT.maxX), y: CRANE_LAYOUT.restY };
         audio.startLoop('craneMotor');
@@ -633,28 +470,10 @@ export function createCraneController({ craneEl, dom, claw, gameState, audio }) 
         } finally {
           audio.stopLoop('craneMotor');
           motion.depth = Math.max(0, motion.depth);
-          motion.swayVelocity += 8;                             // the empty hook bobs as it arrives home
-          if (state === S.RETURNING) setState(unlockWhenLanded ? S.IDLE : S.LOCKED);
-          unlockWhenLanded = false;
+          swingImpulse(8);                                                // the empty hook bobs as it arrives home
+          setPhase(PHASE.IDLE);
         }
       });
-    },
-    /** Glide along the jib (scenes outside play: entrance, ending). */
-    parkAway({ signal, x = CRANE_LAYOUT.parkX } = {}) {
-      return glideTo(x, { signal, ease: easings.inOutCubic });
-    },
-    /** Entrance: the trolley rolls in along the girder, overshoots a touch, and the hook swings to rest. */
-    async enterFromOffstage({ signal } = {}) {
-      this.teleport(CRANE_LAYOUT.maxX + 520);
-      const from = motion.x;
-      scriptedMotions += 1;
-      publishBusy();
-      try {
-        await tween({ from, to: CRANE_LAYOUT.homeX, duration: 1150, ease: easings.outSoftBack, signal, onUpdate: (value) => { motion.x = value; } });
-      } finally {
-        scriptedMotions -= 1;
-        publishBusy();
-      }
     },
   };
 }

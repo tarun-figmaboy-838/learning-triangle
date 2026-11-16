@@ -275,12 +275,9 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
   }
   /** Walks the beaver along a side as it is measured, clockwise round the shape, the tape running with him. */
   async function measureSideWithGuide(i) {
-    const a = canvas.points[i];
-    const b = canvas.points[(i + 1) % 3];
     // Corners run A (top), B (left), C (right): side i joins i and i + 1, so walking it backwards goes clockwise.
-    const fromEnd = 1;
-    const start = fromEnd ? b : a;
-    const end = fromEnd ? a : b;
+    const start = canvas.points[(i + 1) % 3];
+    const end = canvas.points[i];
     const d = [end[0] - start[0], end[1] - start[1]];
     const l = Math.hypot(d[0], d[1]) || 1;
     const dir = [d[0] / l, d[1] / l];
@@ -293,7 +290,7 @@ export function createLearningFlow({ board, canvas, guide, audio, fx, gameState,
     await guide.moveTo(onSide(start));
     guide.setInstant(true);
     const hand = () => { const h = guide.handPoint(); return [h.x - BOARD.surface.left, h.y - BOARD.surface.top]; };
-    await canvas.measureSide(i, { signal: signal(), fromEnd, tool: false, hand, onProgress: (t, at) => guide.placeAt(onSide(at)) });
+    await canvas.measureSide(i, { signal: signal(), fromEnd: 1, hand, onProgress: (t, at) => guide.placeAt(onSide(at)) });
     guide.setPose('walkStop');
     await pause(600);
   }

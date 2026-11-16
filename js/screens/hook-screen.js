@@ -1,10 +1,11 @@
 import { createSequenceScope, wait, isAbortError } from '../core/motion.js';
 import { bridgeSeatTarget } from '../gameplay/placement-controller.js';
 import { zoomToCab } from './story-screens.js';
-import { COPY } from '../data/copy.js';
 import { LEARNING_COPY } from '../learning/learning-content.js';
 
 const HOOK_COPY = Object.freeze({
+  /** Why he is stuck (the standalone build says it here; the game says it on its own story screen). */
+  framesLine: "I have all these triangular frames, but I can't remember which ones go where!",
   /** The deck's own line ("Triangles.pdf" H8), without its space framing. */
   learnFirst: 'We must identify them! But to do that we need to learn about triangles first.',
 });
@@ -17,7 +18,7 @@ const TRY_TARGET_X = 960;          // the middle spot on the deck
  * at the frames left in the yard (all triangles, all different) and sees what he needs first: to learn
  * about triangles. In the standalone build he also says why he is stuck (the game said it already).
  */
-export function createHookScreen({ els, audio, camera, crane, claw, triangles, bridge, feedback, builder, fx, screenManager, nextScreen = 'learning', sayFramesLine = false }) {
+export function createHookScreen({ audio, camera, crane, claw, triangles, bridge, feedback, builder, fx, screenManager, nextScreen = 'learning', sayFramesLine = false }) {
   const scope = createSequenceScope();
 
   async function say(text) {
@@ -67,7 +68,7 @@ export function createHookScreen({ els, audio, camera, crane, claw, triangles, b
       triangles.enterPlatform?.();
       await wait(700, scope.signal);
       await tryAFrame();
-      if (sayFramesLine) await say(COPY.screens.meetBuilder.line);
+      if (sayFramesLine) await say(HOOK_COPY.framesLine);
       // He looks at the frames left in the yard: all triangles, all different.
       await camera.focus({ x: 960, y: 880, scale: 1.12, pull: 0.5, duration: 1100, signal: scope.signal }).catch(() => {});
       builder.point();

@@ -1,8 +1,10 @@
-# Only the lesson itself is deployed: the page, its bundle, styles and assets.
+# Only the page, its built bundle (dist/) and the assets are deployed.
+js
+styles
 tools
 tests
-test-results
 docs
+test-results
 Play Game.command
 README.md
 .gitignore

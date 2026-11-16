@@ -8,7 +8,9 @@ learner-facing state go to test-results/learning/. Fails on any console error or
 """
 import json
 import os
+import shutil
 import sys
+import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -35,9 +37,8 @@ FORBIDDEN_WORDS = ["Not quite", "Great choice", "Compare the three", "TRIANGLE W
 failures = []
 
 # Every screenshot also checks that no two visible pieces of UI on the card sit on top of each other
-# (numbers, corners, the narration box, widgets, the tools, the beaver), except pairs that belong
-# together: the beaver holds the tape / protractor and stands on corners, the tools sit on corners,
-# and a container may hold its children.
+# (numbers, corners, the narration box, widgets, the beaver), except pairs that belong together: the
+# beaver stands on corners and peeks over widgets, and a container may hold its children.
 OVERLAP_JS = """
 (() => {
   const card = document.querySelector('.workshop__card');
@@ -63,8 +64,6 @@ OVERLAP_JS = """
   add('.ws-angle__label', 'deg');
   add('.ws-vertex__point', 'corner');
   add('.ws-coin', 'count');
-  add('.ws-tape', 'tape');
-  add('.ws-protractor', 'protractor');
   // A screen's root wrapper spans the whole overlay: check its children instead of the wrapper itself.
   const overlay = card.querySelector('.ws-overlay');
   const ob = overlay ? overlay.getBoundingClientRect() : null;
@@ -81,7 +80,7 @@ OVERLAP_JS = """
   add('.ws-pill', 'button');            // CHECK / CONTINUE: must touch nothing
   add('.ws-bin__label', 'tag');
   add('.guide__body', 'beaver');
-  const together = new Set(['beaver|tape', 'beaver|protractor', 'beaver|corner', 'beaver|widget', 'tape|corner', 'protractor|corner', 'widget|option']);
+  const together = new Set(['beaver|corner', 'beaver|widget', 'widget|option']);
   const hits = [];
   for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
     const a = items[i], b = items[j];
@@ -428,7 +427,8 @@ def open_game(profile):
 def run():
     server = start_static_server(ROOT, PORT)
     time.sleep(0.8)
-    chrome, page = open_game(os.path.join(OUT, "chrome-profile"))
+    profile = tempfile.mkdtemp(prefix="learning-qa-")      # a throwaway browser profile, outside the screenshots
+    chrome, page = open_game(profile)
     lesson = Lesson(page)
     started = time.time()
     try:
@@ -464,6 +464,8 @@ def run():
         check(not problems and not page.errors, "no console errors or warnings")
         chrome.terminate()
         server.terminate()
+        time.sleep(0.5)
+        shutil.rmtree(profile, ignore_errors=True)
     print(f"\n{len(failures)} failure(s) in {time.time() - started:.0f}s")
     for failure in failures:
         print(" -", failure)

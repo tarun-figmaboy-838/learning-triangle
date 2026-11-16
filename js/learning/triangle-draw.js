@@ -1,15 +1,15 @@
 /**
  * Shared SVG geometry for the workshop's triangles (the live canvas and the static figures):
- * where a side label sits, where an angle label fits inside its corner, arc and right-angle paths,
- * tick marks. Pure functions over canvas px.
+ * where a side label sits, a corner's frame, arc and right-angle paths, tick marks, value colours.
+ * Pure functions over canvas px.
  */
 import { vec } from './triangle-model.js';
 
-export const SVG_NS = 'http://www.w3.org/2000/svg';
-export const ARC_RADIUS = 38;
-export const SQUARE_SIZE = 24;
-export const TICK_HALF = 12;
-export const SIDE_LABEL_GAP = 38;
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const ARC_RADIUS = 38;
+const SQUARE_SIZE = 24;
+const TICK_HALF = 12;
+const SIDE_LABEL_GAP = 38;
 
 export function svgEl(name, attributes = {}, children = []) {
   const element = document.createElementNS(SVG_NS, name);
@@ -33,7 +33,7 @@ export function outwardNormal(vertices, i) {
   return n;
 }
 
-export function sideMidpoint(vertices, i) {
+function sideMidpoint(vertices, i) {
   return vec.mul(vec.add(vertices[i], vertices[(i + 1) % 3]), 0.5);
 }
 
@@ -48,13 +48,6 @@ export function cornerFrame(vertices, i) {
   const w = vec.unit(vec.sub(vertices[(i + 2) % 3], vertices[i]));
   const theta = Math.acos(Math.min(1, Math.max(-1, vec.dot(u, w))));
   return { u, w, theta, bisector: vec.unit(vec.add(u, w)) };
-}
-
-/** Where the angle's value sits: inside the corner, further in for narrow angles so it clears the sides. */
-export function angleLabelPoint(vertices, i, scale = 1) {
-  const { bisector, theta } = cornerFrame(vertices, i);
-  const distance = Math.min(126, Math.max(84, 24 / Math.sin(theta / 2) + 42)) * scale;
-  return vec.add(vertices[i], vec.mul(bisector, distance));
 }
 
 /** Arc of radius r inside corner i, optionally only the first `fraction` of the angle (drawing it in). */

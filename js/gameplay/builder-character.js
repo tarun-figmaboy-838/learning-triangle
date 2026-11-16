@@ -1,45 +1,40 @@
 import { CRANE_RIG } from '../data/layout.js';
 import { prefersReducedMotion } from '../core/motion.js';
 
-// Codex's polished operator: one 2 x 2 atlas per pose family, all framed alike (whole frames, same
-// scale, the beaver seated at his joystick box), so poses switch without the beaver jumping.
-export const BUILDER_FRAME_SOURCES = [
-  'assets/images/characters/operator/beaver-idle-atlas.png',
-  'assets/images/characters/operator/beaver-talk-atlas.png',
-  'assets/images/characters/operator/beaver-happy-atlas.png',
-  'assets/images/characters/operator/beaver-sad-atlas.png',
-  'assets/images/characters/operator/beaver-drive-atlas.png',
-  'assets/images/characters/operator/beaver-actions-atlas.png',
-];
+const ATLAS = 'assets/images/operator/';
 /**
- * Per-sheet fit (measured from each sheet's body outline against the idle sheet): the sheets were
- * generated separately, so each is scaled and nudged (in % of a frame) to match the idle sheet exactly.
- * Without this the beaver grows or shifts by a pixel or two whenever he switches pose.
+ * The seated operator: one 2 × 2 atlas per pose family, framed alike (the beaver at his joystick box).
+ * The sheets were generated separately, so each is scaled and nudged (in % of a frame) to match the idle
+ * sheet exactly; without it the beaver would shift by a pixel or two whenever he changes pose.
  */
-const SHEET_FIT = [
-  { scale: 1, x: 0, y: 0 },              // idle
-  { scale: 0.9879, x: 0.554, y: 0.996 }, // talk
-  { scale: 1, x: 0, y: 0 },              // happy
-  { scale: 0.9982, x: 0.012, y: 0.166 }, // sad
-  { scale: 0.9828, x: 0.899, y: 1.325 }, // drive
-  { scale: 1, x: 0.638, y: -0.478 },     // actions
-];
+const SHEETS = Object.freeze({
+  idle: { src: `${ATLAS}idle.webp`, scale: 1, x: 0, y: 0 },
+  talk: { src: `${ATLAS}talk.webp`, scale: 0.9879, x: 0.554, y: 0.996 },
+  happy: { src: `${ATLAS}happy.webp`, scale: 1, x: 0, y: 0 },
+  sad: { src: `${ATLAS}sad.webp`, scale: 0.9982, x: 0.012, y: 0.166 },
+  actions: { src: `${ATLAS}actions.webp`, scale: 1, x: 0.638, y: -0.478 },
+});
+export const BUILDER_FRAME_SOURCES = Object.values(SHEETS).map((sheet) => sheet.src);
 /** Talking: only the mouth moves (closed, open, wide, smile), in an uneven, speech-like rhythm. */
 const TALK_FRAMES = [1, 0, 2, 3, 0, 1, 2, 0, 3, 1, 0, 2];
 const TALK_MS = [120, 90, 150, 110, 80, 130, 140, 90, 120, 100, 80, 160];
 const POSES = {
-  idle: { sheet: 0, frames: [0, 1, 2, 1, 0], durations: [3200, 70, 90, 70, 1200] },
-  talk: { sheet: 1, frames: TALK_FRAMES, durations: TALK_MS },
-  cheer: { sheet: 2, frames: [0, 1, 2, 3, 1, 0], ms: 260, once: true },
-  worry: { sheet: 3, frames: [0, 1, 2, 1, 3], ms: 300, once: true },
-  point: { sheet: 2, frames: [0, 1, 3, 0], ms: 300, once: true },
-  drive: { sheet: 4, frames: [0], ms: 200 },
-  pick: { sheet: 5, frames: [0], ms: 200 },
-  carry: { sheet: 5, frames: [1], ms: 200 },
-  drop: { sheet: 5, frames: [2], ms: 200 },
-  complete: { sheet: 5, frames: [3], ms: 200 },
+  idle: { sheet: 'idle', frames: [0, 1, 2, 1, 0], durations: [3200, 70, 90, 70, 1200] },
+  talk: { sheet: 'talk', frames: TALK_FRAMES, durations: TALK_MS },
+  cheer: { sheet: 'happy', frames: [0, 1, 2, 3, 1, 0], ms: 260, once: true },
+  worry: { sheet: 'sad', frames: [0, 1, 2, 1, 3], ms: 300, once: true },
+  point: { sheet: 'happy', frames: [0, 1, 3, 0], ms: 300, once: true },
+  pick: { sheet: 'actions', frames: [0], ms: 200 },
+  carry: { sheet: 'actions', frames: [1], ms: 200 },
+  drop: { sheet: 'actions', frames: [2], ms: 200 },
 };
 const REACTIONS = new Set(['talk', 'cheer', 'worry', 'point']);
+/** The operator's working pose for each crane phase: focused while picking, watching the load, easing it down. */
+const PHASE_POSES = Object.freeze({
+  loweringToPick: 'pick', grabbing: 'pick',
+  liftingTriangle: 'carry', carrying: 'carry', transportingDepth: 'carry', aligningWithBridge: 'carry',
+  loweringToPlace: 'drop', releasing: 'drop', returning: 'drop',
+});
 
 export function createBuilderCharacter({ hostEl }) {
   const { cabWindow } = CRANE_RIG;
@@ -48,8 +43,7 @@ export function createBuilderCharacter({ hostEl }) {
   root.hidden = true;
   root.setAttribute('aria-hidden', 'true');
   Object.assign(root.style, { left: `${cabWindow.left}px`, top: `${cabWindow.top}px`, width: `${cabWindow.width}px`, height: `${cabWindow.height}px` });
-  // One frame layer: frames swap instantly, as in any sprite animation. The sheets are scale-matched
-  // (SHEET_FIT), so the beaver never jumps; a cross-fade showed two poses on top of each other.
+  // One frame layer: frames swap instantly, as in any sprite animation (the sheets are scale-matched).
   root.innerHTML = '<div class="builder__body"><div class="builder__frame is-on"></div></div>';
   hostEl.appendChild(root);
   // The cab's front (body, window frame and a glass sheet) goes over the operator, so he sits inside, behind glass.
@@ -70,14 +64,10 @@ export function createBuilderCharacter({ hostEl }) {
   let returnTimer = 0;
   let index = 0;
   let revision = 0;
-  let axis = { x: 0, y: 0 };
-  let machinePose = 'idle';
-  let completed = false;
-  const driving = () => Math.hypot(axis.x, axis.y) > 0.05;
-  const restingPose = () => completed ? 'complete' : driving() ? 'drive' : machinePose;
+  let machinePose = 'idle';      // his working pose for the crane's current phase
   function paint(layer, sheet, number) {
-    const fit = SHEET_FIT[sheet];
-    layer.style.backgroundImage = `url("${BUILDER_FRAME_SOURCES[sheet]}")`;
+    const fit = SHEETS[sheet];
+    layer.style.backgroundImage = `url("${fit.src}")`;
     layer.style.backgroundPosition = `${(number % 2) * 100}% ${Math.floor(number / 2) * 100}%`;
     layer.style.transform = `translate(${fit.x}%, ${fit.y}%) scale(${fit.scale})`;
   }
@@ -88,13 +78,6 @@ export function createBuilderCharacter({ hostEl }) {
       shownKey = key;
       paint(frameEl, sheet, number);
     }
-    root.dataset.facing = ['idle', 'drive', 'pick', 'carry', 'drop'].includes(pose) ? 'controls' : 'user';
-    root.dataset.frame = String(number);
-    root.dataset.sheet = String(sheet);
-  }
-  function driveFrame() {
-    if (Math.abs(axis.y) > Math.abs(axis.x)) return axis.y < 0 ? 2 : 1;
-    return axis.x < -.12 ? 1 : axis.x > .12 ? 3 : 0;
   }
   function advance() {
     const definition = POSES[pose];
@@ -114,44 +97,30 @@ export function createBuilderCharacter({ hostEl }) {
     pose = POSES[name] ? name : 'idle';
     root.dataset.pose = pose;
     index = 0;
-    show(pose === 'drive' ? driveFrame() : POSES[pose].frames[0]);
+    show(POSES[pose].frames[0]);
     advance();
-    if (thenIdleAfter) returnTimer = setTimeout(() => setPose(restingPose()), thenIdleAfter);
+    if (thenIdleAfter) returnTimer = setTimeout(() => setPose(machinePose), thenIdleAfter);
   }
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { clearTimeout(interval); interval = 0; }
-    else if (!root.hidden) setPose(restingPose());
+    else if (!root.hidden) setPose(machinePose);
   });
   return {
-    show() { root.hidden = false; setPose(restingPose()); },
-    hide() { root.hidden = true; axis = { x: 0, y: 0 }; setPose('idle'); },
+    show() { root.hidden = false; setPose(machinePose); },
+    hide() { root.hidden = true; setPose('idle'); },
     get cabCenter() { return { x: cabWindow.left + cabWindow.width / 2, y: cabWindow.top + cabWindow.height / 2 }; },
-    get cabWindow() { return cabWindow; },
     /** Where the speech-bubble tail points: just right of the cab glass, level with the operator's mouth. */
     get bubbleAnchor() { return { x: CRANE_RIG.cabin.left + CRANE_RIG.cabin.width - 8, y: cabWindow.top + cabWindow.height * 0.34 }; },
-    setPose,
+    /** The crane's phase decides his working pose (unless he is reacting to something). */
     setGameState(state) {
-      completed = state.completed;
-      // Operating poses follow the crane: focused while picking, watching the load in transit, easing it down.
-      machinePose = ['loweringToPick', 'grabbing'].includes(state.craneState) ? 'pick'
-        : ['liftingTriangle', 'carrying', 'transportingDepth', 'aligningWithBridge'].includes(state.craneState) ? 'carry'
-        : ['loweringToPlace', 'releasing', 'returning'].includes(state.craneState) ? 'drop' : 'idle';
-      if (!REACTIONS.has(pose) && restingPose() !== pose) setPose(restingPose());
-    },
-    setAxis(next) {
-      axis = next;
-      root.dataset.lean = axis.x < -0.12 ? 'left' : axis.x > 0.12 ? 'right' : axis.y < -0.3 ? 'up' : axis.y > 0.3 ? 'down' : '';
-      if (!REACTIONS.has(pose)) {
-        const nextPose = restingPose();
-        if (nextPose !== pose) setPose(nextPose);
-        else if (pose === 'drive') show(driveFrame());
-      }
+      machinePose = PHASE_POSES[state.craneState] ?? 'idle';
+      if (!REACTIONS.has(pose) && machinePose !== pose) setPose(machinePose);
     },
     async talkUntil(finished) {
       setPose('talk');
       const token = revision;
-      try { await finished; } finally { if (token === revision) setPose(restingPose()); }
+      try { await finished; } finally { if (token === revision) setPose(machinePose); }
     },
     cheer() { setPose('cheer', { thenIdleAfter: 2300 }); },
     worry() { setPose('worry', { thenIdleAfter: 2100 }); },
@@ -163,6 +132,5 @@ export function createBuilderCharacter({ hostEl }) {
       root.classList.add('is-nodding');
       setTimeout(() => root.classList.remove('is-nodding'), 700);
     },
-    get element() { return root; },
   };
 }

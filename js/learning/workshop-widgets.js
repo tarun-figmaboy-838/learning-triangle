@@ -1,6 +1,6 @@
 /**
- * The board's reusable widgets: option card, multi-select grid, sorting crates, the two-way classifier,
- * classification badges, lenses, the 90° reference card, tool chips, buttons, the entry and summary views.
+ * The board's reusable widgets: pill buttons, name badges, lenses, the option row, the multi-select grid,
+ * the sorting crates, the two-way classifier, the summary view and the ghost hand.
  * Each returns plain DOM plus a small API; the flow (learning-flow.js) decides when they appear.
  * Before an answer every option has the same look: no colour, size or motion gives the answer away.
  */
@@ -9,7 +9,7 @@ import { LEARNING_COPY } from './learning-content.js';
 import { playClassAnimation, prefersReducedMotion } from '../core/motion.js';
 
 const ASSETS = 'assets/images/workshop/';
-export const WIDGET_IMAGES = [`${ASSETS}btn-uiPrimary.webp`, `${ASSETS}btn-uiNav.webp`, `${ASSETS}btn-uiSuccess.webp`, `${ASSETS}btn-uiDanger.webp`, `${ASSETS}crate-back.png`, `${ASSETS}crate-front.png`, `${ASSETS}card-frame.png`, `${ASSETS}summary-card.png`];
+export const WIDGET_IMAGES = [`${ASSETS}btn-uiPrimary.webp`, `${ASSETS}btn-uiNav.webp`, `${ASSETS}btn-uiSuccess.webp`, `${ASSETS}btn-uiDanger.webp`, `${ASSETS}crate-back.webp`, `${ASSETS}crate-front.webp`, `${ASSETS}card-frame.webp`, `${ASSETS}summary-card.webp`];
 
 const escapeHtml = (value) => String(value).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -39,7 +39,7 @@ async function leave(node, ms = 320) {
 
 /* ---------- Buttons ---------- */
 
-/** A yellow (or green) pill with words: BEGIN LEARNING, CHECK, CONTINUE. */
+/** A pill button with words: CHECK (yellow), CONTINUE (green). */
 export function createPillButton({ overlayEl, text, tone = 'yellow', at = {}, onPress, enabled = true }) {
   const button = element('button', `ws-pill ws-pill--${tone} ws-interactive`, escapeHtml(text));
   button.type = 'button';
@@ -62,8 +62,8 @@ export function createPillButton({ overlayEl, text, tone = 'yellow', at = {}, on
 
 /* ---------- Chips, badges, cards ---------- */
 
-export function createBadge({ overlayEl, text, tone, at, size = 'normal' }) {
-  const badge = element('div', `ws-badge ws-badge--${tone} ws-badge--${size}`, escapeHtml(text));
+export function createBadge({ overlayEl, text, tone, at }) {
+  const badge = element('div', `ws-badge ws-badge--${tone}`, escapeHtml(text));
   const { center = false, ...where } = at ?? {};
   place(badge, where);
   if (center) badge.classList.add('ws-badge--centred');            // hugs its word, centred on `left`
@@ -224,7 +224,6 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
   const binEls = new Map();
   let enabled = true;
   let selected = null;
-  let placedCount = 0;
   let current = null;
 
   cards.forEach((card, index) => {
@@ -250,10 +249,10 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     node.setAttribute('aria-label', `${bin.label} crate`);
     // Two layers: the crate's back (behind a dropped card) and its front panel with the name (in front of it),
     // so a card dropped in sinks into the box.
-    node.innerHTML = `<img class="ws-bin__back" src="${ASSETS}crate-back.png" alt="" draggable="false">`;
+    node.innerHTML = `<img class="ws-bin__back" src="${ASSETS}crate-back.webp" alt="" draggable="false">`;
     node.style.setProperty('--i', String(index));
     place(node, { left: BIN.xs[index], top: BIN.top, width: BIN.width });
-    const front = element('div', 'ws-bin-front', `<img src="${ASSETS}crate-front.png" alt="" draggable="false"><span class="ws-bin__label">${escapeHtml(bin.label)}</span>`);
+    const front = element('div', 'ws-bin-front', `<img src="${ASSETS}crate-front.webp" alt="" draggable="false"><span class="ws-bin__label">${escapeHtml(bin.label)}</span>`);
     front.style.setProperty('--i', String(index));
     place(front, { left: BIN.xs[index], top: BIN.top, width: BIN.width });
     root.append(node, front);
@@ -316,7 +315,6 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
     playClassAnimation(bin.node, 'is-receiving', 520);
     playClassAnimation(bin.front, 'is-receiving', 520);
     playClassAnimation(bin.front.querySelector('.ws-bin__label'), 'is-pulse', 480);
-    placedCount += 1;
     await new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 260));
     advance();
   }
@@ -395,7 +393,6 @@ export function createSortBoard({ overlayEl, cards, bins, audio, onDrop }) {
   setTimeout(advance, prefersReducedMotion() ? 0 : 620);
   return {
     element: root,
-    get placedCount() { return placedCount; },
     setEnabled(value) { enabled = Boolean(value); root.classList.toggle('is-locked', !enabled); },
     /** Overlay-space points for the ghost hand: the bench card's centre and the three crates' label tops. */
     ghostPath() {
@@ -547,7 +544,6 @@ export function createSummaryView({ overlayEl, screen }) {
   }
   return {
     element: root,
-    slots,
     /** Pops the big card for one category (the beaver peeks over its top edge from behind). */
     popCard(index) {
       const item = items[index];
@@ -594,7 +590,6 @@ export function createSummaryView({ overlayEl, screen }) {
     },
     /** Spoken-word cues on the open card: its name warms up, its figure pulses (Polygon recap style). */
     pulseName() { const el = big?.querySelector('.ws-summary__tag'); if (el) playClassAnimation(el, 'is-pulse', 700); },
-    pulseFigure() { const el = big?.querySelector('svg'); if (el) playClassAnimation(el, 'is-pulse', 700); },
     /** Word cues on the open card (dual coding): what he says lights up in the figure as he says it. */
     lightSides() { inTurn(big?.querySelectorAll('.ws-figure__body'), 'is-lit', 900); },
     pulseLengths() { inTurn(big?.querySelectorAll('.ws-figure__label--side'), 'is-pulse', 700); },
@@ -621,7 +616,6 @@ export function createSummaryView({ overlayEl, screen }) {
       });
       return new Promise((resolve) => setTimeout(resolve, prefersReducedMotion() ? 0 : 440 + slots.length * 70));
     },
-    get bigCard() { return big; },
     remove: () => leave(root),
   };
 }

@@ -4,16 +4,12 @@ import { VO_WORD_TIMES } from '../data/vo-word-times.js';
 
 const READING_MS_PER_CHARACTER = 42;
 
-/**
- * Types `text` into `element` over `totalMs`. A hidden full-length copy reserves the final size so the
- * card never grows while typing, and screen readers get the whole line at once.
- */
 const escapeHtml = (value) => value.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /**
- * Shows `text` a word at a time over `totalMs` (each word rises and settles, eased, no overshoot), as
- * it is read out. The words of the `focus` phrase are the key words: gold, nothing behind them. Screen readers get the whole line at once. The layout is final from the first frame
- * (hidden words still take their place), so the box never grows while the words appear.
+ * Shows `text` a word at a time over `totalMs`, as it is read out (each word rises and settles). The
+ * words of the `focus` phrase are the key words. Screen readers get the whole line at once, and the layout
+ * is final from the first frame (hidden words keep their place), so the box never grows while it fills.
  */
 export function revealWords(element, text, totalMs, focus = null, { times = null, rate = 1, started = null } = {}) {
   element.textContent = '';
@@ -68,9 +64,8 @@ export function hugWords(box, textEl) {
   box.style.width = `${Math.ceil(widest + padding + 2)}px`;
 }
 
-/** The task card (PDF wording) and the builder's speech bubble. Nothing else is written on screen. */
-export function createFeedbackController({ hudEl, overlaysEl, voice, builder }) {
-  const instructionEl = document.getElementById('instruction');
+/** The operator's speech bubble, its tail on the cab, its words at the voice's pace. */
+export function createFeedbackController({ overlaysEl, voice, builder }) {
   let bubbleEl = null;
 
   function speakAndType(element, text, { speaker, focus = null }) {
@@ -80,36 +75,7 @@ export function createFeedbackController({ hudEl, overlaysEl, voice, builder }) 
     return spoken.finished;
   }
 
-  // The task plate's words (the plate itself is styled in components.css).
-  instructionEl.innerHTML = '<p class="instruction__text"></p>';
-  const signText = instructionEl.querySelector('.instruction__text');
-
   return {
-    /** Shows the task line; the narrator reads it and the words appear at the voice's pace. */
-    async setInstruction(text, { swap = false, complete = false, focus = null } = {}) {
-      const wasHidden = instructionEl.hidden;
-      instructionEl.hidden = false;
-      instructionEl.classList.toggle('is-complete', complete);
-      if (swap && !wasHidden) {
-        instructionEl.classList.remove('is-swapping');
-        void instructionEl.offsetWidth;
-        instructionEl.classList.add('is-swapping');
-        await wait(prefersReducedMotion() ? 0 : 190);
-        const finished = speakAndType(signText, text, { speaker: 'narrator', focus });
-        await wait(prefersReducedMotion() ? 0 : 340);
-        instructionEl.classList.remove('is-swapping');
-        return finished;
-      }
-      const finished = speakAndType(signText, text, { speaker: 'narrator', focus });
-      playClassAnimation(instructionEl, 'is-entering', 720);
-      return finished;
-    },
-    pushInstruction: () => playClassAnimation(instructionEl, 'is-pushed', 600),
-    hideInstruction() {
-      instructionEl.hidden = true;
-      signText.textContent = '';
-    },
-
     /**
      * The builder speaks from the cab: the bubble's tail points at him wherever the camera is,
      * words appear at the voice's pace, and the beaver talks.

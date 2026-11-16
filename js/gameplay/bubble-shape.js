@@ -6,7 +6,7 @@
  * Proportions: corner radius ~26 px, tail base ~20 % of the body width (never wider than 0.8 of
  * its length), tail length ~17 % of the body height (56..96 px), tip off to the leaning side.
  */
-export const BUBBLE = Object.freeze({
+const BUBBLE = Object.freeze({
   stroke: 6,
   radius: 28,
   tailBase: 0.2,
@@ -24,7 +24,7 @@ const f = (n) => (Math.round(n * 10) / 10).toString();
  * tail.at: where the tail leaves the bottom edge (0..1 of the width); tail.lean: -1 tip left, +1 right.
  * Returns { d, tailLen, tip: [x, y] } in the bubble's own pixels.
  */
-export function bubblePath(w, h, tail = { at: 0.15, lean: -1 }) {
+function bubblePath(w, h, tail = { at: 0.15, lean: -1 }) {
   const s = BUBBLE.stroke;
   const r = Math.max(18, Math.min(BUBBLE.radius, w * 0.08, h * 0.3));
   const x0 = s / 2;

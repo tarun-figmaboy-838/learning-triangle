@@ -1,66 +1,72 @@
-import { createTube, createGusset, svgElement, TUBE_PALETTES } from './svg-tubes.js';
-import { SHOW_PDF_MARKS } from '../data/triangles.js';
+/**
+ * A steel triangle frame as SVG, from exact corners: three painted yellow beams with bolted joint plates.
+ * A beam is the painted bar sliced in three (left end with its bolt, a middle that stretches to any length,
+ * right end with its bolt) laid along the side, so the ends and bolts never distort whatever the length.
+ */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const ART = 'assets/images/frame/';
+const PAD = 24;            // room around the corners for the beams, plates and shadow
+const BEAM_WIDTH = 16;
+const PLATE_RADIUS = 13;
+
+/** Beam art: slice height and cap widths in art px; boltAt is the bolt's centre, measured from the beam's end. */
+const BEAM = Object.freeze({ l: `${ART}beam-l.webp`, m: `${ART}beam-m.webp`, r: `${ART}beam-r.webp`, h: 140, capL: 130, capR: 130, boltAt: 72, scale: 1.25 });
+/** The plate art is 240 × 220 inside a 14 px clear margin (268 × 248), so its outline is never cut. */
+const JOINT = Object.freeze({ src: `${ART}joint.webp`, width: 268, height: 248, plate: 240 });
+
+export const FRAME_IMAGES = [BEAM.l, BEAM.m, BEAM.r, JOINT.src];
+
+function svgElement(name, attributes = {}) {
+  const element = document.createElementNS(SVG_NS, name);
+  for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
+  return element;
+}
+
+function image(href, attributes = {}) {
+  const element = svgElement('image', attributes);
+  element.setAttribute('href', href);
+  return element;
+}
+
+/** One beam from (x1, y1) to (x2, y2): its three slices along the side, the bolts on the corners. */
+function createBeam(x1, y1, x2, y2) {
+  const length = Math.hypot(x2 - x1, y2 - y1) || 1;
+  const angle = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
+  const h = BEAM_WIDTH * BEAM.scale;
+  const k = h / BEAM.h;
+  const overhang = BEAM.boltAt * k;
+  const capL = BEAM.capL * k;
+  const capR = BEAM.capR * k;
+  const middle = Math.max(0.5, length + overhang * 2 - capL - capR);
+  const slice = (href, x, w) => image(href, { preserveAspectRatio: 'none', x: x.toFixed(2), y: (-h / 2).toFixed(2), width: w.toFixed(2), height: h.toFixed(2) });
+  const body = svgElement('g', { class: 'tube__body' });
+  body.append(
+    slice(BEAM.l, -overhang, capL),
+    slice(BEAM.m, -overhang + capL - 0.4, middle + 0.8),      // a hair of overlap: no seam between slices
+    slice(BEAM.r, -overhang + capL + middle, capR),
+  );
+  const place = svgElement('g', { class: 'tube__place', transform: `translate(${x1.toFixed(1)} ${y1.toFixed(1)}) rotate(${angle.toFixed(2)})` });
+  place.appendChild(body);
+  const group = svgElement('g', { class: 'tube tube--yellow frame__beam' });
+  group.appendChild(place);
+  return group;
+}
+
+/** A joint: the painted hexagonal steel plate with bolts, centred on (x, y). */
+function createPlate(x, y) {
+  const w = (PLATE_RADIUS * 2.3 * JOINT.width) / JOINT.plate;
+  const h = (PLATE_RADIUS * 2.3 * JOINT.height) / JOINT.plate;
+  const group = svgElement('g', { class: 'frame__plate' });
+  group.appendChild(image(JOINT.src, { class: 'frame__plate-art', x: (x - w / 2).toFixed(1), y: (y - h / 2).toFixed(1), width: w.toFixed(1), height: h.toFixed(1) }));
+  return group;
+}
 
 /**
- * Builds a triangle frame as SVG from exact vertices: three yellow steel tubes with bolted corner
- * plates (the same parts the bridge is made of) and the PDF's notation marks.
+ * Returns { svg, width, height, localVertices, centroid, grabX, grabY, baseOffset } in element px.
+ * `scale` sizes the shape; the beams keep their thickness at every size.
  */
-export const FRAME_PAD = 24;   // room around the vertices for tube thickness, plates and shadow
-const PAD = FRAME_PAD;
-const TUBE_WIDTH = 16;
-const INK = '#2a1a05';
-const TICK_HALF = 12;     // half-length of a tick mark across the beam
-const TICK_GAP = 8;       // spacing between multiple ticks
-const ARC_RADIUS = 26;
-const SQUARE_SIZE = 22;
-
-const sub = (a, b) => [a[0] - b[0], a[1] - b[1]];
-const add = (a, b) => [a[0] + b[0], a[1] + b[1]];
-const mul = (a, k) => [a[0] * k, a[1] * k];
-const unit = (v) => {
-  const length = Math.hypot(v[0], v[1]) || 1;
-  return [v[0] / length, v[1] / length];
-};
-
-function addTicks(group, a, b, count) {
-  if (!count) return;
-  const direction = unit(sub(b, a));
-  const normal = [-direction[1], direction[0]];
-  const middle = mul(add(a, b), 0.5);
-  for (let k = 0; k < count; k += 1) {
-    const centre = add(middle, mul(direction, (k - (count - 1) / 2) * TICK_GAP));
-    const p = add(centre, mul(normal, TICK_HALF));
-    const q = sub(centre, mul(normal, TICK_HALF));
-    group.appendChild(svgElement('line', { x1: p[0].toFixed(1), y1: p[1].toFixed(1), x2: q[0].toFixed(1), y2: q[1].toFixed(1), class: 'frame__tick' }));
-  }
-}
-
-function addArc(group, vertex, toA, toB) {
-  const u = unit(sub(toA, vertex));
-  const v = unit(sub(toB, vertex));
-  const start = add(vertex, mul(u, ARC_RADIUS));
-  const end = add(vertex, mul(v, ARC_RADIUS));
-  const sweep = u[0] * v[1] - u[1] * v[0] > 0 ? 1 : 0;
-  group.appendChild(svgElement('path', {
-    d: `M ${start[0].toFixed(1)} ${start[1].toFixed(1)} A ${ARC_RADIUS} ${ARC_RADIUS} 0 0 ${sweep} ${end[0].toFixed(1)} ${end[1].toFixed(1)}`,
-    class: 'frame__arc',
-  }));
-}
-
-function addSquare(group, vertex, toA, toB) {
-  const u = mul(unit(sub(toA, vertex)), SQUARE_SIZE);
-  const v = mul(unit(sub(toB, vertex)), SQUARE_SIZE);
-  const corner = add(add(vertex, u), v);
-  const points = [add(vertex, u), corner, add(vertex, v)].map((p) => p.map((n) => n.toFixed(1)).join(',')).join(' ');
-  group.appendChild(svgElement('polyline', { points, class: 'frame__square' }));
-}
-
-/**
- * Returns { svg, width, height, localVertices, centroid, grabX, grabY, baseOffset } in element pixels.
- * `scale` sizes the shape; tube thickness stays constant so every frame matches the bridge beams.
- */
-export function buildFrameSvg(definition, { scale = 1, marks = SHOW_PDF_MARKS } = {}) {
-  const scaled = definition.vertices.map(([x, y]) => [x * scale, y * scale]);
+export function buildFrameSvg({ vertices }, { scale = 1 } = {}) {
+  const scaled = vertices.map(([x, y]) => [x * scale, y * scale]);
   const minX = Math.min(...scaled.map((p) => p[0]));
   const minY = Math.min(...scaled.map((p) => p[1]));
   const maxX = Math.max(...scaled.map((p) => p[0]));
@@ -73,23 +79,9 @@ export function buildFrameSvg(definition, { scale = 1, marks = SHOW_PDF_MARKS } 
   for (let i = 0; i < 3; i += 1) {
     const [x1, y1] = local[i];
     const [x2, y2] = local[(i + 1) % 3];
-    svg.appendChild(createTube(x1, y1, x2, y2, { width: TUBE_WIDTH, palette: TUBE_PALETTES.paint, className: 'frame__beam' }).group);
+    svg.appendChild(createBeam(x1, y1, x2, y2));
   }
-  if (marks && definition.marks) {
-    const ink = svgElement('g', { class: 'frame__marks', stroke: INK });
-    (definition.marks.ticks ?? []).forEach((count, i) => addTicks(ink, local[i], local[(i + 1) % 3], count));
-    for (const index of definition.marks.arcs ?? []) addArc(ink, local[index], local[(index + 1) % 3], local[(index + 2) % 3]);
-    if (definition.marks.square !== undefined) {
-      const index = definition.marks.square;
-      addSquare(ink, local[index], local[(index + 1) % 3], local[(index + 2) % 3]);
-    }
-    svg.appendChild(ink);
-  }
-  for (const [x, y] of local) {
-    const plate = createGusset(x, y, { radius: 13 });
-    plate.setAttribute('class', 'truss-node frame__plate is-built is-instant is-bolted');
-    svg.appendChild(plate);
-  }
+  for (const [x, y] of local) svg.appendChild(createPlate(x, y));
 
   const top = local.reduce((best, p) => (p[1] < best[1] - 0.5 || (Math.abs(p[1] - best[1]) <= 0.5 && p[0] < best[0]) ? p : best), local[0]);
   return {

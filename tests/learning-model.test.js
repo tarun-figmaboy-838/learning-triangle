@@ -10,7 +10,7 @@ import {
   measure, layoutFromSpec, cmPointsFromSpec, classifyBySides, classifyByAngles, formatCm, formatDeg,
   snapVertex, goalMet, solutionFor, constrainVertex, isValidTriangle, PX_PER_CM, MIN_ALTITUDE_CM, SNAP_RADIUS_PX,
 } from '../js/learning/triangle-model.js';
-import { LEARNING_SCREENS, PROGRESS_STEPS } from '../js/learning/learning-content.js';
+import { LEARNING_SCREENS } from '../js/learning/learning-content.js';
 
 const FRAME = { cx: 780, cy: 300 };
 const BOUNDS = { left: 80, top: 40, right: 1480, bottom: 600 };
@@ -207,9 +207,9 @@ test('labels that look equal are equal: the snap magnet is wider than the label 
   assert.ok(SNAP_RADIUS_PX > 0.1 * PX_PER_CM, `snap ${SNAP_RADIUS_PX}px vs rounding ${0.1 * PX_PER_CM}px`);
 });
 
-test('the progress counter counts every lesson and checkpoint once', () => {
-  assert.equal(new Set(PROGRESS_STEPS).size, PROGRESS_STEPS.length);
-  assert.equal(PROGRESS_STEPS.length, LEARNING_SCREENS.length);
+test('every screen id is unique', () => {
+  const ids = LEARNING_SCREENS.map((screen) => screen.id);
+  assert.equal(new Set(ids).size, ids.length);
 });
 
 report('learning-model');

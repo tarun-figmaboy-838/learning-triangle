@@ -4,21 +4,21 @@
 .workshop-layer { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
 .workshop-layer > .workshop { pointer-events: auto; }
 
-/* ----- The quiet workshop behind the lesson (assets/images/workshop/learning-backdrop.png) ----- */
+/* ----- The quiet workshop behind the lesson (assets/images/workshop/learning-backdrop.webp) ----- */
 .learning-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 900ms var(--ease-out); pointer-events: none; }
 .learning-backdrop.is-on { opacity: 1; }
 .crane { transition: opacity 700ms var(--ease-out); }
 .crane.is-away { opacity: 0; pointer-events: none; }
 
 /* ----- The lesson card: a wide, simple panel with thin borders over the workshop wall ----- */
-/* The card keeps its 1600 × 820 coordinate system and is shown 10% bigger (CARD_SCALE in workshop-board.js). */
+/* The card keeps its 1600 × 820 coordinate system (BOARD in workshop-board.js) and is shown 10% bigger. */
 .workshop { position: absolute; left: 80px; top: 69px; width: 1760px; height: 902px; transform-origin: 50% 100%; }
 .workshop.is-lowered { transform: translateY(60px) scale(0.98); opacity: 0; }
 .workshop.is-rising { animation: ws-rise 900ms var(--ease-out) both; }
 .workshop.is-lowering { animation: ws-lower 700ms var(--ease-in) forwards; }
 .workshop__card {
   position: absolute; left: 0; top: 0; width: 1600px; height: 820px; transform: scale(1.1); transform-origin: 0 0;
-  background: url("../assets/images/workshop/card-frame.png") center / 100% 100% no-repeat;   /* flat generated frame: navy edge, gold line, corner screws */
+  background: url("../assets/images/workshop/card-frame.webp") center / 100% 100% no-repeat;   /* flat generated frame: navy edge, gold line, corner screws */
 }
 /* The narration box: at the top of the card, as wide as its words, never a bar of empty space. */
 .ws-narration {
@@ -46,7 +46,7 @@
 .ws-pill--center { left: 50%; translate: -50% 0; }
 .ws-pill.is-entering { animation: cta-enter 480ms var(--ease-back) both; }
 
-/* ----- Chips, badges, reference, lenses ----- */
+/* ----- Name badges, GREAT JOB, lenses ----- */
 .ws-badge {
   /* The game's name tag: navy with the card frame's gold line and white letters (the narration box's colours). */
   display: inline-flex; align-items: center; justify-content: center; padding: 8px 28px 7px; white-space: nowrap; text-align: center;
@@ -95,14 +95,10 @@
 }
 .ws-dual .ws-group__label { position: absolute; left: 50%; top: -24px; translate: -50% 0; margin: 0; padding: 7px 24px 6px; border-radius: 999px; background: #fff8e3; border: 4px solid #f0b000; box-shadow: 0 3px 10px rgba(110, 70, 0, 0.16); font-family: var(--font-display); font-size: 21px; font-weight: 800; letter-spacing: 0.6px; color: #6b4300; white-space: nowrap; }
 .ws-dual .ws-group__options { display: flex; gap: 12px; }
-.ws-card.is-entering { animation: ws-slide-in-right 560ms var(--ease-out) both; }
-.ws-options { display: grid; gap: 10px; }
 .ws-option.is-shaking { animation: ws-shake 520ms ease-in-out; }
-.ws-option:disabled, .ws-card.is-locked .ws-option { cursor: default; }
+.ws-option:disabled { cursor: default; }
 .ws-group { margin-top: 10px; }
 .ws-group__label { display: block; margin: 0 0 8px 4px; font-size: 17px; letter-spacing: 2px; color: #1d6fb8; }
-.ws-group--list .ws-group__options { display: grid; gap: 8px; }
-.ws-group--pills .ws-group__options { display: flex; gap: 10px; }
 
 /* ----- Multi-select cards ----- */
 .ws-grid { position: absolute; inset: 0; }
@@ -166,20 +162,18 @@
 .ws-result-card__tick::after { content: ""; position: absolute; left: 12px; top: 5px; width: 9px; height: 17px; border: solid #fff; border-width: 0 4px 4px 0; transform: rotate(40deg); }
 .ws-sort-result.is-entering .ws-result-card { animation: ws-pop-in 600ms var(--ease-back) both; animation-delay: calc(var(--i) * 140ms); }
 
-/* ----- Entry and summary views ----- */
+/* ----- Summary ----- */
 .ws-summary { position: absolute; inset: 0; font-family: var(--font-display); color: var(--color-navy); }
 .ws-summary__big {
   position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 64px 34px 30px;
-  background: url("../assets/images/workshop/summary-card.png") center / 100% 100% no-repeat;   /* flat generated square card: navy edge, gold line, ribbon tab */
+  background: url("../assets/images/workshop/summary-card.webp") center / 100% 100% no-repeat;   /* flat generated square card: navy edge, gold line, ribbon tab */
   text-align: center; overflow: hidden; z-index: 2;
   transition: left 560ms var(--ease-in), top 560ms var(--ease-in), width 560ms var(--ease-in), height 560ms var(--ease-in), opacity 300ms ease 300ms;
 }
 .ws-summary__big.is-entering { animation: ws-card-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 .ws-summary__big.is-collecting { opacity: 0; animation: ws-collect-arc 560ms ease-in-out both; }   /* flies to its slot on a small upward arc */
-.ws-summary__big .ws-summary__name.is-pulse, .ws-summary__big svg.is-pulse { animation: ws-glow-pulse 700ms ease-out; }
+.ws-summary__big svg.is-pulse { animation: ws-glow-pulse 700ms ease-out; }
 .ws-summary__big.is-collecting > * { opacity: 0; transition: opacity 200ms; }
-.ws-summary__big .ws-summary__name { font-size: 40px; letter-spacing: 1px; color: var(--badge); }
-.ws-summary__big .ws-summary__text { font-size: 27px; color: #40546b; font-family: var(--font-body); }
 .ws-summary__badges { display: flex; gap: 10px; justify-content: center; }
 .ws-summary__both { margin: 4px 0 0; font-family: var(--font-display); font-size: 25px; font-weight: 700; line-height: 1.25; text-align: center; color: #123b63; text-wrap: balance; }
 .ws-summary__row { position: absolute; inset: 0; pointer-events: none; }
@@ -190,7 +184,6 @@
 .ws-summary__slot svg { display: block; margin-top: -4px; }
 .ws-summary__slot.is-filled { opacity: 1; transform: none; background: #fff; border: 4px solid var(--badge, #8db9ee); box-shadow: 0 6px 14px rgba(18, 59, 99, 0.14); }   /* flat: a collected card is not a button */
 .ws-summary__slot.is-receiving { animation: ws-receive 480ms var(--ease-out); }
-.ws-summary__slot-name { font-family: var(--font-display); font-size: 19px; font-weight: 800; color: var(--badge); text-align: center; line-height: 1.1; }
 
 /* ----- The live triangle (SVG) ----- */
 .ws-hidden { opacity: 0 !important; pointer-events: none !important; }
@@ -251,17 +244,12 @@
 .ws-side-label[data-tone] .ws-side-label__text { fill: var(--tone-deep); }
 .ws-side-label.is-pulse { animation: ws-glow-pulse 700ms ease-out; }
 .ws-side-label.is-pop { animation: ws-glow-in 700ms ease-out both; }
-.ws-tape { filter: drop-shadow(0 3px 3px rgba(6, 24, 48, 0.3)); transition: opacity 260ms; }
-.ws-tape__body { fill: #f7b400; stroke: #5a4310; stroke-width: 3; }
-.ws-tape__tick { stroke: #5a4310; stroke-width: 2; }
-.ws-tape__reel { fill: #5a4310; }
 .ws-tape-strip { transition: opacity 400ms; filter: drop-shadow(0 3px 4px rgba(60, 40, 0, 0.3)); }
 .ws-tape-strip__band { fill: #f7c531; stroke: #5a4310; stroke-width: 1.5; }
 .ws-tape-strip__hook { fill: #5a4310; }
 .ws-tape-strip__lead { stroke: #f7c531; stroke-width: 8; stroke-linecap: round; filter: drop-shadow(0 1px 1px rgba(122, 90, 16, 0.35)); transition: opacity 300ms; }   /* up from the side to his hand */
 .ws-tape-strip__lead.is-leaving { opacity: 0; }
 .ws-tape-strip.is-leaving { opacity: 0; }
-.ws-tape.is-leaving, .ws-protractor.is-leaving { opacity: 0; }
 /* The drag hint: a dashed arrow from the pulsing corner to a dashed target. */
 .ws-hint { animation: ws-hint-bob 1.3s ease-in-out infinite; }
 .ws-hint__line { stroke: #1565c0; stroke-width: 5; stroke-dasharray: 11 9; stroke-linecap: round; }
@@ -270,7 +258,7 @@
 .ws-coin__text { font-family: var(--font-display); font-size: 46px; font-weight: 700; fill: #10243a; paint-order: stroke; stroke: #fff; stroke-width: 8px; stroke-linejoin: round; text-anchor: middle; dominant-baseline: central; }
 .ws-coin.is-pop .ws-coin__text { animation: ws-vertex-pop 500ms var(--ease-back); transform-box: fill-box; transform-origin: center; }
 
-/* ----- Static figures (cards, summary, entry silhouettes) ----- */
+/* ----- Static figures (checkpoint cards, sorting cards, summary) ----- */
 .ws-figure { display: block; overflow: visible; }
 .ws-figure__edge { fill: none; stroke: #c45f00; stroke-linecap: round; }      /* the deeper shade edges the orange line, as on the big triangle */
 .ws-figure__body { fill: none; stroke: #ff8f1f; stroke-linecap: round; }
@@ -282,9 +270,8 @@
 .ws-figure__label { font-family: var(--font-display); font-weight: 700; text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
 .ws-figure__label--side { font-size: 19px; fill: #1d3a5f; }
 .ws-figure__label--angle { font-size: 19px; fill: #1565c0; }
-.ws-figure__silhouette { fill: rgba(29, 111, 184, 0.18); stroke: #1d6fb8; stroke-width: 6; stroke-linejoin: round; }
 
-/* ----- The beaver at the foot of the card (assets/images/workshop/beaver-*.png, stepped frames) ----- */
+/* ----- The beaver (assets/images/workshop/beaver-*.webp, stepped frames) ----- */
 .guide { position: absolute; width: 0; height: 0; pointer-events: none; }
 .guide { transition: left 520ms var(--ease-out), top 520ms var(--ease-out); }
 .guide.is-instant, .guide.is-instant .guide__pivot { transition: none; }
@@ -293,13 +280,7 @@
 .guide__body { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; animation: ws-breathe 3.4s ease-in-out infinite; }
 .guide__frame { position: absolute; opacity: 0; filter: drop-shadow(0 8px 6px rgba(40, 30, 10, 0.28)); }   /* frames switch at once: a cross-fade showed two poses */
 .guide__frame.is-on { opacity: 1; }
-.guide[data-pose="cheer"] .guide__body { animation: ws-guide-cheer 700ms var(--ease-out) infinite; }
-.guide[data-pose="point"] .guide__body { animation: ws-guide-point 900ms var(--ease-out) 1 both, ws-breathe 3.4s ease-in-out 900ms infinite; }
-.guide[data-pose="think"] .guide__body { animation: ws-guide-think 2.6s ease-in-out infinite; }
-.guide[data-pose="measuring"] .guide__body { animation: ws-guide-measure 1.7s ease-in-out infinite; }
-.guide[data-pose="protractor"] .guide__body { animation: ws-guide-think 2.2s ease-in-out infinite; }
 .guide.is-talking .guide__body { animation: ws-guide-talk 320ms ease-in-out infinite alternate; }
-.guide.is-nodding .guide__body { animation: operator-nod 620ms var(--ease-out) 1; }
 .guide.is-entering { animation: ws-guide-enter 640ms var(--ease-back) both; }
 .guide.is-entering .guide__body { animation: ws-guide-steps 175ms ease-in-out 4 alternate; }
 .guide.is-leaving { animation: ws-guide-leave 500ms var(--ease-in) forwards; }
@@ -307,9 +288,7 @@
 /* ----- Keyframes ----- */
 @keyframes ws-rise { 0% { transform: translateY(70px) scale(0.98); opacity: 0; } 70% { opacity: 1; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
 @keyframes ws-lower { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(70px) scale(0.98); opacity: 0; } }
-@keyframes ws-guide-measure { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-2deg) translateX(3px); } }
 @keyframes ws-shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-9px); } 40% { transform: translateX(8px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(3px); } }
-@keyframes ws-pop { 0% { transform: scale(0.6); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
 @keyframes ws-pop-in { 0% { opacity: 0; transform: scale(0.72) translateY(10px); } 60% { opacity: 1; transform: scale(1.04) translateY(-2px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
 @keyframes ws-fade-up { 0% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: translateY(0); } }
 @keyframes ws-fade-out { 0% { opacity: 1; } 100% { opacity: 0; } }
@@ -331,9 +310,6 @@
 @keyframes ws-spark-fly { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(0.3); opacity: 0; } }
 @keyframes ws-badge-in { 0% { opacity: 0; transform: scale(0.5) translateY(14px); } 60% { opacity: 1; transform: scale(1.08) translateY(-2px); } 100% { transform: scale(1) translateY(0); } }
 @keyframes ws-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: translateY(-1.5px) scale(1.005, 1.012); } }
-@keyframes ws-guide-cheer { 0%, 100% { transform: translateY(0); } 35% { transform: translateY(-14px) scale(0.98, 1.03); } 70% { transform: translateY(0) scale(1.02, 0.98); } }
-@keyframes ws-guide-point { 0% { transform: rotate(0); } 40% { transform: rotate(-4deg) translateX(6px); } 100% { transform: rotate(0); } }
-@keyframes ws-guide-think { 0%, 100% { transform: rotate(-1.2deg); } 50% { transform: rotate(1.2deg); } }
 @keyframes ws-guide-talk { from { transform: translateY(0) scale(1, 1); } to { transform: translateY(-2px) scale(1.01, 0.99); } }
 @keyframes ws-guide-enter { 0% { opacity: 0; transform: translateY(70px) scale(0.55); } 62% { opacity: 1; transform: translateY(-12px) scale(1.06); } 100% { opacity: 1; transform: translateY(0) scale(1); } }   /* he pops up from his feet */
 @keyframes ws-guide-steps { from { transform: translateY(0) rotate(-2deg); } to { transform: translateY(-7px) rotate(2deg); } }
@@ -344,10 +320,10 @@
   .workshop.is-lowered { opacity: 0; }
 }
 
-/* Standalone build: the replay button after the workshop. */
-.learning-replay.icon-cta { left: 50%; top: 860px; right: auto; bottom: auto; width: 160px; height: 174px; transform: translate(-50%, -50%); background: none; border: 0; box-shadow: none; padding: 0; animation: none; }
-.learning-replay.icon-cta img { width: 112%; max-width: none; margin: -6% -6% -12% -6%; height: auto; display: block; filter: drop-shadow(0 14px 14px rgba(6, 24, 48, 0.35)); animation: start-breathe 1.7s ease-in-out infinite; }
-.learning-replay.icon-cta:active img { animation: none; transform: translateY(8px) scale(0.96); }
+/* Standalone build: the replay button after the workshop (the painted button, breathing like Start). */
+.learning-replay { position: absolute; left: 50%; top: 860px; width: 160px; height: 174px; transform: translate(-50%, -50%); display: grid; place-items: center; border-radius: 50%; }
+.learning-replay img { width: 112%; max-width: none; margin: -6% -6% -12% -6%; height: auto; display: block; filter: drop-shadow(0 14px 14px rgba(6, 24, 48, 0.35)); animation: start-breathe 1.7s ease-in-out infinite; }
+.learning-replay:active img { animation: none; transform: translateY(8px) scale(0.96); }
 
 /* TEMPORARY review aid (?debug=1): the screen list with Back / Next. */
 .ws-debug { position: absolute; left: 50%; bottom: 14px; translate: -50% 0; z-index: 60; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 14px; background: rgba(9, 29, 51, 0.85); border: 2px solid rgba(255, 255, 255, 0.5); color: #fff; font-family: var(--font-display); font-size: 18px; pointer-events: auto; }
@@ -416,7 +392,6 @@
 @media (hover: hover) { .ws-option.ws-option--pill:not(:disabled):not(.is-selected):hover, .ws-pill:not(:disabled):hover { transform: translateY(-3px); filter: brightness(1.05) drop-shadow(0 6px 0 var(--drop)); } }
 .ws-option.ws-option--pill:active:not(:disabled), .ws-pill:active:not(:disabled) { transform: translateY(4px); filter: drop-shadow(0 0 0 transparent) brightness(0.94); }
 .ws-option.ws-option--pill:disabled:not(.is-correct):not(.is-incorrect), .ws-pill:disabled { opacity: 0.55; cursor: default; }
-.ws-option.ws-option--pill .ws-option__dot { display: none; }
 
 /* Both-ways checkpoint: Polygon's smaller pill, so both rows and CHECK fit under the shape. */
 .ws-dual .ws-option.ws-option--pill { height: 60px; font-size: 24px; border-width: 0 33px; min-width: 150px; }

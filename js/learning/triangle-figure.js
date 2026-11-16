@@ -1,5 +1,5 @@
 /**
- * A static triangle figure (checkpoint cards, sorting cards, the summary, the entry silhouettes):
+ * A static triangle figure (checkpoint cards, sorting cards, the summary):
  * the same geometry as the live canvas, drawn once from a spec and fitted into a box. Side lengths,
  * angles, ticks and the right-angle square are all computed from the shape, never typed in.
  */
@@ -8,16 +8,18 @@ import { svgEl, fmt, sideLabelPoint, arcPath, squarePoints, tickSegment, outward
 
 /**
  * Options: labels 'sides' | 'angles' | null; ticks (equal-side marks); square (right-angle mark); arcs;
- * tone (side colour); silhouette (filled, no detail).
+ * pad (room around the shape); strokeScale and labelSize (line weight and number size for the card's size).
  */
-export function buildTriangleFigure(spec, { width = 260, height = 200, labels = null, ticks = false, square = false, arcs = false, pad = 34, maxScale = PX_PER_CM * 0.78, silhouette = false, strokeScale = 1, labelSize = 19 } = {}) {
+const MAX_SCALE = PX_PER_CM * 0.78;     // small shapes are never blown up past this
+
+export function buildTriangleFigure(spec, { width = 260, height = 200, labels = null, ticks = false, square = false, arcs = false, pad = 34, strokeScale = 1, labelSize = 19 } = {}) {
   const pts = cmPointsFromSpec(spec);
   const xs = pts.map((p) => p[0]);
   const ys = pts.map((p) => p[1]);
   const spanX = Math.max(...xs) - Math.min(...xs);
   const spanY = Math.max(...ys) - Math.min(...ys);
   const labelPad = labels === 'angles' ? pad + labelSize * 2.6 : labels ? pad + labelSize * 1.6 : pad;   // room for the numbers outside the shape (angle values sit beyond the corners)
-  const scale = Math.min(maxScale, (width - labelPad * 2) / spanX, (height - labelPad * 2) / spanY);
+  const scale = Math.min(MAX_SCALE, (width - labelPad * 2) / spanX, (height - labelPad * 2) / spanY);
   const midX = (Math.min(...xs) + Math.max(...xs)) / 2;
   const minY = Math.min(...ys);
   const figureHeight = spanY * scale;
@@ -25,11 +27,6 @@ export function buildTriangleFigure(spec, { width = 260, height = 200, labels = 
   const vertices = pts.map(([x, y]) => [width / 2 + (x - midX) * scale, baseY - (y - minY) * scale]);
   const m = measure(vertices.map(([x, y]) => [x * (PX_PER_CM / scale), y * (PX_PER_CM / scale)]));   // true cm, whatever the fit
   const svg = svgEl('svg', { class: 'ws-figure', viewBox: `0 0 ${width} ${height}`, width, height, 'aria-hidden': 'true' });
-  const points = vertices.map((p) => `${fmt(p[0])},${fmt(p[1])}`).join(' ');
-  if (silhouette) {
-    svg.appendChild(svgEl('polygon', { points, class: 'ws-figure__silhouette' }));
-    return { svg, vertices, measured: m };
-  }
   const sides = svgEl('g', { class: 'ws-figure__sides' });
   for (let i = 0; i < 3; i += 1) {
     const [x1, y1] = vertices[i];

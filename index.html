@@ -6,25 +6,23 @@
   <meta name="color-scheme" content="light">
   <title>Bridge Builder: Triangle Workshop</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="styles/tokens.css?v=1794233743">
-  <link rel="stylesheet" href="styles/base.css?v=1794233743">
-  <link rel="stylesheet" href="styles/layout.css?v=1794233743">
-  <link rel="stylesheet" href="styles/components.css?v=1794233743">
-  <link rel="stylesheet" href="styles/gameplay.css?v=1794233743">
-  <link rel="stylesheet" href="styles/animations.css?v=1794233743">
-  <link rel="stylesheet" href="styles/learning.css?v=1794233743">
-  <link rel="stylesheet" href="styles/responsive.css?v=1794233743">
-  <!-- One classic script (built from js/ by tools/build.py) so the workshop also runs when index.html is opened from disk. -->
-  <script src="js/learning.bundle.js?v=1794233743" defer></script>
+  <!-- Built from styles/ and js/ by tools/build.py: one classic script, so the page also runs when opened from disk. -->
+  <link rel="stylesheet" href="dist/app.css?v=1794824312">
+  <script src="dist/app.js?v=1794824312" defer></script>
 </head>
 <body>
   <div id="viewport" class="viewport">
     <div id="stage" class="stage" aria-label="Triangle Workshop stage">
 
-      <!-- World: everything the camera controller moves. -->
+      <!-- World: everything the camera moves. -->
       <div id="world" class="world">
         <div id="shake" class="shake-layer">
-          <div class="backdrop"><img src="assets/images/background/canal.png" alt="" draggable="false"></div>
+          <div class="backdrop">
+            <picture>
+              <source srcset="assets/images/background/canal.avif" type="image/avif">
+              <img src="assets/images/background/canal.webp" alt="" draggable="false" fetchpriority="high">
+            </picture>
+          </div>
           <div id="water" class="water-layer" aria-hidden="true"></div>
           <div id="bridge" class="bridge"></div>
           <div id="placed" class="placed-layer"></div>
@@ -37,14 +35,17 @@
 
       <!-- HUD: fixed to the stage, never moved by the camera. -->
       <div id="hud" class="hud">
-        <div id="instruction" class="instruction-banner" role="status" aria-live="polite" hidden></div>
         <button id="mute" class="icon-button mute-button" type="button" aria-label="Mute sound" aria-pressed="false"></button>
       </div>
 
-      <!-- Screen overlays: title, the operator's speech bubble, the replay button. -->
+      <!-- Overlays: the title, the operator's speech bubble, the replay button. -->
       <div id="overlays" class="overlays"></div>
 
-      <div id="loader" class="loader" role="status" aria-label="Loading the workshop"><img class="loader__logo" src="assets/images/kit/title-logo.png" alt="" draggable="false" fetchpriority="high"><div class="loader__bar"><span class="loader__fill"><span class="loader__hook"></span></span></div><p class="loader__text">Loading the workshop<span class="loader__dots"><i>.</i><i>.</i><i>.</i></span></p></div>
+      <div id="loader" class="loader" role="status" aria-label="Loading the workshop">
+        <img class="loader__logo" src="assets/images/ui/title-logo.webp" alt="" draggable="false" fetchpriority="high">
+        <div class="loader__bar"><span class="loader__fill"><span class="loader__hook"></span></span></div>
+        <p class="loader__text">Loading the workshop<span class="loader__dots"><i>.</i><i>.</i><i>.</i></span></p>
+      </div>
     </div>
   </div>
   <noscript><p style="color:#fff;font:20px sans-serif;text-align:center">Please enable JavaScript to play.</p></noscript>

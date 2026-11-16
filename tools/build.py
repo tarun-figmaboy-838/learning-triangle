@@ -1,20 +1,27 @@
-"""Bundles the ES modules in js/ into one classic script, js/game.bundle.js.
+"""Builds the page's two files in dist/ from the sources:
 
-Why: browsers refuse to load ES modules from file://, and the game must open with a double-click
-on index.html. The bundle keeps every module in its own function scope and resolves the
-project's import/export syntax (named imports, `export const|let|function|async function`).
+  dist/app.js    the ES modules of js/ (entry js/main.js) as one classic script, minified
+  dist/app.css   the stylesheets of styles/ in cascade order, minified
 
-Run after editing anything in js/:   python3 tools/build.py [entry] [output]
-(defaults: js/learning-app.js -> js/learning.bundle.js, the standalone Triangle Workshop)
+Why one classic script: browsers refuse ES modules from file://, and the lesson must open with a double-click
+on index.html. Each module keeps its own function scope; the bundler understands the project's import/export
+forms (named imports, `export const|let|function|async function|class`). Minifying removes comments,
+indentation and blank lines but keeps line breaks, so semicolon insertion can never change the code's meaning.
+
+Run after editing anything in js/ or styles/:   python3 tools/build.py
+(it also stamps index.html's links with the build time, so a browser never shows a stale build)
 """
 import os
 import posixpath
 import re
 import sys
+import time
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-ENTRY = sys.argv[1] if len(sys.argv) > 1 else "js/learning-app.js"
-OUTPUT = sys.argv[2] if len(sys.argv) > 2 else "js/learning.bundle.js"
+ENTRY = "js/main.js"
+JS_OUT = "dist/app.js"
+CSS_OUT = "dist/app.css"
+STYLES = ["tokens", "base", "layout", "components", "gameplay", "animations", "learning", "responsive"]
 
 IMPORT_RE = re.compile(r"^\s*import\s*\{([^}]*)\}\s*from\s*['\"]([^'\"]+)['\"];?\s*$", re.M | re.S)
 EXPORT_DECL_RE = re.compile(r"^export\s+(const|let|function|async\s+function|class)\s+([A-Za-z_$][\w$]*)", re.M)
@@ -24,6 +31,15 @@ def read(path):
     with open(os.path.join(ROOT, path), encoding="utf-8") as handle:
         return handle.read()
 
+
+def write(path, text):
+    full = os.path.join(ROOT, path)
+    os.makedirs(os.path.dirname(full), exist_ok=True)
+    with open(full, "w", encoding="utf-8") as handle:
+        handle.write(text)
+
+
+# ---------- Bundling ----------
 
 def resolve(from_path, specifier):
     if not specifier.startswith("."):
@@ -58,8 +74,7 @@ def transform(path, source):
     if re.search(r"^\s*export\s", body, re.M):
         raise SystemExit(f"{path}: unsupported export form")
     footer = f"\n  return {{ {', '.join(exported)} }};" if exported else ""
-    wrapped = f"__define({path!r}, function () {{\n{body.rstrip()}{footer}\n}});\n"
-    return wrapped, dependencies
+    return f"__define({path!r}, function () {{\n{body.rstrip()}{footer}\n}});\n", dependencies
 
 
 def collect(entry):
@@ -76,48 +91,187 @@ def collect(entry):
             visit(dependency)
         visiting.discard(path)
         seen.add(path)
-        order.append((path, wrapped))
+        order.append(wrapped)
 
     visit(entry)
     return order
 
 
+PRELUDE = """(function () {
+'use strict';
+const __factories = new Map();
+const __cache = new Map();
+function __define(path, factory) { __factories.set(path, factory); }
+function __require(path) {
+  if (!__cache.has(path)) {
+    const factory = __factories.get(path);
+    if (!factory) throw new Error('Module not bundled: ' + path);
+    __cache.set(path, factory());
+  }
+  return __cache.get(path);
+}
+"""
+
+
+# ---------- Minifying ----------
+
+# After these, a `/` starts a regular expression rather than a division.
+REGEX_AFTER_CHARS = set("(,=:[!&|?{};+-*%<>~^")
+REGEX_AFTER_WORDS = {"return", "typeof", "case", "do", "else", "in", "of", "new", "delete", "void", "throw", "instanceof", "yield", "await"}
+
+
+def minify_js(source):
+    """Drops comments, indentation, trailing spaces and blank lines; strings, templates and regexes stay verbatim."""
+    out = []                # output characters
+    i, n = 0, len(source)
+    braces = []             # for each open `${`: the brace depth to return to the template at
+    depth = 0
+    last = ""               # the last significant code character (for regex detection)
+    word = ""               # the last identifier / keyword
+
+    def emit_space():
+        if out and out[-1] not in (" ", "\n"):
+            out.append(" ")
+
+    def read_template(start):
+        """Copies a template literal from `start` (just after a backtick or `}`) until its end or a `${`."""
+        nonlocal i
+        j = start
+        while j < n:
+            c = source[j]
+            if c == "\\":
+                j += 2
+                continue
+            if c == "`":
+                out.append(source[start:j + 1])
+                i = j + 1
+                return False
+            if c == "$" and j + 1 < n and source[j + 1] == "{":
+                out.append(source[start:j + 2])
+                i = j + 2
+                return True
+            j += 1
+        raise SystemExit("unterminated template literal")
+
+    while i < n:
+        c = source[i]
+        if c in " \t\r":
+            emit_space()
+            i += 1
+            continue
+        if c == "\n":
+            while out and out[-1] == " ":
+                out.pop()
+            if out and out[-1] != "\n":
+                out.append("\n")
+            i += 1
+            continue
+        if c == "/" and i + 1 < n and source[i + 1] == "/":
+            while i < n and source[i] != "\n":
+                i += 1
+            continue
+        if c == "/" and i + 1 < n and source[i + 1] == "*":
+            end = source.find("*/", i + 2)
+            if end < 0:
+                raise SystemExit("unterminated block comment")
+            emit_space()
+            i = end + 2
+            continue
+        if c in "'\"":
+            j = i + 1
+            while source[j] != c:
+                j += 2 if source[j] == "\\" else 1
+            out.append(source[i:j + 1])
+            i = j + 1
+            last, word = c, ""
+            continue
+        if c == "`":
+            out.append("`")
+            if read_template(i + 1):
+                braces.append(depth)
+                depth += 1
+            last, word = "`", ""
+            continue
+        if c == "/" and (last in REGEX_AFTER_CHARS or last == "" or word in REGEX_AFTER_WORDS):
+            j, in_class = i + 1, False
+            while True:
+                ch = source[j]
+                if ch == "\\":
+                    j += 2
+                    continue
+                if ch == "[":
+                    in_class = True
+                elif ch == "]":
+                    in_class = False
+                elif ch == "/" and not in_class:
+                    break
+                elif ch == "\n":
+                    raise SystemExit(f"could not read a regular expression near: {source[i:i + 40]!r}")
+                j += 1
+            j += 1
+            while j < n and (source[j].isalnum() or source[j] == "_"):
+                j += 1
+            out.append(source[i:j])
+            i = j
+            last, word = "/", ""
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if braces and depth == braces[-1]:
+                braces.pop()
+                out.append("}")
+                if read_template(i + 1):
+                    braces.append(depth)
+                    depth += 1
+                last, word = "`", ""
+                continue
+        if c.isalnum() or c in "_$":
+            j = i
+            while j < n and (source[j].isalnum() or source[j] in "_$"):
+                j += 1
+            word = source[i:j]
+            out.append(word)
+            last = word[-1]
+            i = j
+            continue
+        out.append(c)
+        last, word = c, ""
+        i += 1
+    return "".join(out).strip() + "\n"
+
+
+def minify_css(css):
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    css = re.sub(r"\s+", " ", css)
+    css = re.sub(r"\s*([{};,>])\s*", r"\1", css)
+    css = re.sub(r";}", "}", css)
+    return css.strip() + "\n"
+
+
+# ---------- Build ----------
+
 def build():
     modules = collect(ENTRY)
-    prelude = (
-        "/* GENERATED by tools/build.py from js/. Do not edit by hand. */\n"
-        "(function () {\n'use strict';\n"
-        "const __factories = new Map();\nconst __cache = new Map();\n"
-        "function __define(path, factory) { __factories.set(path, factory); }\n"
-        "function __require(path) {\n"
-        "  if (!__cache.has(path)) {\n"
-        "    const factory = __factories.get(path);\n"
-        "    if (!factory) throw new Error('Module not bundled: ' + path);\n"
-        "    __cache.set(path, factory());\n"
-        "  }\n"
-        "  return __cache.get(path);\n"
-        "}\n"
-    )
-    parts = [prelude] + [wrapped for _, wrapped in modules] + [f"__require({ENTRY!r});\n}})();\n"]
-    with open(os.path.join(ROOT, OUTPUT), "w", encoding="utf-8") as handle:
-        handle.write("".join(parts))
-    print(f"{OUTPUT}: {len(modules)} modules")
+    bundle = PRELUDE + "".join(modules) + f"__require({ENTRY!r});\n}})();\n"
+    js = "/* Built by tools/build.py from js/ (entry js/main.js). Do not edit. */\n" + minify_js(bundle)
+    write(JS_OUT, js)
+    css = "\n".join(read(f"styles/{name}.css") for name in STYLES)
+    write(CSS_OUT, "/* Built by tools/build.py from styles/. Do not edit. */\n" + minify_css(css))
+    print(f"{JS_OUT}: {len(modules)} modules, {len(bundle) / 1024:.0f} KB -> {len(js) / 1024:.0f} KB")
+    print(f"{CSS_OUT}: {len(STYLES)} stylesheets, {len(css) / 1024:.0f} KB -> {os.path.getsize(os.path.join(ROOT, CSS_OUT)) / 1024:.0f} KB")
 
 
-
-
-def cache_bust(html_path="index.html"):
-    """Stamps the page's bundle and stylesheet links with this build's time, so a browser never shows an old build."""
-    import os, re, time
-    if not os.path.exists(html_path) or OUTPUT != "js/learning.bundle.js":
-        return
+def stamp_page(path="index.html"):
+    """Stamps the page's links to dist/ with this build's time, so a browser never shows an old build."""
     stamp = str(int(time.time()))
-    html = open(html_path, encoding="utf-8").read()
-    html = re.sub(r'(src|href)="((?:js/learning\.bundle\.js)|(?:styles/[a-z-]+\.css))(\?v=\d+)?"', lambda m: f'{m.group(1)}="{m.group(2)}?v={stamp}"', html)
-    open(html_path, "w", encoding="utf-8").write(html)
+    html = read(path)
+    html = re.sub(r'((?:src|href)="dist/app\.(?:js|css))(\?v=\d+)?"', lambda m: f'{m.group(1)}?v={stamp}"', html)
+    write(path, html)
 
 
 if __name__ == "__main__":
     build()
-    cache_bust(os.path.join(ROOT, "index.html"))
+    stamp_page()
     sys.exit(0)

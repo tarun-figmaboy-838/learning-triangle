@@ -1,48 +1,34 @@
 /**
- * The beaver in the workshop. For the lesson the operator climbs down from the cab and stands at the
- * foot of the card when he has something to show: eleven painted frames (assets/images/workshop/
- * beaver-*.png, generated with Figma to match the cab operator) stepped as short sprite cycles (an idle
- * blink, a talking mouth, a two-frame cheer, a wind-up before he points, a tape-measure cycle while a
- * side is measured, a protractor while an angle is), registered on his boots so he never jumps, with a
- * quick cross-fade between frames and gentle body motion layered on top.
+ * The beaver in the workshop: the operator, climbed down from his cab, appears only to work. He walks each
+ * side with the tape, sets the protractor on each corner, and peeks over the summary cards. Painted frames
+ * (assets/images/workshop/beaver-*.webp, generated in Figma to match the cab operator) step as short
+ * sprite cycles, each registered on his boots, hat or tool so he never jumps, with gentle body motion on top.
  */
 import { prefersReducedMotion } from '../core/motion.js';
 
 const DIR = 'assets/images/workshop/';
 /** Per frame: the art, its size, the x of the boots' centre, the y of the ground line, the body height (for a common scale). */
 export const GUIDE_FRAMES = Object.freeze({
-  idle: { src: `${DIR}beaver-measure.png`, width: 356, height: 619, centre: 209, ground: 612, body: 606 , hat: [189, 6] },
-  blink: { src: `${DIR}beaver-idle-blink.png`, width: 324, height: 607, centre: 198, ground: 600, body: 593 , hat: [186, 7] },
-  talk: { src: `${DIR}beaver-idle-talk.png`, width: 321, height: 607, centre: 191, ground: 600, body: 594 , hat: [184, 6] },
-  point: { src: `${DIR}beaver-point.png`, width: 402, height: 615, centre: 204, ground: 608, body: 602 , hat: [177, 6] },
-  pointMid: { src: `${DIR}beaver-point-mid.png`, width: 371, height: 609, centre: 176, ground: 602, body: 596 , hat: [176, 6] },
-  think: { src: `${DIR}beaver-think.png`, width: 311, height: 616, centre: 175, ground: 609, body: 603 , hat: [166, 6] },
-  cheer: { src: `${DIR}beaver-cheer.png`, width: 392, height: 617, centre: 207, ground: 610, body: 604 , hat: [204, 6] },
-  cheerMid: { src: `${DIR}beaver-cheer-mid.png`, width: 368, height: 610, centre: 184, ground: 603, body: 596 , hat: [180, 7] },
-  tape1: { src: `${DIR}beaver-tape-1.png`, width: 333, height: 597, centre: 191, ground: 590, body: 584 , hat: [176, 6], hand: [335, 272] },
-  tape2: { src: `${DIR}beaver-tape-2.png`, width: 375, height: 591, centre: 187, ground: 584, body: 578 , hat: [163, 6], hand: [330, 270] },
-  tape3: { src: `${DIR}beaver-tape-3.png`, width: 409, height: 591, centre: 180, ground: 584, body: 578 , hat: [157, 6], hand: [345, 268] },
+  idle: { src: `${DIR}beaver-measure.webp`, width: 356, height: 619, centre: 209, ground: 612, body: 606, hat: [189, 6] },
+  blink: { src: `${DIR}beaver-idle-blink.webp`, width: 324, height: 607, centre: 198, ground: 600, body: 593, hat: [186, 7] },
+  talk: { src: `${DIR}beaver-idle-talk.webp`, width: 321, height: 607, centre: 191, ground: 600, body: 594, hat: [184, 6] },
   // Holding the protractor: `tool` is the centre of its flat edge (set on the corner), `disc` the way its
   // round side faces, `bodyDir` where his body is relative to the tool (so he can be kept outside the shape).
-  protLow: { src: `${DIR}beaver-protractor-low.png`, width: 943, height: 978, centre: 300, ground: 970, body: 963, hat: [400, 7], tool: [678, 890], disc: [0, -1], bodyDir: [-1, 0] },
-  protSide: { src: `${DIR}beaver-protractor-side.png`, width: 787, height: 990, centre: 300, ground: 982, body: 976, hat: [240, 6], tool: [560, 340], disc: [1, 0], bodyDir: [-1, 0] },
-  protHigh: { src: `${DIR}beaver-protractor-high.png`, width: 631, height: 995, centre: 300, ground: 988, body: 763, hat: [160, 225], tool: [330, 32], disc: [0, 1], bodyDir: [0, 1] },
+  protLow: { src: `${DIR}beaver-protractor-low.webp`, width: 943, height: 978, centre: 300, ground: 970, body: 963, hat: [400, 7], tool: [678, 890], disc: [0, -1], bodyDir: [-1, 0] },
+  protSide: { src: `${DIR}beaver-protractor-side.webp`, width: 787, height: 990, centre: 300, ground: 982, body: 976, hat: [240, 6], tool: [560, 340], disc: [1, 0], bodyDir: [-1, 0] },
+  protHigh: { src: `${DIR}beaver-protractor-high.webp`, width: 631, height: 995, centre: 300, ground: 988, body: 763, hat: [160, 225], tool: [330, 32], disc: [0, 1], bodyDir: [0, 1] },
   // Peeking over a card, hands on its top edge (the bottom of the picture): one listening, one talking frame, same crop.
-  peekIdle: { src: `${DIR}beaver-peek-idle.png`, width: 867, height: 909, centre: 433, ground: 900, body: 1384, hat: [427, 10] },
-  peekTalk: { src: `${DIR}beaver-peek-talk.png`, width: 867, height: 909, centre: 433, ground: 900, body: 1384, hat: [427, 10] },
-  walk1: { src: `${DIR}beaver-walk-1.png`, width: 374, height: 521, centre: 203, ground: 514, body: 508 , hat: [200, 6], hand: [318, 300] },
-  walk2: { src: `${DIR}beaver-walk-2.png`, width: 332, height: 534, centre: 167, ground: 527, body: 521 , hat: [164, 6], hand: [282, 312] },
-  walk3: { src: `${DIR}beaver-walk-3.png`, width: 360, height: 520, centre: 188, ground: 513, body: 507 , hat: [186, 6], hand: [303, 298] },
-  walk4: { src: `${DIR}beaver-walk-4.png`, width: 335, height: 533, centre: 169, ground: 526, body: 520 , hat: [166, 6], hand: [284, 311] },
+  peekIdle: { src: `${DIR}beaver-peek-idle.webp`, width: 867, height: 909, centre: 433, ground: 900, body: 1384, hat: [427, 10] },
+  peekTalk: { src: `${DIR}beaver-peek-talk.webp`, width: 867, height: 909, centre: 433, ground: 900, body: 1384, hat: [427, 10] },
+  walk1: { src: `${DIR}beaver-walk-1.webp`, width: 374, height: 521, centre: 203, ground: 514, body: 508, hat: [200, 6], hand: [318, 300] },
+  walk2: { src: `${DIR}beaver-walk-2.webp`, width: 332, height: 534, centre: 167, ground: 527, body: 521, hat: [164, 6], hand: [282, 312] },
+  walk3: { src: `${DIR}beaver-walk-3.webp`, width: 360, height: 520, centre: 188, ground: 513, body: 507, hat: [186, 6], hand: [303, 298] },
+  walk4: { src: `${DIR}beaver-walk-4.webp`, width: 335, height: 533, centre: 169, ground: 526, body: 520, hat: [166, 6], hand: [284, 311] },
 });
-/** Each pose is a short cycle of frames. `once` holds the last frame. */
+/** Each pose is a short cycle of frames. */
 const POSES = Object.freeze({
   idle: { frames: ['idle', 'blink', 'idle', 'blink', 'idle'], durations: [3400, 110, 160, 90, 2200] },
   talk: { frames: ['talk', 'idle', 'talk', 'blink', 'talk', 'idle'], durations: [150, 110, 170, 90, 140, 120] },
-  cheer: { frames: ['cheer', 'cheerMid'], durations: [240, 240] },
-  point: { frames: ['pointMid', 'point'], durations: [160, 100000], once: true },
-  think: { frames: ['think', 'think', 'blink'], durations: [3000, 2000, 110] },
-  measuring: { frames: ['tape1', 'tape2', 'tape3', 'tape3', 'tape2'], durations: [320, 300, 420, 400, 260] },
   protLow: { frames: ['protLow'], durations: [1000] },
   protSide: { frames: ['protSide'], durations: [1000] },
   protHigh: { frames: ['protHigh'], durations: [1000] },
@@ -104,8 +90,6 @@ export function createBeaverGuide({ hostEl, x, groundY }) {
   let pose = 'idle';
   let index = 0;
   let timer = 0;
-  let returnTimer = 0;
-  let talking = false;
   let present = false;
 
   function show(frameName) {
@@ -117,20 +101,17 @@ export function createBeaverGuide({ hostEl, x, groundY }) {
     const definition = POSES[pose];
     if (root.hidden || document.hidden || prefersReducedMotion() || definition.frames.length < 2) return;
     timer = setTimeout(() => {
-      if (definition.once && index === definition.frames.length - 1) return;
       index = (index + 1) % definition.frames.length;
       show(definition.frames[index]);
       advance();
     }, definition.durations[index]);
   }
-  function setPose(name, { thenIdleAfter = 0 } = {}) {
-    clearTimeout(returnTimer);
+  function setPose(name) {
     pose = POSES[name] ? name : 'idle';
     root.dataset.pose = pose;
     index = 0;
     show(POSES[pose].frames[0]);
     advance();
-    if (thenIdleAfter) returnTimer = setTimeout(() => setPose(talking ? 'talk' : 'idle'), thenIdleAfter);
   }
   document.addEventListener('visibilitychange', () => { if (!document.hidden && !root.hidden) setPose(pose); });
   setPose('idle');
@@ -161,10 +142,6 @@ export function createBeaverGuide({ hostEl, x, groundY }) {
       clearTimeout(timer);
     },
     setPose,
-    point: (holdMs = 2600) => setPose('point', { thenIdleAfter: holdMs }),
-    think: (holdMs = 0) => setPose('think', { thenIdleAfter: holdMs }),
-    cheer: (holdMs = 2400) => setPose('cheer', { thenIdleAfter: holdMs }),
-    measuring: () => setPose('measuring'),
     /**
      * Walks to a spot on the card (card px, his feet), smaller and facing the way the work goes, with a
      * slight lean into it: measuring a side from its lower end, reading a corner with the protractor.
@@ -245,30 +222,20 @@ export function createBeaverGuide({ hostEl, x, groundY }) {
       return this.moveTo({ x: home.x, y: home.groundY, scale: 1, flip: false, rotate: 0 });   // every frame faces right: at home he faces the shape
     },
     idle: () => setPose('idle'),
-    /** While a line is spoken: the talking cycle, then back to idle (unless a reaction took over). */
+    /** While a line is spoken: the talking cycle, then back to idle (or to listening, when peeking). */
     async talkUntil(finished) {
-      talking = true;
       const peeking = pose === 'peek' || pose === 'peekTalk';
       if (peeking) setPose('peekTalk');
       else if (pose === 'idle' || pose === 'talk') setPose('talk');
       root.classList.add('is-talking');
       try { await finished; } finally {
-        talking = false;
         root.classList.remove('is-talking');
         if (pose === 'talk') setPose('idle');
         if (pose === 'peekTalk') setPose('peek');
       }
     },
-    /** A quick satisfied nod (a right answer, a good drag). */
-    nod() {
-      root.classList.remove('is-nodding');
-      void root.offsetWidth;
-      root.classList.add('is-nodding');
-      setTimeout(() => root.classList.remove('is-nodding'), 700);
-    },
     destroy() {
       clearTimeout(timer);
-      clearTimeout(returnTimer);
       root.remove();
     },
   };

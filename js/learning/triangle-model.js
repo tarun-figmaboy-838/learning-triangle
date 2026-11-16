@@ -9,12 +9,12 @@
  * so sides are [AB, BC, CA] and angles are [at A, at B, at C], as the PDF labels them.
  */
 export const PX_PER_CM = 92;
-export const MIN_VERTEX_GAP_CM = 1.6;      // two corners never come closer than this
+const MIN_VERTEX_GAP_CM = 1.6;      // two corners never come closer than this
 export const MIN_ALTITUDE_CM = 1.1;        // a dragged corner never comes closer than this to the opposite side
-export const MIN_ANGLE_DEG = 10;           // no needle-thin triangles
+const MIN_ANGLE_DEG = 10;           // no needle-thin triangles
 export const SNAP_RADIUS_PX = 10;          // a corner this close to an equality / right-angle locus snaps onto it
-export const EQUAL_CM_TOLERANCE = 0.03;    // after a snap the sides are equal to the pixel; this absorbs float noise
-export const RIGHT_DEG_TOLERANCE = 0.49;   // an angle that rounds to 90° on screen is a right angle
+const EQUAL_CM_TOLERANCE = 0.03;    // after a snap the sides are equal to the pixel; this absorbs float noise
+const RIGHT_DEG_TOLERANCE = 0.49;   // an angle that rounds to 90° on screen is a right angle
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1]];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1]];
 const mul = (a, k) => [a[0] * k, a[1] * k];
@@ -33,12 +33,12 @@ const others = (index) => [(index + 1) % 3, (index + 2) % 3];
 export const vec = Object.freeze({ sub, add, mul, dot, cross, length, dist, unit, perp });
 
 /** [AB, BC, CA] in px. */
-export function sideLengthsPx(vertices) {
+function sideLengthsPx(vertices) {
   return [0, 1, 2].map((i) => dist(vertices[i], vertices[(i + 1) % 3]));
 }
 
 /** The angle at each vertex, in degrees. */
-export function anglesDeg(vertices) {
+function anglesDeg(vertices) {
   return vertices.map((vertex, index) => {
     const [j, k] = others(index);
     const u = sub(vertices[j], vertex);
@@ -78,7 +78,6 @@ export function measure(vertices, pxPerCm = PX_PER_CM) {
     px, cm, deg, equalSides, rightAt, obtuseAt,
     bySides: classifyBySides(cm),
     byAngles: classifyByAngles(deg),
-    largestAngleAt: deg.indexOf(Math.max(...deg)),
   };
 }
 
@@ -202,7 +201,7 @@ const projectOntoCircle = (p, centre, radius, fallbackDirection) => {
  *   rightIsosceles   the six points where both hold, plus the loci above as partial help
  * Points are returned before loci so an exact solution wins over a partial one.
  */
-export function snapCandidates(goal, index, vertices, wanted) {
+function snapCandidates(goal, index, vertices, wanted) {
   const [j, k] = others(index);
   const a = vertices[j];
   const b = vertices[k];

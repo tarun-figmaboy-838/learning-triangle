@@ -1,9 +1,7 @@
 /**
- * The Triangle Workshop's lesson card: a wide, simple panel with thin borders that fills the stage in
- * front of the quiet workshop backdrop. A slim header carries the section and progress; the drawing
- * surface holds the live triangle and the screen's widgets; a navy narration bar runs along the foot,
- * and the beaver stands at its left end when he has something to show (he steps away otherwise).
- * Everything written on it is live text.
+ * The lesson card in front of the workshop backdrop: the narration box at the top (sized to its words),
+ * the drawing surface with the live triangle and the screen's widgets, and the beaver's place.
+ * Everything written on it is live text, revealed word by word with the voice.
  */
 import { LEARNING_COPY } from './learning-content.js';
 import { revealWords, hugWords } from '../gameplay/feedback-controller.js';
@@ -14,7 +12,7 @@ import { VO_WORD_TIMES } from '../data/vo-word-times.js';
 /** Stage-space geometry of the card and its parts. */
 export const BOARD = Object.freeze({
   left: 160, top: 110, width: 1600, height: 820,
-  backdrop: 'assets/images/workshop/learning-backdrop.png',
+  backdrop: 'assets/images/workshop/learning-backdrop.webp',
   /** The drawing surface inside the card (below the narration box), in card px. */
   surface: Object.freeze({ left: 20, top: 150, width: 1560, height: 640 }),
   canvas: Object.freeze({ width: 1560, height: 640 }),
@@ -38,7 +36,7 @@ function wordDelays(text, spoken, typingMs) {
  */
 const LINE_MAX = 58;
 const JOINS = [' is called ', ', ', ' and ', ' but ', ' so ', ' by ', ' when ', ' to ', ' with '];
-export function splitLine(text) {
+function splitLine(text) {
   const words = text.split(' ');
   if (text.length <= LINE_MAX) return [[0, words.length]];
   const pieces = [];                                 // [startWord, endWord) ranges
@@ -96,7 +94,6 @@ export function createWorkshopBoard({ hostEl, voice, audio, talker = null }) {
   hostEl.appendChild(root);
 
   const cardEl = root.querySelector('.workshop__card');
-  const surfaceEl = root.querySelector('.workshop__surface');
   const stageEl = root.querySelector('.ws-stage');
   const overlayEl = root.querySelector('.ws-overlay');
   let bubbleEl = null;
@@ -126,7 +123,7 @@ export function createWorkshopBoard({ hostEl, voice, audio, talker = null }) {
   }
 
   return {
-    root, cardEl, surfaceEl, stageEl, overlayEl, guideHostEl, narrationEl,
+    root, stageEl, overlayEl, guideHostEl, narrationEl,
     talker,
     cancelCues,
     /** The card comes up from the workshop floor and settles. */
@@ -157,19 +154,13 @@ export function createWorkshopBoard({ hostEl, voice, audio, talker = null }) {
       root.classList.toggle('is-peeking', Boolean(on));
     },
     /**
-     * The teaching line: the words appear at the voice's pace (recorded clip, device voice, or a
-     * reading pace); the beaver talks meanwhile when he is there. `focus` words take the key-word style.
+     * The teaching line: the words appear at the voice's pace (recorded clip or a reading pace), and each
+     * cue ({ phrase, run }) fires on its spoken word. `focus` words take the key-word style.
      */
-    narrate(text, { focus = null, speaker = 'builder', mode = 'swap', visible = true, cues = null } = {}) {
-      narrationEl.hidden = !visible;
-      if (!visible) {
-        const spoken = voice.say(text, { speaker });
-        scheduleCues(text, spoken, Math.min(4200, text.length * READING_MS_PER_CHARACTER), cues);
-        this.talker?.talkUntil?.(spoken.finished);
-        return { finished: spoken.finished.then(() => undefined), seconds: spoken.seconds };
-      }
-      if (mode === 'swap') playClassAnimation(narrationEl, 'is-swapping', 420);
-      const spoken = voice.say(text, { speaker });
+    narrate(text, { focus = null, cues = null } = {}) {
+      narrationEl.hidden = false;
+      playClassAnimation(narrationEl, 'is-swapping', 420);
+      const spoken = voice.say(text, { speaker: 'builder' });
       const typingMs = spoken.spoke ? Math.max(300, (spoken.seconds - 0.35) * 1000) : Math.min(4200, text.length * READING_MS_PER_CHARACTER);
       currentLine = text;
       cancelParts();
@@ -212,7 +203,7 @@ export function createWorkshopBoard({ hostEl, voice, audio, talker = null }) {
      * The beaver says a line himself, in the game's own speech bubble (the cab's: white, crane-yellow outline,
      * drawn tail), its tail on `tip` (card px, just above his head), not in the narration box.
      */
-    speak(text, { focus = null, tip = { x: 205, y: 430 }, speaker = 'builder', holdMs = 900, cues = null } = {}) {
+    speak(text, { focus = null, tip = { x: 205, y: 430 }, holdMs = 900, cues = null } = {}) {
       narrationEl.hidden = true;
       cancelCues();
       currentLine = text;
@@ -222,7 +213,7 @@ export function createWorkshopBoard({ hostEl, voice, audio, talker = null }) {
       bubbleEl.innerHTML = '<svg class="speech-bubble__shape" aria-hidden="true"><path class="speech-bubble__face"/></svg><p class="speech-bubble__text"></p>';
       cardEl.appendChild(bubbleEl);
       const textEl = bubbleEl.querySelector('.speech-bubble__text');
-      const spoken = voice.say(text, { speaker });
+      const spoken = voice.say(text, { speaker: 'builder' });
       const typingMs = spoken.spoke ? Math.max(300, (spoken.seconds - 0.35) * 1000) : Math.min(4200, text.length * READING_MS_PER_CHARACTER);
       const typed = revealWords(textEl, text, typingMs, focus, { times: spoken.clipId ? VO_WORD_TIMES[spoken.clipId] : null, rate: spoken.rate ?? 1, started: spoken.started });
       scheduleCues(text, spoken, typingMs, cues);

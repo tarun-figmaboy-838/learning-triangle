@@ -1,10 +1,10 @@
 import { wait, playClassAnimation, prefersReducedMotion } from '../core/motion.js';
 import { CRANE_RIG } from '../data/layout.js';
 
-const STATES = CRANE_RIG.claw.states; // open → half → closed (the kit's claw sprites)
+const STATES = CRANE_RIG.claw.states; // open → half → closed
 const LAST = STATES.length - 1;
 
-/** Stacks the kit's claw-state sprites, top-aligned and centred under the cable. */
+/** Stacks the claw sprites, top-aligned and centred under the cable. */
 export function buildClawFrames(clawEl) {
   STATES.forEach((state, index) => {
     const frame = new Image();
@@ -19,7 +19,7 @@ export function buildClawFrames(clawEl) {
   });
 }
 
-/** Mechanical open/close by swapping the approved claw sprites: no vector redraws, no morphing. */
+/** Opens and closes the claw by stepping through its sprites. */
 export function createClawController({ clawEl }) {
   const frames = Array.from(clawEl.querySelectorAll('.claw-frame'));
   let frameIndex = 0;
@@ -43,22 +43,10 @@ export function createClawController({ clawEl }) {
   return {
     open: () => stepTo(0, 70),
     close: () => stepTo(LAST, 80),
-    /** Comic beat: snaps shut on nothing, notices, and reopens (intro only). */
-    async fumble() {
-      await stepTo(LAST, 50);
-      await wait(180);
-      await stepTo(1, 70);
-      await wait(120);
-      await stepTo(0, 70);
-    },
     squeeze: () => playClassAnimation(clawEl, 'is-squeezing', 260),
     react: () => playClassAnimation(clawEl, 'is-reacting', 820),
-    relief: () => playClassAnimation(clawEl, 'is-relieved', 620),
     setClosed(closed) {
       show(closed ? LAST : 0);
-    },
-    get isOpen() {
-      return frameIndex === 0;
     },
   };
 }

@@ -1,7 +1,6 @@
 /**
- * Procedural sound design on WebAudio. No recordings ship with the project (see docs/ASSETS.md
- * for the drop-in hook); every cue, and the background music, is synthesised so the game is self-contained.
- * Guards: per-sound minimum interval, and loud cues are staggered so two never fire at once.
+ * Procedural sound on WebAudio: every cue and the background music are synthesised (no sound files).
+ * Guards: a per-sound minimum interval, and loud cues are staggered so two never fire at once.
  */
 const LOUD_GAP_SECONDS = 0.085;
 const STORAGE_KEY = 'bridge-builder.muted';
@@ -60,8 +59,7 @@ function makeNoise(context, out, buffer) {
 /* ---- One-shot cues ---- */
 const SOUNDS = {
   uiTap: { minInterval: 0.04, play: ({ tone, t0 }) => tone({ t0, freq: 720, freqEnd: 960, duration: 0.06, gain: 0.08 }) },
-  /* ---- Comic touches during play: short and quiet, so they never cover the narration ---- */
-  /** The hook arrives over a frame: a soft rising bloop. */
+  /** A side or corner is pointed out: a soft rising bloop. */
   bloop: { minInterval: 0.25, play: ({ tone, t0 }) => tone({ t0, type: 'sine', freq: 420, freqEnd: 760, duration: 0.12, gain: 0.07, release: 0.08 }) },
   /** A frame is lifted: a springy boing. */
   boing: {
@@ -90,64 +88,6 @@ const SOUNDS = {
       tone({ t0: t0 + 0.11, type: 'sine', freq: 1568, duration: 0.3, gain: 0.025, release: 0.25 });
     },
   },
-  /* ---- The opening ceremony and the town on the new bridge ---- */
-  /** Scissors: two quick metallic shears (open, then the blades closing with a ring). */
-  snip: {
-    minInterval: 0.2,
-    play: ({ tone, noise, t0 }) => {
-      noise({ t0, duration: 0.05, gain: 0.16, filter: 'highpass', freq: 5200 });
-      noise({ t0: t0 + 0.11, duration: 0.07, gain: 0.26, filter: 'bandpass', freq: 3800, q: 3 });
-      tone({ t0: t0 + 0.11, type: 'triangle', freq: 2600, freqEnd: 2200, duration: 0.18, gain: 0.05, release: 0.15 });
-    },
-  },
-  /** A soft footstep (pitch varies a little, so a walk does not sound like a metronome). */
-  step: {
-    minInterval: 0.12,
-    play: ({ noise, tone, t0, options }) => {
-      const v = options?.variant ?? 0;
-      noise({ t0, duration: 0.05, gain: 0.08, filter: 'lowpass', freq: 520 + (v % 2) * 90 });
-      tone({ t0, type: 'sine', freq: 110 + (v % 2) * 14, freqEnd: 70, duration: 0.06, gain: 0.06 });
-    },
-  },
-  /** A friendly two-tone car horn. */
-  horn: {
-    minInterval: 0.6,
-    play: ({ tone, t0 }) => {
-      for (const [at, f] of [[0, 392], [0.17, 392]]) {
-        tone({ t0: t0 + at, type: 'square', freq: f, duration: 0.13, gain: 0.035, release: 0.04 });
-        tone({ t0: t0 + at, type: 'square', freq: f * 1.26, duration: 0.13, gain: 0.03, release: 0.04 });
-      }
-    },
-  },
-  /** Bicycle bell: two bright rings. */
-  bell: {
-    minInterval: 0.6,
-    play: ({ tone, t0 }) => {
-      for (const at of [0, 0.16]) {
-        tone({ t0: t0 + at, type: 'sine', freq: 2100, duration: 0.5, gain: 0.05, release: 0.45 });
-        tone({ t0: t0 + at, type: 'sine', freq: 3150, duration: 0.35, gain: 0.025, release: 0.3 });
-      }
-    },
-  },
-  /** A little scooter putting past. */
-  scooter: {
-    minInterval: 0.8,
-    play: ({ tone, noise, t0 }) => {
-      tone({ t0, type: 'sawtooth', freq: 88, freqEnd: 120, duration: 0.7, gain: 0.03, release: 0.3 });
-      noise({ t0, duration: 0.7, gain: 0.03, filter: 'bandpass', freq: 420, freqEnd: 600, q: 2, release: 0.3 });
-    },
-  },
-  /** The town cheers: a bright swell of voices (filtered noise) under a rising fanfare. */
-  cheer: {
-    loud: true,
-    minInterval: 1,
-    play: ({ tone, noise, t0 }) => {
-      noise({ t0, duration: 1.6, gain: 0.12, filter: 'bandpass', freq: 900, freqEnd: 1500, q: 0.7, attack: 0.25, release: 0.9 });
-      noise({ t0: t0 + 0.1, duration: 1.3, gain: 0.07, filter: 'bandpass', freq: 2400, freqEnd: 2000, q: 1.2, attack: 0.2, release: 0.8 });
-      [523, 659, 784, 1047].forEach((f, i) => tone({ t0: t0 + 0.05 + i * 0.11, type: 'triangle', freq: f, duration: 0.32, gain: 0.07, release: 0.2 }));
-    },
-  },
-  /* ---- Triangle Workshop (js/learning): quiet, short, never over the narration ---- */
   /** The drafting board rising on its hydraulics: a low hum that settles with a click. */
   panelRise: {
     minInterval: 0.5,
@@ -204,40 +144,6 @@ const SOUNDS = {
       tone({ t0: t0 + 0.12, type: 'triangle', freq: 1760, duration: 0.3, gain: 0.02, release: 0.25 });
     },
   },
-  controlPress: {
-    minInterval: 0.05,
-    play: ({ tone, noise, t0 }) => {
-      noise({ t0, duration: 0.04, gain: 0.18, freq: 900 });
-      tone({ t0, type: 'sine', freq: 170, freqEnd: 120, duration: 0.07, gain: 0.12 });
-    },
-  },
-  /** An arrow key: a short plastic click, pitched per direction so the four keys sound distinct. */
-  keyTap: {
-    minInterval: 0.05,
-    play: ({ tone, noise, t0, options }) => {
-      const pitch = [1.12, 1, 0.9, 1.04][options?.variant ?? 1];
-      noise({ t0, duration: 0.03, gain: 0.12, filter: 'bandpass', freq: 2600 * pitch, q: 1.2 });
-      tone({ t0, type: 'triangle', freq: 260 * pitch, freqEnd: 190 * pitch, duration: 0.05, gain: 0.07 });
-    },
-  },
-  /** PICK: a firmer tactile chunk, then a little mechanical tick. */
-  pickPress: {
-    minInterval: 0.15,
-    play: ({ tone, noise, t0 }) => {
-      noise({ t0, duration: 0.045, gain: 0.2, freq: 1100 });
-      tone({ t0, type: 'sine', freq: 190, freqEnd: 120, duration: 0.09, gain: 0.16 });
-      tone({ t0: t0 + 0.07, type: 'square', freq: 1500, duration: 0.025, gain: 0.03 });
-    },
-  },
-  /** DROP: a heavier lever: thunk plus a rising motor start. */
-  dropPress: {
-    minInterval: 0.2,
-    play: ({ tone, noise, t0 }) => {
-      noise({ t0, duration: 0.06, gain: 0.2, freq: 800 });
-      tone({ t0, type: 'sine', freq: 150, freqEnd: 95, duration: 0.12, gain: 0.18 });
-      tone({ t0: t0 + 0.06, type: 'sawtooth', freq: 70, freqEnd: 110, duration: 0.22, gain: 0.03 });
-    },
-  },
   /** The winch taking the cable in (rising) or paying it out (falling), with a ratchet tick. */
   winchUp: {
     minInterval: 0.25,
@@ -291,14 +197,6 @@ const SOUNDS = {
       noise({ t0, duration: 0.03, gain: 0.1, filter: 'highpass', freq: 4200 });
     },
   },
-  hammer: {
-    minInterval: 0.09,
-    play: ({ tone, noise, t0, options }) => {
-      const pitch = 200 + (options?.variant ?? 0) * 40;
-      noise({ t0, duration: 0.05, gain: 0.22, freq: 1500 });
-      tone({ t0, type: 'triangle', freq: pitch, freqEnd: pitch * 0.7, duration: 0.05, gain: 0.1 });
-    },
-  },
   /** A cartoon hammer hit on steel: knock, ring and a little thud (each corner of a fitted frame). */
   clank: {
     minInterval: 0.08,
@@ -332,30 +230,6 @@ const SOUNDS = {
       tone({ t0: t0 + 0.26, type: 'triangle', freq: 262, freqEnd: 236, duration: 0.36, gain: 0.16 });
     },
   },
-  creak: {
-    minInterval: 0.4,
-    play: ({ tone, noise, t0 }) => {
-      tone({ t0, type: 'sawtooth', freq: 95, freqEnd: 68, duration: 0.9, gain: 0.05, release: 0.6 });
-      noise({ t0, duration: 0.9, gain: 0.07, filter: 'bandpass', freq: 420, freqEnd: 260, q: 3, release: 0.6 });
-    },
-  },
-  collapse: {
-    loud: true,
-    minInterval: 1,
-    play: ({ tone, noise, t0 }) => {
-      noise({ t0, duration: 1.3, gain: 0.45, freq: 320, freqEnd: 110, release: 0.9 });
-      tone({ t0, type: 'sine', freq: 62, freqEnd: 40, duration: 0.9, gain: 0.3, release: 0.7 });
-      [0.18, 0.36, 0.6, 0.82].forEach((offset, index) => noise({ t0: t0 + offset, duration: 0.08, gain: 0.26 - index * 0.04, freq: 900 }));
-    },
-  },
-  splash: {
-    loud: true,
-    minInterval: 0.5,
-    play: ({ noise, t0 }) => {
-      noise({ t0, duration: 0.55, gain: 0.34, filter: 'bandpass', freq: 1100, freqEnd: 380, q: 1.2, release: 0.4 });
-      noise({ t0: t0 + 0.05, duration: 0.3, gain: 0.12, filter: 'highpass', freq: 3200 });
-    },
-  },
   celebration: {
     loud: true,
     minInterval: 1,
@@ -368,14 +242,6 @@ const SOUNDS = {
   whoosh: {
     minInterval: 0.2,
     play: ({ noise, t0 }) => noise({ t0, duration: 0.38, gain: 0.2, filter: 'bandpass', freq: 500, freqEnd: 2600, q: 0.9, release: 0.2 }),
-  },
-  thud: {
-    loud: true,
-    minInterval: 0.2,
-    play: ({ tone, noise, t0 }) => {
-      tone({ t0, type: 'sine', freq: 90, freqEnd: 55, duration: 0.22, gain: 0.28 });
-      noise({ t0, duration: 0.06, gain: 0.14, freq: 500 });
-    },
   },
 };
 
@@ -448,22 +314,6 @@ const LOOPS = {
           setTimeout(() => { oscillator.stop(); flutter.stop(); }, 250);
         },
       };
-    },
-  },
-  construction: {
-    start({ context, out, buffer }) {
-      const tone = makeTone(context, out);
-      const noise = makeNoise(context, out, buffer);
-      let beat = 0;
-      const timer = setInterval(() => {
-        const t0 = context.currentTime + 0.02;
-        const variant = beat % 3;
-        noise({ t0, duration: 0.05, gain: 0.16, freq: 1400 + variant * 300 });
-        tone({ t0, type: 'triangle', freq: 210 + variant * 35, freqEnd: 150, duration: 0.05, gain: 0.07 });
-        if (beat % 4 === 2) tone({ t0, type: 'sawtooth', freq: 150, freqEnd: 190, duration: 0.3, gain: 0.025, release: 0.2 });
-        beat += 1;
-      }, 175);
-      return { stop: () => clearInterval(timer) };
     },
   },
 };
@@ -620,7 +470,6 @@ export function createAudioManager() {
   let lastLoudAt = 0;
   const lastPlayed = new Map();
   const activeLoops = new Map();
-  const listeners = new Set();
   let music = null;
   let musicWanted = false;
   let musicPaused = false;
@@ -694,9 +543,6 @@ export function createAudioManager() {
     stopAllLoops() {
       for (const name of [...activeLoops.keys()]) this.stopLoop(name);
     },
-    isLooping(name) {
-      return activeLoops.has(name);
-    },
     get muted() {
       return muted;
     },
@@ -708,7 +554,6 @@ export function createAudioManager() {
       } catch {
         /* storage unavailable: mute still applies for this session */
       }
-      for (const listener of listeners) listener(muted);
     },
     /** Effects sit under the narration while a voice line plays. */
     duck(on) {
@@ -736,10 +581,6 @@ export function createAudioManager() {
     toggleMuted() {
       this.setMuted(!muted);
       return muted;
-    },
-    onMuteChange(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
     },
   };
 }

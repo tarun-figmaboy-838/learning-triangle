@@ -1,4 +1,4 @@
-/** Owns the ordered screen flow; one transition at a time, contextual per screen. */
+/** Owns the screen flow: one transition at a time, each screen with its own enter / exit. */
 export function createScreenManager({ gameState, onError }) {
   const screens = new Map();
   let current = null;
@@ -10,9 +10,6 @@ export function createScreenManager({ gameState, onError }) {
     },
     get currentName() {
       return current?.name ?? null;
-    },
-    get isTransitioning() {
-      return transitioning;
     },
     async go(name, payload) {
       if (transitioning) return false;

@@ -1,10 +1,11 @@
 import { VO_LINES } from '../data/vo-lines.js';
 
 /**
- * Narration player in the Fishing Frenzy style: one reused <audio>, lines looked up by the exact
- * text on screen, unlocked by the Start tap, SFX ducked while a voice plays, every clip prefetched
- * quietly after Start. Without a clip (or with ?vo=0) the line falls back to the device's speech
- * voice, and without that it is simply shown for a reading-pace moment. Nothing ever blocks the game.
+ * Narration player: one reused <audio>, lines looked up by the exact text on screen, unlocked by the
+ * Start tap, effects ducked while a voice plays, every clip prefetched quietly after Start. Clips ship
+ * as Ogg Opus with an AAC / MP3 twin for browsers without Opus (older iPhones and iPads). A line
+ * without a clip (or with ?vo=0) is shown at a reading pace; `?speech=1` lets the device voice read it.
+ * Nothing ever blocks the game.
  */
 const VO_DIR = 'assets/audio/vo/';
 /** A twentieth of a second of silence: unlocks audio on tablets without ever sounding a real line. */
@@ -47,18 +48,13 @@ export function createVoiceManager({ audio }) {
   let prefetchStarted = false;
   let settleCurrent = null; // resolves the line that is playing, so stop() never leaves a promise hanging
 
-  // The production build (dist/) ships every clip as small Ogg Opus too and marks <html data-vo-ogg>;
-  // browsers that can play it (Chrome, Firefox, Edge, newer Safari) take the Ogg, the rest keep the MP3.
-  const useOgg = Boolean(element) && document.documentElement.hasAttribute('data-vo-ogg')
-    && element.canPlayType('audio/ogg; codecs="opus"') !== '';
-  const fileFor = (clip) => (useOgg ? clip.file.replace(/\.mp3$/, '.ogg') : clip.file);
+  // Browsers that play Opus (Chrome, Firefox, Edge, newer Safari) take the small Ogg; the rest the AAC / MP3 twin.
+  const useOgg = Boolean(element) && element.canPlayType('audio/ogg; codecs="opus"') !== '';
+  const fileFor = (clip) => (useOgg && clip.ogg ? clip.ogg : clip.file);
   const clipFor = (text) => VO_LINES[normalize(text)] ?? null;
-  const sourceFor = (clip) => blobUrls.get(clip.file) ?? VO_DIR + fileFor(clip);
+  const sourceFor = (clip) => blobUrls.get(fileFor(clip)) ?? VO_DIR + fileFor(clip);
 
-  /**
-   * Until the beaver's studio lines exist, the device reads them: a MALE Indian English voice first, so it
-   * sounds like the operator's recorded voice (Male Teacher), then any Indian English voice, then the rest.
-   */
+  /** Review only (`?speech=1`): a male Indian English device voice first, close to the beaver's studio voice. */
   const MALE_VOICE_NAMES = ['rishi', 'aman', 'ravi', 'prabhat', 'hemant', 'kumar', 'daniel', 'arthur', 'oliver', 'aaron', 'alex', 'fred', 'guy', 'ryan', 'thomas'];
   const FEMALE_VOICE_NAMES = ['tara', 'veena', 'isha', 'lekha', 'heera', 'neerja', 'kalpana', 'swara', 'samantha', 'karen', 'moira', 'tessa', 'fiona', 'victoria', 'kate', 'serena', 'susan', 'zira', 'aria', 'jenny', 'female'];
   const nameHas = (voice, names) => names.some((n) => voice.name?.toLowerCase().includes(n));
@@ -149,12 +145,6 @@ export function createVoiceManager({ audio }) {
   }
 
   return {
-    get hasRecordedClips() {
-      return clipsEnabled;
-    },
-    hasClip(text) {
-      return Boolean(clipFor(text));
-    },
     /** Call inside the first user gesture (Start): a muted play unlocks audio on tablets. */
     unlock() {
       if (!clipsEnabled || unlocked) return;
@@ -221,11 +211,11 @@ export function createVoiceManager({ audio }) {
     prefetch() {
       if (!clipsEnabled || prefetchStarted || location.protocol === 'file:' || typeof fetch !== 'function') return;
       prefetchStarted = true;
-      const files = [...new Set(Object.values(VO_LINES).map((clip) => clip.file))];
+      const files = [...new Set(Object.values(VO_LINES).map(fileFor))];
       (async () => {
         for (const file of files) {
           try {
-            const response = await fetch(VO_DIR + (useOgg ? file.replace(/\.mp3$/, '.ogg') : file));
+            const response = await fetch(VO_DIR + file);
             if (response.ok) blobUrls.set(file, URL.createObjectURL(await response.blob()));
           } catch {
             /* the clip streams when it is needed instead */
