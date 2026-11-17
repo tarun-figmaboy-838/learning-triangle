@@ -1,14 +1,14 @@
-"""Compresses the game's media in place, at visually lossless quality.
+"""Compresses the game's media in place without lowering its quality.
 
   python3 tools/media.py            convert every PNG under assets/images and every narration clip without an Ogg
 
 Images
   - every PNG becomes WebP and the PNG is removed;
-  - small, crisp parts (lossless costs at most LOSSLESS_MAX_KB) and repeating tiles stay lossless: every pixel kept;
-  - larger paintings are WebP quality 90 with full-quality alpha (they are drawn well below their source size);
-  - opaque backdrops in AVIF_TOO also get an AVIF (quality 80, 4:4:4 chroma), served first where supported.
+  - every WebP is lossless: every pixel of the PNG is kept (repeating tiles also keep the colour under clear pixels);
+  - opaque backdrops in AVIF_TOO also get an AVIF (4:4:4 chroma), served first where supported: the lowest quality
+    that still measures visually identical to the PNG (PSNR >= AVIF_MIN_DB), never a visible loss.
 Narration
-  - each clip in assets/audio/vo (AAC .m4a or MP3) gets an Ogg Opus twin (40 kbps mono, transparent for
+  - each clip in assets/audio/vo (AAC .m4a or MP3) gets an Ogg Opus twin (64 kbps mono, transparent for
     speech). The original stays as the fallback for browsers without Opus; js/data/vo-lines.js lists both.
 
 New art from Figma: drop the PNG in its folder, run this script, reference the .webp.
@@ -27,10 +27,9 @@ IMAGES = os.path.join(ROOT, "assets", "images")
 VO_DIR = os.path.join(ROOT, "assets", "audio", "vo")
 VO_LINES = os.path.join(ROOT, "js", "data", "vo-lines.js")
 
-WEBP_QUALITY = 90
-AVIF_QUALITY = 80
-LOSSLESS_MAX_KB = 64
-OPUS_BITRATE = 40000
+AVIF_QUALITIES = (85, 90, 94, 97, 100)
+AVIF_MIN_DB = 45.0
+OPUS_BITRATE = 64000
 # Drawn as repeating backgrounds: lossless, so the tiles meet without seams.
 LOSSLESS = {"bridge/deck-tile.png", "crane/cable-tile.png", "crane/jib-tile.png", "crane/tower-mast.png"}
 # Large opaque paintings: an AVIF is offered first (much smaller), the WebP is the fallback.
@@ -41,22 +40,42 @@ def kb(path):
     return os.path.getsize(path) / 1024
 
 
+def psnr(a, b):
+    """Picture match in dB (99 = identical); >= 45 dB cannot be told apart by eye."""
+    import numpy as np
+
+    x = np.asarray(a.convert("RGB"), dtype=np.float64)
+    y = np.asarray(b.convert("RGB"), dtype=np.float64)
+    mse = float(np.mean((x - y) ** 2))
+    return 99.0 if mse == 0 else 10 * np.log10(255 ** 2 / mse)
+
+
+def to_avif(image, target):
+    """The smallest AVIF that still measures visually identical to the image; returns its PSNR."""
+    import io
+    from PIL import Image
+
+    for quality in AVIF_QUALITIES:
+        buffer = io.BytesIO()
+        image.save(buffer, "AVIF", quality=quality, speed=4, subsampling="4:4:4")
+        score = psnr(image, Image.open(io.BytesIO(buffer.getvalue())))
+        if score >= AVIF_MIN_DB or quality == AVIF_QUALITIES[-1]:
+            with open(target, "wb") as handle:
+                handle.write(buffer.getvalue())
+            return score
+
+
 def to_webp(png):
-    """PNG -> WebP next to it (lossless for tiles and small parts); returns the WebP path."""
+    """PNG -> lossless WebP next to it (and an AVIF for backdrops in AVIF_TOO); returns the WebP path."""
     from PIL import Image
 
     rel = os.path.relpath(png, IMAGES)
     target = os.path.splitext(png)[0] + ".webp"
     with Image.open(png) as image:
         image.load()
-        # Lossless WebP is rarely under half the PNG, so big PNGs skip straight to the lossy encode.
-        lossless = rel in LOSSLESS or kb(png) <= 2 * LOSSLESS_MAX_KB
-        if lossless:
-            image.save(target, "WEBP", lossless=True, quality=100, method=6, exact=rel in LOSSLESS)
-        if not lossless or (rel not in LOSSLESS and kb(target) > LOSSLESS_MAX_KB):
-            image.save(target, "WEBP", quality=WEBP_QUALITY, alpha_quality=100, method=6)
+        image.save(target, "WEBP", lossless=True, quality=100, method=6, exact=rel in LOSSLESS)
         if rel in AVIF_TOO:
-            image.save(os.path.splitext(png)[0] + ".avif", "AVIF", quality=AVIF_QUALITY, speed=4, subsampling="4:4:4")
+            to_avif(image, os.path.splitext(png)[0] + ".avif")
     return target
 
 

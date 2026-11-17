@@ -65,9 +65,11 @@ tools/
 
 ## Media
 
-All art is WebP. Small, crisp parts (claw, jib, beams, deck pieces) are lossless; larger paintings are
-quality 90 with full-quality alpha; the full-screen canal backdrop is AVIF with a WebP fallback. Narration
-plays Ogg Opus where the browser supports it and the AAC / MP3 twin elsewhere (older iPhones and iPads).
+Quality first: optimisation never lowers what the player sees or hears. All art is lossless WebP (every
+pixel of the PNG kept, still about 40% smaller than the PNGs); the full-screen canal backdrop is also offered
+as an AVIF, served first, that measures visually identical to the PNG (PSNR at least 45 dB) at a tenth of the
+size. Narration plays Ogg Opus at 64 kbps (transparent for speech) where the browser supports it and the AAC /
+MP3 twin elsewhere (older iPhones and iPads).
 
 New art from Figma: put the PNG in its folder and run `python3 tools/media.py` (it writes the WebP and removes
 the PNG), then reference the `.webp`. New narration: see "Voice-over" in docs/LEARNING.md.
