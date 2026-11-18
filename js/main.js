@@ -54,6 +54,11 @@ const CRITICAL_IMAGES = [
   'assets/images/ui/replay-button.webp',
   'assets/images/fx/ripple-1.webp',
   'assets/images/fx/ripple-2.webp',
+].map((src) => ({ key: src, src }));
+
+/** The workshop's art (lossless, the larger part of the download): fetched while the title and the hook
+ *  play, and only waited for, if it is still coming, when the lesson opens. */
+const LESSON_IMAGES = [
   BOARD.backdrop,
   ...GUIDE_IMAGES,
   ...WIDGET_IMAGES,
@@ -111,6 +116,9 @@ async function boot() {
     whenImageReady(els.stage.querySelector('.backdrop img')),
   ]);
   if (missing.size) console.error('[assets] required assets failed to load:', [...missing]);
+  const lessonImages = preloadImages(LESSON_IMAGES).then(({ missing: lost }) => {
+    if (lost.size) console.error('[assets] lesson assets failed to load:', [...lost]);
+  });
 
   const craneDom = buildCraneDom(els.crane, els.platform);
   startWater({ waterLayer: els.water });
@@ -134,7 +142,8 @@ async function boot() {
   const context = { els, gameState, audio, voice, camera, fx, claw, crane, triangles, bridge, feedback, builder, screenManager, startScreen: 'hook', learningNext: 'end' };
   screenManager.register('title', createTitleScreen(context));
   screenManager.register('hook', createHookScreen({ ...context, nextScreen: 'learning', sayFramesLine: true }));
-  screenManager.register('learning', createLearningScreen(context));
+  const learning = createLearningScreen(context);
+  screenManager.register('learning', { ...learning, async enter(payload) { await lessonImages; return learning.enter(payload); } });
   screenManager.register('end', createLearningEndScreen(context));
 
   loop.add(crane.update);
